@@ -1,0 +1,36 @@
+view: filter(filterNot,splitWhere),map,flatMap,take,drop,takeWhile,splitWhile,slice,partition,
+iterator
+isEmpty/nonEmpty(no, not ruby)/size/lengthCompare/hasDefinteSize??
+cons/concat
+filter/contains/any/all/none/count(predicate)/find(predicate)/splitWhere
+map/flatMap
+getAt/take/takeRight/drop/splitAt
+takeWhile/span(split by predicate, splitWhile?)
+slice/patch/partition(size)/flatten/braid/unbraid
+zip/zipWithIndex/zipAll/corresponds/pad(?)
+fold/forEach/scan
+difference/union/intersection/subsetOf/disjoint/split(intersect + diff)
+distinct/group(ie toIndex)
+max/min/maxBy/sort/kMin/median (toSortedContainer?)
+updatedAt/withoutElement
+startsWith/endsWith/containsSlice
+first/rest/init/last
+indexOf/lastIndexOf/indexOfSlice/indexWhere(predicate)
+indices
+reverse
+equalOrdered/equalUnordered
+transpose/unzip
+(map)getByKey/containsKey/keys/values/mapValues
+mkString
+combinations/permutations (no, algorithmy)
+prefixLength??/segmentLength?? (no, algorithmy)
+
+something.view().filter(n -> n % 2).map(n -> n * n).force()
+
+specialisations
+- option
+  - map -> option
+  - filter -> option
+- set
+  - filter -> set
+  - intersection -> set
