@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.bitbucket.jancellor</groupId>
     <artifactId>seqly</artifactId>
-    <version>release-SNAPSHOT</version>
+    <version>dev-SNAPSHOT</version>
     <name>Seqly</name>
     <description>A tiny collections library</description>
     <url>https://bitbucket.org/jancellor/seqly/</url>
