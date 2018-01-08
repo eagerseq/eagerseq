@@ -23,6 +23,8 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
+
 public interface SeqStream<E> extends Stream<E> {
 
     public static <E> SeqStream<E> view(Iterator<? extends E> iterator) {
@@ -47,6 +49,11 @@ public interface SeqStream<E> extends Stream<E> {
     public static <E> SeqStream<E> concat(
             Stream<? extends E> first, Stream<? extends E> second) {
         return view(Stream.concat(first, second));
+    }
+
+    public static <E> SeqStream<E> concat(
+            Stream<? extends Stream<? extends E>> streams) {
+        return view(streams.<E>flatMap(identity()));
     }
 
     public static <E> SeqStream<E> cycle(Iterable<E> iterable) {
@@ -79,9 +86,31 @@ public interface SeqStream<E> extends Stream<E> {
         });
     }
 
-    public default <F> SeqStream<F> flattenIterables(
-            Function<? super E, ? extends Iterable<? extends F>> function) {
-        return flatMap(function.andThen(Util::stream));
+    public default SeqStream<Seq<E>> grouped(int size) {
+        return view(Util.grouped(spliterator(), size)).map(Seq::view);
+    }
+
+    public default <R> SeqStream<R> zip(
+            BiFunction<? super E, Integer, ? extends R> function) {
+        return view(Util.zip(spliterator(), function));
+    }
+
+    public default <F, R> SeqStream<R> zip(
+            Stream<? extends F> that,
+            BiFunction<? super E, ? super F, ? extends R> function) {
+        return view(Util.zip(spliterator(), that.spliterator(), function));
+    }
+
+    public default SeqStream<E> intersection(Iterable<?> that) {
+        return view(Util.intersection(spliterator(), that.spliterator()));
+    }
+
+    public default SeqStream<E> difference(Iterable<?> that) {
+        return view(Util.difference(spliterator(), that.spliterator()));
+    }
+
+    public default SeqStream<E> union(Iterable<? extends E> that) {
+        return concat(difference(that), Util.stream(that));
     }
 
     public default <F> SeqStream<F> flattenOptionals(
@@ -159,6 +188,14 @@ public interface SeqStream<E> extends Stream<E> {
         return Util.toArray(this::toArray, ts);
     }
 
+    public default SeqStream<E> limitLast(int size) {
+        return view(Util.limitLast(spliterator(), size));
+    }
+
+    public default SeqStream<E> skipLast(int size) {
+        return view(Util.skipLast(spliterator(), size));
+    }
+
     public default SeqStream<E> takeWhile(Predicate<? super E> predicate) {
         return view(Util.takeWhile(spliterator(), predicate));
     }
@@ -176,15 +213,15 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     public default IntStream mapToInt(ToIntFunction<? super E> mapper) {
-        throw new UnsupportedOperationException();
+        return stream().mapToInt(mapper);
     }
 
     public default LongStream mapToLong(ToLongFunction<? super E> mapper) {
-        throw new UnsupportedOperationException();
+        return stream().mapToLong(mapper);
     }
 
     public default DoubleStream mapToDouble(ToDoubleFunction<? super E> mapper) {
-        throw new UnsupportedOperationException();
+        return stream().mapToDouble(mapper);
     }
 
     public default <R> SeqStream<R> flatMap(
@@ -193,15 +230,15 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     public default IntStream flatMapToInt(Function<? super E, ? extends IntStream> mapper) {
-        throw new UnsupportedOperationException();
+        return stream().flatMapToInt(mapper);
     }
 
     public default LongStream flatMapToLong(Function<? super E, ? extends LongStream> mapper) {
-        throw new UnsupportedOperationException();
+        return stream().flatMapToLong(mapper);
     }
 
     public default DoubleStream flatMapToDouble(Function<? super E, ? extends DoubleStream> mapper) {
-        throw new UnsupportedOperationException();
+        return stream().flatMapToDouble(mapper);
     }
 
     public default SeqStream<E> distinct() {
@@ -318,6 +355,10 @@ public interface SeqStream<E> extends Stream<E> {
         return this;
     }
 
+    /**
+     * Throws {@code UnsupportedOperationException} unconditionally.
+     * @throws UnsupportedOperationException
+     */
     public default SeqStream<E> parallel() {
         throw new UnsupportedOperationException();
     }
@@ -327,17 +368,19 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Handlers are no guaranteed to be called, see {@link #close}.
+     * Throws {@code UnsupportedOperationException} unconditionally.
+     * See {@link #close}.
+     * @throws UnsupportedOperationException
      */
     public default SeqStream<E> onClose(Runnable closeHandler) {
-        return view(stream().onClose(closeHandler));
+        throw new UnsupportedOperationException();
     }
 
     /**
-     * {@link SeqStream} may or may not call close handlers when invoking this
-     * method. Do not rely on the correct behaviour of {@link #onClose}.
+     * {@link SeqStream} does not support close. This method is a no-op.
+     * Close-handlers of any underlying
+     * {@link java.util.stream.Stream Stream} will not be called.
      */
     public default void close() {
-        stream().close();
     }
 }

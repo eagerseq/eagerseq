@@ -1,18 +1,18 @@
 package seqly;
 
 import java.lang.reflect.Array;
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.Spliterators.AbstractSpliterator;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
@@ -98,14 +98,14 @@ class Util {
 
     public static <E> Spliterator<E> cycle(Iterable<? extends E> iterable) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            private Iterator<? extends E> iterator = iterable.iterator();
+            private Spliterator<? extends E> spliterator =
+                    Spliterators.emptySpliterator();
             public boolean tryAdvance(Consumer<? super E> action) {
-                if (!iterator.hasNext()) {
-                    throw new RuntimeException("cannot cycle empty iterable");
-                }
-                action.accept(iterator.next());
-                if (!iterator.hasNext()) {
-                    iterator = iterable.iterator();
+                if (!spliterator.tryAdvance(action::accept)) {
+                    spliterator = iterable.spliterator();
+                    if (!spliterator.tryAdvance(action::accept)) {
+                        throw new RuntimeException("cannot cycle empty iterable");
+                    }
                 }
                 return true;
             }
@@ -153,19 +153,63 @@ class Util {
             Spliterator<? extends E> spliterator, Object object) {
         return new AbstractSpliterator<Integer>(Long.MAX_VALUE, 0) {
             private int index;
-            private boolean found;
+            private E next;
             public boolean tryAdvance(Consumer<? super Integer> action) {
-                found = false;
-                while (spliterator.tryAdvance(e -> {
-                    if (Objects.equals(object, e)) {
-                        action.accept(index);
-                        found = true;
+                while (spliterator.tryAdvance(e -> next = e)) {
+                    if (Objects.equals(object, next)) {
+                        action.accept(index++);
+                        return true;
                     }
                     index++;
-                })) {
-                    if (found) return true;
                 }
                 return false;
+            }
+        };
+    }
+
+    public static <E> Spliterator<E[]> grouped(
+            Spliterator<? extends E> spliterator, int size) {
+        if (size <= 0) throw new IllegalArgumentException("size must be positive");
+        return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
+            private int index;
+            public boolean tryAdvance(Consumer<? super E[]> action) {
+                E[] es = (E[]) new Object[size];
+                index = 0;
+                while (index < size && spliterator.tryAdvance(e -> es[index++] = e)) {
+                }
+                if (index == 0) return false;
+                action.accept(index == size ? es : Arrays.copyOf(es, index));
+                return true;
+            }
+        };
+    }
+
+    public static <E, R> Spliterator<R> zip(
+            Spliterator<? extends E> spliterator,
+            BiFunction<? super E, Integer, ? extends R> function) {
+        return new AbstractSpliterator<R>(
+                spliterator.estimateSize(), spliterator.characteristics()) {
+            private int index;
+            public boolean tryAdvance(Consumer<? super R> action) {
+                return spliterator.tryAdvance(e ->
+                        action.accept(function.apply(e, index++)));
+            }
+        };
+    }
+
+    public static <E, F, R> Spliterator<R> zip(
+            Spliterator<? extends E> first,
+            Spliterator<? extends F> second,
+            BiFunction<? super E, ? super F, ? extends R> function) {
+        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
+            private E nextE;
+            private F nextF;
+            public boolean tryAdvance(Consumer<? super R> action) {
+                boolean hasE = first.tryAdvance(e -> this.nextE = e);
+                boolean hasF = second.tryAdvance(f -> this.nextF = f);
+                if (hasE & hasF) action.accept(function.apply(nextE, nextF));
+                else return false;
+                return true;
             }
         };
     }
@@ -182,20 +226,79 @@ class Util {
         return intersection(first, second, true);
     }
 
+    public static <E> Spliterator limitLast(
+            Spliterator<E> spliterator, int size) {
+        if (size == 0) return Spliterators.emptySpliterator();
+        if (size < 0) throw new IllegalArgumentException();
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            private E next;
+            private int used;
+            private int index;
+            private boolean skipped;
+            private E[] queue = (E[]) new Object[size];
+            public boolean tryAdvance(Consumer<? super E> action) {
+                if (!skipped) {
+                    skipped = true;
+                    while (spliterator.tryAdvance(e -> next = e)) {
+                        queue[index] = next;
+                        index++;
+                        index %= size;
+                        if (used < size) used++;
+                    }
+                    if (used < size) index -= used;
+                }
+                if (used == 0) return false;
+                used--;
+                action.accept(queue[index]);
+                index++;
+                index %= size;
+                return true;
+            }
+        };
+    }
+
+    public static <E> Spliterator skipLast(
+            Spliterator<E> spliterator, int size) {
+        if (size == 0) return spliterator;
+        if (size < 0) throw new IllegalArgumentException();
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            private E next;
+            private int used;
+            private int index;
+            private boolean skipped;
+            private E[] queue = (E[]) new Object[size];
+            public boolean tryAdvance(Consumer<? super E> action) {
+                if (!skipped) {
+                    skipped = true;
+                    while (spliterator.tryAdvance(e -> next = e)) {
+                        queue[index] = next;
+                        index++;
+                        index %= size;
+                        if (used < size) used++;
+                        if (used == size) break;
+                    }
+                }
+                if (used < size) return false;
+                if (!spliterator.tryAdvance(e -> next = e)) return false;
+                action.accept(queue[index]);
+                queue[index] = next;
+                index++;
+                index %= size;
+                return true;
+            }
+        };
+    }
+
     public static <E> Spliterator<E> takeWhile(
             Spliterator<? extends E> spliterator,
             Predicate<? super E> predicate) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            private boolean found;
+            private E next;
             public boolean tryAdvance(Consumer<? super E> action) {
-                if (spliterator.tryAdvance(e -> {
-                    if (predicate.test(e)) {
-                        action.accept(e);
-                    } else {
-                        found = true;
-                    }
-                })) {
-                    return !found;
+                if (spliterator.tryAdvance(e -> next = e)
+                        && predicate.test(next)) {
+                    action.accept(next);
+                    return true;
                 }
                 return false;
             }
@@ -206,16 +309,16 @@ class Util {
             Spliterator<? extends E> spliterator,
             Predicate<? super E> predicate) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            private boolean found;
+            private E next;
+            private boolean dropped;
             public boolean tryAdvance(Consumer<? super E> action) {
-                if (!found) {
-                    while (spliterator.tryAdvance(e -> {
-                        if (!predicate.test(e)) {
-                            action.accept(e);
-                            found = true;
+                if (!dropped) {
+                    dropped = true;
+                    while (spliterator.tryAdvance(e -> next = e)) {
+                        if (!predicate.test(next)) {
+                            action.accept(next);
+                            return true;
                         }
-                    })) {
-                        if (found) return true;
                     }
                     return false;
                 }
@@ -228,18 +331,15 @@ class Util {
             Spliterator<? extends E> first,
             Spliterator<?> second,
             boolean complement) {
-        LinkedHashMap<Object, Integer> set = toMultiset(second);
+        Map<Object, Integer> set = toMultiset(second);
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            private boolean found;
+            private E next;
             public boolean tryAdvance(Consumer<? super E> action) {
-                found = false;
-                while (first.tryAdvance(element -> {
-                    if (removeOne(set, element) != complement) {
-                        action.accept(element);
-                        found = true;
+                while (first.tryAdvance(e -> next = e)) {
+                    if (removeOne(set, next) != complement) {
+                        action.accept(next);
+                        return true;
                     }
-                })) {
-                    if (found) return true;
                 }
                 return false;
             }
@@ -259,8 +359,8 @@ class Util {
         return set;
     }
 
-    private static <E> boolean removeOne(
-            LinkedHashMap<E, Integer> set, E element) {
+    private static boolean removeOne(
+            Map<Object, Integer> set, Object element) {
         Integer count = set.get(element);
         if (count != null) {
             count--;

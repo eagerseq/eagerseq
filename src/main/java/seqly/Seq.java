@@ -21,6 +21,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.joining;
+
 public interface Seq<E> extends Collection<E> {
 
     @SafeVarargs
@@ -85,48 +87,16 @@ public interface Seq<E> extends Collection<E> {
     }
 
     public static <E> Seq<E> concat(
-            Collection<? extends E> first, Collection<? extends E> second) {
-        return SeqStream.concat(first.stream(), second.stream()).collect();
+            Iterable<? extends E> first, Iterable<? extends E> second) {
+        return SeqStream.concat(Util.stream(first), Util.stream(second))
+                .collect();
     }
 
-    /**
-     * Returns the intersection of two sets. When there are repeated elements,
-     * this returns the multiset definition of the intersection. That is,
-     * when there are <tt>a</tt> equal elements in <tt>first</tt> and
-     * <tt>b</tt> in <tt>second</tt>, the result contains <tt>a - b</tt>
-     * elements or none if that would be negative. Specifically, it contains
-     * those elements which occur earliest in the encounter order. The
-     * {@link #difference} contains the remaining elements.
-     * Note, this multiset definition is consistent with the ordinary set
-     * definition when there are not repeated elements. However it is
-     * not exactly equivalent to the mutable methods
-     * {@link java.util.Collection#containsAll(Collection) containsAll},
-     * {@link java.util.Collection#removeAll(Collection) removeAll} and
-     * {@link java.util.Collection#retainAll(Collection) retainAll}.
-     */
-    public static <E> Seq<E> intersection(
-            Collection<? extends E> first, Collection<? extends E> second) {
-        return copy(Util.intersection(first.spliterator(), second.spliterator()));
-    }
-
-    /**
-     * Returns the difference of two sets. When there are repeated elements,
-     * this returns the multiset definition of the difference. See
-     * {@link #intersection}.
-     */
-    public static <E> Seq<E> difference(
-            Collection<? extends E> first, Collection<? extends E> second) {
-        return copy(Util.difference(first.spliterator(), second.spliterator()));
-    }
-
-    /**
-     * Returns the union of two sets. When there are repeated elements,
-     * this returns the multiset definition of the union. See
-     * {@link #intersection}.
-     */
-    public static <E> Seq<E> union(
-            Collection<? extends E> first, Collection<? extends E> second) {
-        return concat(difference(first, second), second);
+    public static <E> Seq<E> concat(
+            Iterable<? extends Iterable<? extends E>> iterables) {
+        return SeqStream.<E>concat(
+                Util.stream(iterables).map(Util::stream))
+                .collect();
     }
 
     public abstract Spliterator<E> spliterator();
@@ -147,9 +117,63 @@ public interface Seq<E> extends Collection<E> {
         return stream().collect(supplier, accumulator);
     }
 
-    public default <F> Seq<F> flattenIterables(
-            Function<? super E, ? extends Iterable<? extends F>> function) {
-        return stream().<F>flattenIterables(function).collect();
+    public default Seq<Seq<E>> grouped(int size) {
+        return stream().grouped(size).collect();
+    }
+
+    public default <R> Seq<R> zip(
+            BiFunction<? super E, Integer, ? extends R> function) {
+        return stream().<R>zip(function).collect();
+    }
+
+    public default <F, R> Seq<R> zip(
+            Iterable<? extends F> that,
+            BiFunction<? super E, ? super F, ? extends R> function) {
+        return stream().<F, R>zip(Util.stream(that), function).collect();
+    }
+
+    /**
+     * Returns the intersection of two sets. When there are repeated elements,
+     * this returns the multiset definition of the intersection. That is,
+     * when there are <tt>a</tt> equal elements in <tt>first</tt> and
+     * <tt>b</tt> in <tt>second</tt>, the result contains <tt>a - b</tt>
+     * elements or none if that would be negative. Specifically, it contains
+     * those elements which occur earliest in the encounter order. The
+     * {@link #difference} contains the remaining elements.
+     * Note, this multiset definition is consistent with the ordinary set
+     * definition when there are not repeated elements. However it is
+     * not exactly equivalent to the mutable methods
+     * {@link java.util.Collection#containsAll(Collection) containsAll},
+     * {@link java.util.Collection#removeAll(Collection) removeAll} and
+     * {@link java.util.Collection#retainAll(Collection) retainAll}.
+     */
+    public default Seq<E> intersection(Iterable<?> that) {
+        return stream().intersection(that).collect();
+    }
+
+    /**
+     * Returns the difference of two sets. When there are repeated elements,
+     * this returns the multiset definition of the difference. See
+     * {@link #intersection}.
+     */
+    public default Seq<E> difference(Iterable<?> that) {
+        return stream().difference(that).collect();
+    }
+
+    /**
+     * Returns the union of two sets. When there are repeated elements,
+     * this returns the multiset definition of the union. That is,
+     * the multiplicity of elements in the result is the maximum of the
+     * multiplicity of elements from both inputs.
+     * See {@link #intersection}.
+     */
+    public default Seq<E> union(Iterable<? extends E> that) {
+        return stream().union(that).collect();
+    }
+
+    public default <R> Seq<R> flatMap(
+            Function<? super E, ? extends Iterable<? extends R>> mapper) {
+        return stream().<R>flatMap(mapper.andThen(Util::stream)).collect();
     }
 
     public default <F> Seq<F> flattenOptionals(
@@ -201,6 +225,14 @@ public interface Seq<E> extends Collection<E> {
         return stream().shuffled(random).collect();
     }
 
+    public default Seq<E> limitLast(int size) {
+        return stream().limitLast(size).collect();
+    }
+
+    public default Seq<E> skipLast(int size) {
+        return stream().skipLast(size).collect();
+    }
+
     public default Seq<E> takeWhile(Predicate<? super E> predicate) {
         return stream().takeWhile(predicate).collect();
     }
@@ -215,11 +247,6 @@ public interface Seq<E> extends Collection<E> {
 
     public default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
         return stream().<R>map(mapper).collect();
-    }
-
-    public default <R> Seq<R> flatMap(
-            Function<? super E, ? extends Stream<? extends R>> mapper) {
-        return stream().<R>flatMap(mapper).collect();
     }
 
     public default Seq<E> distinct() {
@@ -316,6 +343,17 @@ public interface Seq<E> extends Collection<E> {
         return stream().findAny();
     }
 
+    public default String toString(CharSequence delimiter) {
+        return stream().map(Object::toString)
+                .collect(joining(delimiter));
+    }
+
+    public default String toString(
+            CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
+        return stream().map(Object::toString)
+                .collect(joining(delimiter, prefix, suffix));
+    }
+
     public default int size() {
         return stream().size();
     }
@@ -371,10 +409,6 @@ public interface Seq<E> extends Collection<E> {
 
     public default SeqStream<E> stream() {
         return SeqStream.view(spliterator());
-    }
-
-    public default SeqStream<E> parallelStream() {
-        throw new UnsupportedOperationException();
     }
 
     public default Iterator<E> iterator() {

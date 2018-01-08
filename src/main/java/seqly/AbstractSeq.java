@@ -3,8 +3,6 @@ package seqly;
 import java.util.Iterator;
 import java.util.Objects;
 
-import static java.util.stream.Collectors.joining;
-
 public abstract class AbstractSeq<E> implements Seq<E> {
 
     public int hashCode() {
@@ -35,7 +33,6 @@ public abstract class AbstractSeq<E> implements Seq<E> {
     }
 
     public String toString() {
-        return map(Objects::toString)
-                .collect(joining(", ", "[", "]"));
+        return toString(", ", "[", "]");
     }
 }

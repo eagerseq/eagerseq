@@ -47,7 +47,7 @@ public class SeqTest {
     @Parameters(name = "{0}")
     public static Iterable<Object[]> parametersList() {
         return Seq.of(
-                parameters("default implementation", TestSeq::new),
+                parameters("default", TestSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
                 parameters("Seq#copy(E[])", Seq::copy),
                 parameters("Seq#view(E[])", Seq::view),
@@ -109,7 +109,7 @@ public class SeqTest {
         Seq<String> implementedMethods = Seq.view(Seq.class.getMethods())
                 .map(m -> m.getName().toLowerCase())
                 .distinct();
-        assertThat(Seq.difference(implementedMethods, testMethods), empty());
+        assertThat(implementedMethods.difference(testMethods), empty());
     }
 
     @Test
@@ -190,40 +190,13 @@ public class SeqTest {
     @Test
     public void testConcat() {
         assertThat(
-                Seq.concat(Seq.of(0, 1), Seq.of(2, 3)),
+                Seq.concat(seqOf(0, 1), seqOf(2, 3)),
                 contains(0, 1, 2, 3));
-        assertThrows(() -> Seq.concat(Seq.of(), null));
-        assertThrows(() -> Seq.concat(null, Seq.of()));
-    }
-
-    @Test
-    public void testIntersection() {
+        assertThrows(() -> Seq.concat(seqOf(), null));
+        assertThrows(() -> Seq.concat(null, seqOf()));
         assertThat(
-                Seq.intersection(Seq.of(0, 1), Seq.of(1, 2)),
-                contains(1));
-        assertThat(
-                Seq.intersection(Seq.of(0, 0, 0, 0, 0), Seq.of(0, 0)),
-                contains(0, 0));
-    }
-
-    @Test
-    public void testDifference() {
-        assertThat(
-                Seq.difference(Seq.of(0, 1), Seq.of(1, 2)),
-                contains(0));
-        assertThat(
-                Seq.difference(Seq.of(0, 0, 0, 0, 0), Seq.of(0, 0)),
-                contains(0, 0, 0));
-    }
-
-    @Test
-    public void testUnion() {
-        assertThat(
-                Seq.union(Seq.of(0, 1), Seq.of(1, 2)),
-                contains(0, 1, 2));
-        assertThat(
-                Seq.union(Seq.of(0, 0, 0, 0, 0), Seq.of(0, 0)),
-                contains(0, 0, 0, 0, 0));
+                Seq.concat(seqOf(seqOf(0, 1), seqOf(2), seqOf(3, 4))),
+                contains(0, 1, 2, 3, 4));
     }
 
     @Test
@@ -262,11 +235,57 @@ public class SeqTest {
     }
 
     @Test
-    public void testFlattenIterables() {
+    public void testGrouped() {
+        assertThrows(() -> seqOf(0, 1, 2).grouped(0));
+        assertThrows(() -> seqOf(0, 1, 2).grouped(-2));
+        assertThat(seqOf(0, 1).grouped(3), contains(seqOf(0, 1)));
+        assertThat(seqOf(0, 1, 2).grouped(3), contains(seqOf(0, 1, 2)));
+        assertThat(seqOf(0, 1, 2, 3, 4).grouped(2),
+                contains(seqOf(0, 1), seqOf(2, 3), seqOf(4)));
+        assertThat(seqOf(0, 1, 2, 3, 4).grouped(3),
+                contains(seqOf(0, 1, 2), seqOf(3, 4)));
+    }
+
+    @Test
+    public void testZip() {
         assertThat(
-                seqOf(seqOf(0, 1, 2), seqOf(3, 4))
-                        .flattenIterables(identity()),
-                contains(0, 1, 2, 3, 4));
+                seqOf(0, 1, 2, 3).zip(seqOf(1, 1, 1, 1), Math::min),
+                contains(0, 1, 1, 1));
+        assertThat(seqOf(0, 7).zip(seqOf(2, 3, 4), Math::min), contains(0, 3));
+        assertThat(seqOf(0, 7, 2).zip(seqOf(3, 4), Math::min), contains(0, 4));
+        assertThat(
+                seqOf("zero", "one", "two").zip((e, i) -> i + ":" + e),
+                contains("0:zero", "1:one", "2:two"));
+    }
+
+    @Test
+    public void testIntersection() {
+        assertThat(
+                seqOf(0, 1).intersection(seqOf(1, 2)),
+                contains(1));
+        assertThat(
+                seqOf(0, 0, 0, 0, 0).intersection(seqOf(0, 0)),
+                contains(0, 0));
+    }
+
+    @Test
+    public void testDifference() {
+        assertThat(
+                seqOf(0, 1).difference(seqOf(1, 2)),
+                contains(0));
+        assertThat(
+                seqOf(0, 0, 0, 0, 0).difference(seqOf(0, 0)),
+                contains(0, 0, 0));
+    }
+
+    @Test
+    public void testUnion() {
+        assertThat(
+                seqOf(0, 1).union(seqOf(1, 2)),
+                contains(0, 1, 2));
+        assertThat(
+                seqOf(0, 0, 0, 0, 0).union(seqOf(0, 0)),
+                contains(0, 0, 0, 0, 0));
     }
 
     @Test
@@ -365,6 +384,26 @@ public class SeqTest {
     }
 
     @Test
+    public void testLimitLast() {
+        assertThat(seqOf().limitLast(2), empty());
+        assertThat(seqOf(0, 1, 2).limitLast(0), empty());
+        assertThat(seqOf(0, 1, 2).limitLast(5), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2, 3, 4).limitLast(2), contains(3, 4));
+        assertThat(seqOf(0, 1, 2, 3, 4, 5).limitLast(3), contains(3, 4, 5));
+        assertThrows(() -> seqOf(0, 1, 2).limitLast(-2));
+    }
+
+    @Test
+    public void testSkipLast() {
+        assertThat(seqOf().skipLast(2), empty());
+        assertThat(seqOf(0, 1, 2).skipLast(0), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2).skipLast(5), empty());
+        assertThat(seqOf(0, 1, 2, 3, 4).skipLast(2), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2, 3, 4, 5).skipLast(3), contains(0, 1, 2));
+        assertThrows(() -> seqOf(0, 1, 2).skipLast(-2));
+    }
+
+    @Test
     public void testTakeWhile() {
         assertThat(seqOf().takeWhile(n -> false), empty());
         assertThat(seqOf().takeWhile(n -> true), empty());
@@ -393,14 +432,17 @@ public class SeqTest {
     public void testMap() {
         assertThat(seqOf().map(identity()), empty());
         assertThat(seqOf(0, 1, 2).map(n -> n * 2), contains(0, 2, 4));
-        assertThat(seqOf("", null).map(s -> s == null ? "" : null), contains(null, ""));
+        assertThat(
+                seqOf("", null).map(s -> s == null ? "" : null),
+                contains(null, ""));
     }
 
     @Test
     public void testFlatMap() {
         assertThat(
-                seqOf("").flatMap(o -> seqOf(1).stream()),
-                equalTo(seqOf(1)));
+                seqOf(seqOf(0, 1, 2), seqOf(3, 4))
+                        .flatMap(identity()),
+                contains(0, 1, 2, 3, 4));
     }
 
     @Test
@@ -410,8 +452,11 @@ public class SeqTest {
 
     @Test
     public void testSorted() {
-        assertThat(seqOf(2, 3, 1, 0, 4).sorted(naturalOrder()),
+        assertThat(seqOf(2, 3, 1, 0, 4).sorted(),
                 contains(0, 1, 2, 3, 4));
+        assertThat(seqOf("two", "three", "one", "zero", "four")
+                        .sorted(comparing(String::length)),
+                contains("two", "one", "zero", "four", "three"));
     }
 
     @Test
@@ -609,7 +654,7 @@ public class SeqTest {
 
     @Test
     public void testParallelStream() {
-        assertThrows(() -> seqOf(0, 1, 2).parallelStream());
+        seqOf(0, 1, 2).parallelStream().collect(toList());
     }
 
     @Test
@@ -647,6 +692,9 @@ public class SeqTest {
         assertThat(seqOf().toString(), equalTo("[]"));
         assertThat(seqOf(0).toString(), equalTo("[0]"));
         assertThat(seqOf(0, 1).toString(), equalTo("[0, 1]"));
+        assertThat(seqOf("seq", "ly").toString(""), equalTo("seqly"));
+        assertThat(seqOf(true, false).toString("|", "<", ">"),
+                equalTo("<true|false>"));
     }
 
     @SafeVarargs
