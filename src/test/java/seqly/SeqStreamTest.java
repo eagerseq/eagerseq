@@ -11,7 +11,7 @@ import org.junit.Test;
 public class SeqStreamTest {
 
     @Test
-    public void testAllStreamReturningMethodsReturnSeqStream() throws Exception {
+    public void testAllStreamReturningMethodsReturnSeqStream() {
         for (Method method : SeqStream.class.getMethods()) {
             if (Stream.class.isAssignableFrom(method.getReturnType())
                     && !method.isSynthetic()

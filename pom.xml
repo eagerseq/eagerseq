@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.bitbucket.jancellor</groupId>
     <artifactId>seqly</artifactId>
-    <version>dev-SNAPSHOT</version>
+    <version>develop-SNAPSHOT</version>
     <name>Seqly</name>
     <description>A tiny collections library</description>
     <url>https://bitbucket.org/jancellor/seqly/</url>
@@ -70,15 +70,15 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <doclint>none</doclint>
+                </configuration>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
                         </goals>
-                        <configuration>
-                            <doclint>none</doclint>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

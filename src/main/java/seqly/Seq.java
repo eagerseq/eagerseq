@@ -2,12 +2,15 @@ package seqly;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiConsumer;
@@ -21,60 +24,245 @@ import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 
+/**
+ * <h2>Introduction</h2>
+ *
+ * <p>{@code Seq} extends {@code Collection} and defines eager versions
+ * of almost all {@link java.util.stream.Stream Stream} methods like
+ * {@code map}, {@code filter} and {@code reduce}. For example:
+ *
+ * <pre>{@code
+ *     Seq<Integer> lengths = words.map(String::length);
+ * }</pre>
+ *
+ * <p>Compare with the {@code Stream} version:
+ *
+ * <pre>{@code
+ *     List<Integer> lengths = words.stream()
+ *             .map(String::length)
+ *             .collect(toList());
+ * }</pre>
+ *
+ * <p>These are extremely common operations, and laziness is often not required.
+ * {@code Stream}s are extremely verbose
+ * for this case, hence {@code Seq}.
+ *
+ * <h2>Usage</h2>
+ *
+ * <p>{@code Seq} can be used as the default choice of {@code Collection}
+ * most of the time unless specific features
+ * (such as constant-time {@code contains}) are required.
+ *
+ * <pre>{@code
+ *     Seq.of(0, 1, 2);
+ *
+ *     Seq.Builder<String> builder = Seq.builder();
+ *     while (scanner.hasNext()) {
+ *         builder.add(scanner.next());
+ *     }
+ *     builder.build();
+ * }</pre>
+ *
+ * <p>Most {@code Seq} implementations
+ * support constant-time indexing and are backed by an array or similar.
+ * Only {@code Seq.view(java.lang.Iterable)} in this library does not.
+ *
+ * <h2>Other {@code Collection}s</h2>
+ *
+ * <p>Factory methods convert from existing types.
+ *
+ * <pre>{@code
+ *     Seq.copy(new Integer[]{4, 5})
+ *     Seq.view(Optional.of(6))
+ *     Seq.view(List.of(7, 8))
+ *     Seq.copy(List.of(9, 10).iterator())
+ *     Seq.copy(Stream.of(11, 12, 13))
+ * }</pre>
+ *
+ * <p>Other methods convert to existing types.
+ *
+ * <pre>{@code
+ *     seq.asList()
+ *     seq.asSet()
+ *     seq.asMap(Entity::getId)
+ *     seq.toArray()
+ *     seq.toArray(new String[5])
+ *     seq.toArray(String[]::new)
+ *     seq.findFirst()
+ *     seq.findLast()
+ *     seq.findOnly()
+ *     seq.collect(toList())
+ *     seq.collect(toSet())
+ * }</pre>
+ *
+ * <h2>{@code Stream}s</h2>
+ *
+ * <p>When laziness is desired, {@link Seq#stream()}
+ * can be called as usual, and the resulting type {@link seqly.SeqStream}
+ * retains the additional methods of {@code Seq}.
+ *
+ * <pre>{@code
+ *     Seq<Integer> lengths = words.stream()
+ *             .filter(w -> w.contains("e"))
+ *             .map(String::length)
+ *             .reversed()
+ *             .collect();
+ * }</pre>
+ *
+ * <p>All functional operations defined on {@code Seq} have the same
+ * signature as the {@code Stream} version, so code using both types looks
+ * natural.
+ *
+ * <h2>Immutability</h2>
+ *
+ * <p>{@code Seq} does not contain any mutating methods. All inherited
+ * mutating methods from {@code Collection} throw
+ * {@code UnsupportedOperationException}.
+ * Note, factory methods can create views of mutable collections, in which
+ * case mutations to the underlying collection are reflected in {@code Seq}.
+ *
+ * <h2>Equality</h2>
+ *
+ * <p>{@code Seq} defines {@code equals()}
+ * such that two {@code Seq}s are equal only if they have the same elements in the same
+ * order. This is like {@code List}, though a {@code Seq} is never equal
+ * to a {@code List} and vice versa, as required by
+ * {@code List.equals()}.
+ * The methods {@code listEquals()}, {@code setEquals()} and {@code multisetEquals()}
+ * may be used for other definitions of equality
+ * and do not depend on the subtype of the given {@code Iterable}.
+ * The methods {@code asList()},
+ * {@code asSet()} and {@code asMap()} may be useful for equality comparisons
+ * in other cases.
+ *
+ * <h2>Implementation</h2>
+ *
+ * <p>Most of {@code Seq} simply delegates to existing classes.
+ * {@code Seq} is an interface whose only abstract method is
+ * {@code spliterator()}, ie all other methods are have default implementations
+ * defined in terms of {@code spliterator()}. For example, the most common
+ * implementation of {@code Seq} is {@code ArraySeq}, which wraps an
+ * array and uses {@code Spliterators.spliterator()} to
+ * implement {@code spliterator()}. Methods like {@code map} and {@code filter}
+ * ultimately delegate to a {@code Stream} created by
+ * {@code StreamSupport} using this {@code Spliterator}.
+ * Other methods have original implementations.
+ *
+ * <h2>Examples</h2>
+ *
+ * <pre>{@code
+ *     seq.filter(Objects::isNull)
+ *     seq.flatMap(s -> s)
+ *     seq.reduce(0, (len, str) -> len + str.length())
+ *     seq.intersection(otherSeq)
+ *     seq.shuffled(new Random())
+ *     seq.zip(seq.indexes(), (elem, idx) -> idx + ": " + elem)
+ *     seq.get(2)
+ *     seq.indexesOf(element)
+ *     seq.limitLast(3)
+ *     seq.toString("; ", "<", ">")
+ * }</pre>
+ */
 public interface Seq<E> extends Collection<E> {
 
+    /**
+     * Returns an empty {@code Seq}.
+     */
+    @SuppressWarnings("unchecked")
+    static <E> Seq<E> of() {
+        return (Seq<E>) EmptySeq.INSTANCE;
+    }
+
+    /**
+     * Returns a {@code Seq} containing the given elements.
+     * Does not copy the argument, so subsequent mutations to the argument
+     * are reflected in the returned {@code Seq}.
+     */
     @SafeVarargs
-    public static <E> Seq<E> of(E... elements) {
+    static <E> Seq<E> of(E... elements) {
         return new ArraySeq<>(Objects.requireNonNull(elements));
     }
 
-    public static <E> Seq<E> copy(E[] elements) {
+    /**
+     * Returns a {@code Seq} containing the given elements.
+     */
+    static <E> Seq<E> copy(E[] elements) {
         return new ArraySeq<>(Arrays.copyOf(elements, elements.length));
     }
 
-    public static <E> Seq<E> view(E[] elements) {
+    /**
+     * Returns a {@code Seq} containing the given elements in constant time.
+     * Does not copy the argument, so subsequent mutations to the argument
+     * are reflected in the returned {@code Seq}.
+     */
+    static <E> Seq<E> view(E[] elements) {
         return new ArraySeq<>(Objects.requireNonNull(elements));
     }
 
-    public static <E> Seq<E> copy(Iterable<? extends E> iterable) {
+    /**
+     * Returns a {@code Seq} containing the given elements.
+     */
+    static <E> Seq<E> copy(Iterable<? extends E> iterable) {
         return new ArraySeq<>(Util.toArray(iterable));
     }
 
-    public static <E> Seq<E> view(Iterable<? extends E> iterable) {
-        return new IterableSeq<>(Objects.requireNonNull(iterable));
+    /**
+     * Returns a {@code Seq} containing the given elements in constant time.
+     * Does not copy the argument, so subsequent mutations to the argument
+     * are reflected in the returned {@code Seq}.
+     * Unlike most {@code Seq} instances, the returned instance will not
+     * support constant-time {@link #size()} or {@link #get(int)}.
+     */
+    @SuppressWarnings("unchecked")
+    static <E> Seq<E> view(Iterable<? extends E> iterable) {
+        return iterable instanceof Seq<?> ? (Seq<E>) iterable
+                : new IterableSeq<>(Objects.requireNonNull(iterable));
     }
 
-    public static <E> Seq<E> copy(Collection<? extends E> collection) {
-        return new ArraySeq<>(collection.toArray());
+    /**
+     * Returns a {@code Seq} containing the value of the optional
+     * if it is present, otherwise returns an empty {@code Seq}.
+     */
+    static <E> Seq<E> view(Optional<? extends E> optional) {
+        return optional.isPresent() ? of(optional.get()) : of();
     }
 
-    public static <E> Seq<E> view(Collection<? extends E> collection) {
-        return new CollectionSeq<>(Objects.requireNonNull(collection));
-    }
-
-    public static <E> Seq<E> view(Optional<? extends E> optional) {
-        return new OptionalSeq<>(Objects.requireNonNull(optional));
-    }
-
-    public static <E> Seq<E> copy(Iterator<? extends E> iterator) {
+    /**
+     * Returns a {@code Seq} containing the given elements.
+     */
+    static <E> Seq<E> copy(Iterator<? extends E> iterator) {
         return new ArraySeq<>(Util.toArray(iterator));
     }
 
-    public static <E> Seq<E> copy(Spliterator<? extends E> spliterator) {
+    /**
+     * Returns a {@code Seq} containing the given elements.
+     */
+    static <E> Seq<E> copy(Spliterator<? extends E> spliterator) {
         return new ArraySeq<>(Util.toArray(spliterator));
     }
 
-    public static <E> Seq<E> copy(Stream<? extends E> stream) {
+    /**
+     * Returns a {@code Seq} containing the given elements.
+     */
+    static <E> Seq<E> copy(Stream<? extends E> stream) {
         return new ArraySeq<>(stream.toArray());
     }
 
-    public static <E> Builder<E> builder() {
-        return new ArraySeq.Builder<>();
+    /**
+     * Returns a {@link Builder}.
+     */
+    static <E> Builder<E> builder() {
+        return new DefaultBuilder<>();
     }
 
-    public static <E> Collector<E, ?, Seq<E>> toSeq() {
+    /**
+     * Returns a {@code Collector} that accumulates input elements
+     * into a {@code Seq}.
+     */
+    static <E> Collector<E, ?, Seq<E>> toSeq() {
         return Collector.<E, Builder<E>, Seq<E>>of(
                 Seq::builder, Builder::add, (b, c) -> {
                     c.build().forEach(b::add);
@@ -82,341 +270,724 @@ public interface Seq<E> extends Collection<E> {
                 }, Builder::build);
     }
 
-    public static Seq<Integer> range(int begin, int end) {
+    /**
+     * Returns a {@code Seq} containing consecutive integers
+     * from the first argument (inclusive) to the second argument (exclusive)
+     * if ascending, otherwise returns an empty {@code Seq}.
+     */
+    static Seq<Integer> range(int begin, int end) {
         return SeqStream.range(begin, end).collect();
     }
 
-    public static <E> Seq<E> concat(
-            Iterable<? extends E> first, Iterable<? extends E> second) {
-        return SeqStream.concat(Util.stream(first), Util.stream(second))
-                .collect();
+    /**
+     * Returns a {@code Seq} containing the result of concatenating each of
+     * the given {@code Iterable} arguments in order.
+     * Equivalent to {@link #sum(Iterable)} but as a static varargs method.
+     */
+    @SafeVarargs
+    static <E> Seq<E> concat(
+            Iterable<? extends E>... iterables) {
+        return flatten(Arrays.asList(iterables));
     }
 
-    public static <E> Seq<E> concat(
+    /**
+     * Returns a {@code Seq} containing the result of concatenating each
+     * {@code Iterable} element in the given {@code Iterable} in order.
+     */
+    static <E> Seq<E> flatten(
             Iterable<? extends Iterable<? extends E>> iterables) {
-        return SeqStream.<E>concat(
-                Util.stream(iterables).map(Util::stream))
+        return SeqStream.<E>flatten(
+                view(iterables).stream().map(i -> view(i).stream()))
                 .collect();
     }
 
-    public abstract Spliterator<E> spliterator();
+    /**
+     * Returns a {@code Spliterator} over the elements of this {@code Seq}.
+     */
+    Spliterator<E> spliterator();
 
-    public default List<E> asList() {
+    /**
+     * See {@link #equals(Object)}.
+     */
+    int hashCode();
+
+    /**
+     * Returns {@code true} only if the argument is a {@code Seq}
+     * that contains the same elements in the same order
+     * according to the {@code equals} method of individual elements.
+     */
+    boolean equals(Object o);
+
+    /**
+     * Returns a view of this {@code Seq} as a {@link List} in constant time.
+     */
+    default List<E> asList() {
         return new SeqList<>(this);
     }
 
-    public default <U> U reduce(
+    /**
+     * Returns a view of this {@code Seq} as a {@link Set} in constant time.
+     * Does not check whether duplicate elements will exist
+     * and therefore may return a {@code Set} that violates its contract.
+     */
+    default Set<E> asSet() {
+        return new SeqSet<>(this);
+    }
+
+    /**
+     * Equivalent to {@link #asMap(Function, Function) asMap(e -> e, e -> e)}.
+     */
+    default Map<E, E> asMap() {
+        return asMap(identity(), identity());
+    }
+
+    /**
+     * Equivalent to {@link #asMap(Function, Function) asMap(keyMapper, e -> e)}.
+     */
+    default <K> Map<K, E> asMap(
+            Function<? super E, ? extends K> keyMapper) {
+        return asMap(keyMapper, identity());
+    }
+
+    /**
+     * Returns a view of this {@code Seq} as a {@link Map} in constant time.
+     * Does not check whether duplicate keys will exist
+     * and therefore may return a {@code Map} that violates its contract.
+     */
+    @SuppressWarnings("unchecked")
+    default <K, V> Map<K, V> asMap(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper) {
+        return new SeqMap<>(this,
+                (Function<Object, ? extends K>) keyMapper,
+                (Function<Object, ? extends V>) valueMapper);
+    }
+
+    /**
+     * Returns {@code true} only if the given {@code Iterable}
+     * contains the same elements in the same order
+     * according to the {@code equals} method of individual elements.
+     * The type of the given {@code Iterable} is irrelevant.
+     */
+    default boolean listEquals(Iterable<?> that) {
+        return stream().listEquals(view(that).stream());
+    }
+
+    /**
+     * Returns {@code true} only if the given {@code Iterable}
+     * contains the same elements in any order
+     * according to the {@code equals} method of individual elements.
+     * The result does not depend on the multiplicity of repeated elements.
+     * The type of the given {@code Iterable} is irrelevant.
+     */
+    default boolean setEquals(Iterable<?> that) {
+        return stream().setEquals(view(that).stream());
+    }
+
+    /**
+     * Returns {@code true} only if the given {@code Iterable}
+     * contains the same elements in any order
+     * according to the {@code equals} method of individual elements.
+     * The result depends on the multiplicity of repeated elements.
+     * The type of the given {@code Iterable} is irrelevant.
+     */
+    default boolean multisetEquals(Iterable<?> that) {
+        return stream().multisetEquals(view(that).stream());
+    }
+
+    /**
+     * Returns a {@code Seq} that contains the results of applying the given
+     * {@code BiFunction} pairwise to elements of this {@code Seq} and the given
+     * {@code Iterable}.
+     * If one is longer than the other, its extra elements are ignored.
+     */
+    default <F, R> Seq<R> zip(
+            Iterable<? extends F> that,
+            BiFunction<? super E, ? super F, ? extends R> mapper) {
+        return stream().<F, R>zip(view(that).stream(), mapper).collect();
+    }
+
+    /**
+     * Returns consecutive integers
+     * from zero (inclusive) to the size of this {@code Seq} (exclusive).
+     */
+    default Seq<Integer> indexes() {
+        return stream().indexes().collect();
+    }
+
+    /**
+     * Returns those elements of this {@code Seq} that are also present
+     * in the given {@code Iterable}
+     * according to the {@code equals} method of individual elements.
+     * Uses the multiset definition of the intersection, which is consistent
+     * with the ordinary set definition when there are no repeated elements.
+     * When there are {@code a} repeated elements in {@code this}
+     * and {@code b} in {@code that}, the result contains
+     * {@code min(a, b)} elements. Specifically, it contains those elements
+     * from this {@code Seq} which occur first in encounter order.
+     * The {@link #difference(Iterable)} contains the remaining
+     * {@code max(0, a - b)} elements from this {@code Seq}.
+     * Implementation converts the argument to a {@code HashMap} of multiplicities.
+     * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
+     */
+    default Seq<E> intersection(Iterable<?> that) {
+        return stream().intersection(view(that).stream()).collect();
+    }
+
+    /**
+     * Returns those elements of this {@code Seq} that are not also present
+     * in the given {@code Iterable}
+     * according to the {@code equals} method of individual elements.
+     * Uses the multiset definition of the difference, which is consistent
+     * with the ordinary set definition when there are no repeated elements.
+     * When there are {@code a} repeated elements in {@code this}
+     * and {@code b} in {@code that}, the result contains
+     * {@code max(0, a - b)} elements. Specifically, it contains those elements
+     * from this {@code Seq} which occur last in encounter order.
+     * The {@link #intersection(Iterable)} contains the remaining
+     * {@code min(a, b)} elements from this {@code Seq}.
+     * Implementation converts the argument to a {@code HashMap} of multiplicities.
+     * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
+     */
+    default Seq<E> difference(Iterable<?> that) {
+        return stream().difference(view(that).stream()).collect();
+    }
+
+    /**
+     * Returns the elements of this {@code Seq} followed by those elements of
+     * the given {@code Iterable} that are not present in this {@code Seq}
+     * according to the {@code equals} method of individual elements.
+     * Uses the multiset definition of the union, which is consistent
+     * with the ordinary set definition when there are no repeated elements.
+     * When there are {@code a} repeated elements in {@code this}
+     * and {@code b} in {@code that}, the result contains
+     * {@code max(a, b)} elements. Specifically, it contains all {@code a}
+     * elements from this {@code Seq} then those {@code max(0, b - a)} elements
+     * from the given {@code Iterable} which occur last in encounter order.
+     * Equivalent to {@code sum(that.difference(this))}.
+     * Implementation converts {@code this} to a {@code HashMap} of multiplicities.
+     * See also {@link #intersection(Iterable)},
+     * {@link #difference(Iterable)}, {@link #sum(Iterable)}.
+     */
+    default Seq<E> union(Iterable<? extends E> that) {
+        return stream().union(view(that).stream()).collect();
+    }
+
+    /**
+     * Returns the elements of this {@code Seq} followed by
+     * the elements of the given {@code Iterable}.
+     * Equivalent to {@link #concat(Iterable...)} but as an instance method.
+     * See also {@link #difference(Iterable)}, {@link #intersection(Iterable)},
+     * {@link #union(Iterable)}.
+     */
+    default Seq<E> sum(Iterable<? extends E> that) {
+        return stream().sum(view(that).stream()).collect();
+    }
+
+    /**
+     * Eager equivalent of {@link Stream#flatMap(Function)}.
+     */
+    default <R> Seq<R> flatMap(
+            Function<? super E, ? extends Iterable<? extends R>> mapper) {
+        return stream().<R>flatMap(mapper.andThen(i -> view(i).stream()))
+                .collect();
+    }
+
+    /**
+     * Returns those consecutive elements whose indexes
+     * are from the first argument (inclusive) to the second (exclusive).
+     * Throws only if either argument is negative. Is not a view.
+     */
+    default Seq<E> slice(int from, int to) {
+        return stream().slice(from, to).collect();
+    }
+
+    /**
+     * Returns in ascending order those values of {@code from}
+     * for which there exists some {@code to} such that
+     * {@link #slice(int, int) slice(from, to)} is equal to the given
+     * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
+     */
+    default Seq<Integer> indexesOfSlice(Iterable<?> that) {
+        return stream().indexesOfSlice(view(that).stream()).collect();
+    }
+
+    /**
+     * Returns the smallest value of {@code from}
+     * for which there exists some {@code to} such that
+     * {@link #slice(int, int) slice(from, to)} is equal to the given
+     * {@code Iterable} according to {@link #listEquals(Iterable) listEquals},
+     * or {@code -1} if no such value exists.
+     */
+    default int indexOfSlice(Iterable<?> that) {
+        return stream().indexOfSlice(view(that).stream());
+    }
+
+    /**
+     * Returns the largest value of {@code from}
+     * for which there exists some {@code to} such that
+     * {@link #slice(int, int) slice(from, to)} is equal to the given
+     * {@code Iterable} according to {@link #listEquals(Iterable) listEquals},
+     * or {@code -1} if no such value exists.
+     */
+    default int lastIndexOfSlice(Iterable<?> that) {
+        return stream().lastIndexOfSlice(view(that).stream());
+    }
+
+    /**
+     * Returns {@code true} only if there exists some value of {@code from}
+     * and {@code to} such that
+     * {@link #slice(int, int) slice(from, to)} is equal to the given
+     * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
+     */
+    default boolean containsSlice(Iterable<?> that) {
+        return stream().containsSlice(view(that).stream());
+    }
+
+    /**
+     * Returns {@code true} only if there exists some value of {@code size} such that
+     * {@link #limit(long) limit(size)} is equal to the given
+     * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
+     */
+    default boolean startsWith(Iterable<?> that) {
+        return stream().startsWith(view(that).stream());
+    }
+
+    /**
+     * Returns {@code true} only if there exists some value of {@code size} such that
+     * {@link #limitLast(long) limitLast(size)} is equal to the given
+     * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
+     */
+    default boolean endsWith(Iterable<?> that) {
+        return stream().endsWith(view(that).stream());
+    }
+
+    /**
+     * Return the element at the given index, or throws
+     * {@link java.util.NoSuchElementException NoSuchElementException}
+     * if the index is not between zero and the size of this {@code Seq}.
+     */
+    default E get(int index) {
+        return stream().get(index);
+    }
+
+    /**
+     * Returns the index of the first element equal to the given argument
+     * or {@code -1} if no such element exists.
+     */
+    default int indexOf(Object object) {
+        return stream().indexOf(object);
+    }
+
+    /**
+     * Returns the index of the last element equal to the given argument
+     * or {@code -1} if no such element exists.
+     */
+    default int lastIndexOf(Object object) {
+        return stream().lastIndexOf(object);
+    }
+
+    /**
+     * Returns the indexes of all elements equal to the given argument.
+     */
+    default Seq<Integer> indexesOf(Object object) {
+        return stream().indexesOf(object).collect();
+    }
+
+    /**
+     * Returns a new {@code Seq} with elements reversed.
+     * See {@link Collections#reverse(List)}.
+     */
+    default Seq<E> reversed() {
+        return stream().reversed().collect();
+    }
+
+    /**
+     * Returns a new {@code Seq} with elements rotated according to
+     * {@link Collections#rotate(List, int)}.
+     */
+    default Seq<E> rotated(int size) {
+        return stream().rotated(size).collect();
+    }
+
+    /**
+     * Returns a new {@code Seq} with elements shuffled.
+     * See {@link Collections#shuffle(List)}.
+     */
+    default Seq<E> shuffled(Random random) {
+        return stream().shuffled(random).collect();
+    }
+
+    /**
+     * Returns the last {@code size} elements.
+     */
+    default Seq<E> limitLast(long size) {
+        return stream().limitLast(size).collect();
+    }
+
+    /**
+     * Returns all except the last {@code size} elements.
+     */
+    default Seq<E> skipLast(long size) {
+        return stream().skipLast(size).collect();
+    }
+
+    /**
+     * Returns all elements from the start to the first element for which
+     * the given {@code Predicate} returns false (exclusive).
+     */
+    default Seq<E> takeWhile(Predicate<? super E> predicate) {
+        return stream().takeWhile(predicate).collect();
+    }
+
+    /**
+     * Returns all elements between the first element for which the given
+     * {@code Predicate} returns false (inclusive) and the end.
+     */
+    default Seq<E> dropWhile(Predicate<? super E> predicate) {
+        return stream().dropWhile(predicate).collect();
+    }
+
+    /**
+     * Eager equivalent of {@link Stream#filter(Predicate)}.
+     */
+    default Seq<E> filter(Predicate<? super E> predicate) {
+        return stream().filter(predicate).collect();
+    }
+
+    /**
+     * Eager equivalent of {@link Stream#map(Function)}.
+     */
+    default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
+        return stream().<R>map(mapper).collect();
+    }
+
+    /**
+     * Equivalent of {@link Stream#distinct()}.
+     */
+    default Seq<E> distinct() {
+        return stream().distinct().collect();
+    }
+
+    /**
+     * Equivalent of {@link Stream#sorted()}.
+     */
+    default Seq<E> sorted() {
+        return stream().sorted().collect();
+    }
+
+    /**
+     * Equivalent of {@link Stream#sorted(Comparator)}.
+     */
+    default Seq<E> sorted(Comparator<? super E> comparator) {
+        return stream().sorted(comparator).collect();
+    }
+
+    /**
+     * Eager equivalent of {@link Stream#limit(long)}.
+     */
+    default Seq<E> limit(long size) {
+        return stream().limit(size).collect();
+    }
+
+    /**
+     * Eager equivalent of {@link Stream#skip(long)}.
+     */
+    default Seq<E> skip(long size) {
+        return stream().skip(size).collect();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    default void forEach(Consumer<? super E> action) {
+        stream().forEach(action);
+    }
+
+    /**
+     * Equivalent of {@link Stream#forEachOrdered(Consumer)}.
+     */
+    default void forEachOrdered(Consumer<? super E> action) {
+        stream().forEachOrdered(action);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    default Object[] toArray() {
+        return stream().toArray();
+    }
+
+    /**
+     * Equivalent of {@link Stream#toArray(IntFunction)}.
+     */
+    default <A> A[] toArray(IntFunction<A[]> generator) {
+        return stream().toArray(generator);
+    }
+
+    /**
+     * Equivalent of {@link Stream#reduce(Object, BinaryOperator)}.
+     */
+    default E reduce(E identity, BinaryOperator<E> accumulator) {
+        return stream().reduce(identity, accumulator);
+    }
+
+    /**
+     * Equivalent of {@link Stream#reduce(BinaryOperator)}.
+     */
+    default Optional<E> reduce(BinaryOperator<E> accumulator) {
+        return stream().reduce(accumulator);
+    }
+
+    /**
+     * Equivalent of {@link Stream#reduce(Object, BiFunction, BinaryOperator)}
+     * except the last argument is not required since the operation
+     * is never parallel.
+     */
+    default <U> U reduce(
             U identity,
             BiFunction<U, ? super E, U> accumulator) {
         return stream().reduce(identity, accumulator);
     }
 
-    public default <U> U collect(
+    /**
+     * Returns a copy of this {@code Seq}.
+     */
+    default Seq<E> collect() {
+        return stream().collect();
+    }
+
+    /**
+     * Equivalent of {@link Stream#collect(Supplier, BiConsumer, BiConsumer)}
+     * except the last argument is not required since the operation
+     * is never parallel.
+     */
+    default <U> U collect(
             Supplier<U> supplier,
             BiConsumer<U, ? super E> accumulator) {
         return stream().collect(supplier, accumulator);
     }
 
-    public default Seq<Seq<E>> grouped(int size) {
-        return stream().grouped(size).collect();
-    }
-
-    public default <R> Seq<R> zip(
-            BiFunction<? super E, Integer, ? extends R> function) {
-        return stream().<R>zip(function).collect();
-    }
-
-    public default <F, R> Seq<R> zip(
-            Iterable<? extends F> that,
-            BiFunction<? super E, ? super F, ? extends R> function) {
-        return stream().<F, R>zip(Util.stream(that), function).collect();
-    }
-
     /**
-     * Returns the intersection of two sets. When there are repeated elements,
-     * this returns the multiset definition of the intersection. That is,
-     * when there are <tt>a</tt> equal elements in <tt>first</tt> and
-     * <tt>b</tt> in <tt>second</tt>, the result contains <tt>a - b</tt>
-     * elements or none if that would be negative. Specifically, it contains
-     * those elements which occur earliest in the encounter order. The
-     * {@link #difference} contains the remaining elements.
-     * Note, this multiset definition is consistent with the ordinary set
-     * definition when there are not repeated elements. However it is
-     * not exactly equivalent to the mutable methods
-     * {@link java.util.Collection#containsAll(Collection) containsAll},
-     * {@link java.util.Collection#removeAll(Collection) removeAll} and
-     * {@link java.util.Collection#retainAll(Collection) retainAll}.
+     * Equivalent of {@link Stream#collect(Collector)}.
      */
-    public default Seq<E> intersection(Iterable<?> that) {
-        return stream().intersection(that).collect();
-    }
-
-    /**
-     * Returns the difference of two sets. When there are repeated elements,
-     * this returns the multiset definition of the difference. See
-     * {@link #intersection}.
-     */
-    public default Seq<E> difference(Iterable<?> that) {
-        return stream().difference(that).collect();
-    }
-
-    /**
-     * Returns the union of two sets. When there are repeated elements,
-     * this returns the multiset definition of the union. That is,
-     * the multiplicity of elements in the result is the maximum of the
-     * multiplicity of elements from both inputs.
-     * See {@link #intersection}.
-     */
-    public default Seq<E> union(Iterable<? extends E> that) {
-        return stream().union(that).collect();
-    }
-
-    public default <R> Seq<R> flatMap(
-            Function<? super E, ? extends Iterable<? extends R>> mapper) {
-        return stream().<R>flatMap(mapper.andThen(Util::stream)).collect();
-    }
-
-    public default <F> Seq<F> flattenOptionals(
-            Function<? super E, ? extends Optional<? extends F>> function) {
-        return stream().<F>flattenOptionals(function).collect();
-    }
-
-    /**
-     * Equivalent to limit(to).skip(from) and therefore is not a view
-     * and does not check indices like subList and substring.
-     */
-    public default Seq<E> subseq(int from, int to) {
-        return stream().subseq(from, to).collect();
-    }
-
-    public default E get(int index) {
-        return stream().get(index);
-    }
-
-    public default int indexOf(Object object) {
-        return stream().indexOf(object);
-    }
-
-    public default int lastIndexOf(Object object) {
-        return stream().lastIndexOf(object);
-    }
-
-    public default Seq<Integer> indexesOf(Object object) {
-        return stream().indexesOf(object).collect();
-    }
-
-    public default Optional<E> findOnly() {
-        return stream().findOnly();
-    }
-
-    public default Optional<E> findLast() {
-        return stream().findLast();
-    }
-
-    public default Seq<E> reversed() {
-        return stream().reversed().collect();
-    }
-
-    public default Seq<E> rotated(int size) {
-        return stream().rotated(size).collect();
-    }
-
-    public default Seq<E> shuffled(Random random) {
-        return stream().shuffled(random).collect();
-    }
-
-    public default Seq<E> limitLast(int size) {
-        return stream().limitLast(size).collect();
-    }
-
-    public default Seq<E> skipLast(int size) {
-        return stream().skipLast(size).collect();
-    }
-
-    public default Seq<E> takeWhile(Predicate<? super E> predicate) {
-        return stream().takeWhile(predicate).collect();
-    }
-
-    public default Seq<E> dropWhile(Predicate<? super E> predicate) {
-        return stream().dropWhile(predicate).collect();
-    }
-
-    public default Seq<E> filter(Predicate<? super E> predicate) {
-        return stream().filter(predicate).collect();
-    }
-
-    public default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
-        return stream().<R>map(mapper).collect();
-    }
-
-    public default Seq<E> distinct() {
-        return stream().distinct().collect();
-    }
-
-    public default Seq<E> sorted() {
-        return stream().sorted().collect();
-    }
-
-    public default Seq<E> sorted(Comparator<? super E> comparator) {
-        return stream().sorted(comparator).collect();
-    }
-
-    public default Seq<E> limit(long size) {
-        return stream().limit(size).collect();
-    }
-
-    public default Seq<E> skip(long size) {
-        return stream().skip(size).collect();
-    }
-
-    public default void forEach(Consumer<? super E> action) {
-        stream().forEach(action);
-    }
-
-    public default void forEachOrdered(Consumer<? super E> action) {
-        stream().forEachOrdered(action);
-    }
-
-    public default Object[] toArray() {
-        return stream().toArray();
-    }
-
-    public default <A> A[] toArray(IntFunction<A[]> generator) {
-        return stream().toArray(generator);
-    }
-
-    public default E reduce(E identity, BinaryOperator<E> accumulator) {
-        return stream().reduce(identity, accumulator);
-    }
-
-    public default Optional<E> reduce(BinaryOperator<E> accumulator) {
-        return stream().reduce(accumulator);
-    }
-
-    public default <U> U reduce(
-            U identity,
-            BiFunction<U, ? super E, U> accumulator,
-            BinaryOperator<U> combiner) {
-        return stream().reduce(identity, accumulator, combiner);
-    }
-
-    public default <R> R collect(
-            Supplier<R> supplier,
-            BiConsumer<R, ? super E> accumulator,
-            BiConsumer<R, R> combiner) {
-        return stream().collect(supplier, accumulator, combiner);
-    }
-
-    public default <R, A> R collect(Collector<? super E, A, R> collector) {
+    default <R, A> R collect(Collector<? super E, A, R> collector) {
         return stream().collect(collector);
     }
 
-    public default Optional<E> min(Comparator<? super E> comparator) {
+    /**
+     * Equivalent of {@link Stream#min(Comparator)}.
+     */
+    default Optional<E> min(Comparator<? super E> comparator) {
         return stream().min(comparator);
     }
 
-    public default Optional<E> max(Comparator<? super E> comparator) {
+    /**
+     * Equivalent of {@link Stream#max(Comparator)}.
+     */
+    default Optional<E> max(Comparator<? super E> comparator) {
         return stream().max(comparator);
     }
 
-    public default long count() {
+    /**
+     * Equivalent of {@link Stream#count()}.
+     */
+    default long count() {
         return stream().count();
     }
 
-    public default boolean anyMatch(Predicate<? super E> predicate) {
+    /**
+     * Equivalent of {@link Stream#anyMatch(Predicate)}.
+     */
+    default boolean anyMatch(Predicate<? super E> predicate) {
         return stream().anyMatch(predicate);
     }
 
-    public default boolean allMatch(Predicate<? super E> predicate) {
+    /**
+     * Equivalent of {@link Stream#allMatch(Predicate)}.
+     */
+    default boolean allMatch(Predicate<? super E> predicate) {
         return stream().allMatch(predicate);
     }
 
-    public default boolean noneMatch(Predicate<? super E> predicate) {
+    /**
+     * Equivalent of {@link Stream#noneMatch(Predicate)}.
+     */
+    default boolean noneMatch(Predicate<? super E> predicate) {
         return stream().noneMatch(predicate);
     }
 
-    public default Optional<E> findFirst() {
+    /**
+     * Returns an {@code Optional} containing the first element of
+     * this {@code Seq} if this {@code Seq} is not empty,
+     * otherwise returns an empty {@code Optional}.
+     */
+    default Optional<E> findFirst() {
         return stream().findFirst();
     }
 
-    public default Optional<E> findAny() {
+    /**
+     * Returns an {@code Optional} containing any element of
+     * this {@code Seq} if this {@code Seq} is not empty,
+     * otherwise returns an empty {@code Optional}.
+     */
+    default Optional<E> findAny() {
         return stream().findAny();
     }
 
-    public default String toString(CharSequence delimiter) {
-        return stream().map(Object::toString)
-                .collect(joining(delimiter));
+    /**
+     * Returns an {@code Optional} containing the only element of
+     * this {@code Seq} if this {@code Seq} contains exactly one element,
+     * otherwise returns an empty {@code Optional}.
+     */
+    default Optional<E> findOnly() {
+        return stream().findOnly();
     }
 
-    public default String toString(
+    /**
+     * Returns an {@code Optional} containing the last element of
+     * this {@code Seq} if this {@code Seq} is not empty,
+     * otherwise returns an empty {@code Optional}.
+     */
+    default Optional<E> findLast() {
+        return stream().findLast();
+    }
+
+    /**
+     * Eager equivalent of {@link Stream#peek(Consumer)}.
+     */
+    default Seq<E> peek(Consumer<? super E> action) {
+        forEach(action);
+        return this;
+    }
+
+    /**
+     * Returns a {@code String}.
+     */
+    default String toString(
             CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
         return stream().map(Object::toString)
                 .collect(joining(delimiter, prefix, suffix));
     }
 
-    public default int size() {
+    /**
+     * {@inheritDoc}
+     */
+    default int size() {
         return stream().size();
     }
 
-    public default boolean isEmpty() {
+    /**
+     * {@inheritDoc}
+     */
+    default boolean isEmpty() {
         return stream().isEmpty();
     }
 
-    public default boolean contains(Object object) {
+    /**
+     * {@inheritDoc}
+     */
+    default boolean contains(Object object) {
         return stream().contains(object);
     }
 
-    public default <T> T[] toArray(T[] ts) {
+    /**
+     * {@inheritDoc}
+     */
+    default <T> T[] toArray(T[] ts) {
         return stream().toArray(ts);
     }
 
-    public default boolean add(E element) {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default boolean add(E element) {
         throw new UnsupportedOperationException();
     }
 
-    public default boolean remove(Object element) {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default boolean remove(Object element) {
         throw new UnsupportedOperationException();
     }
 
-    public default boolean containsAll(Collection<?> collection) {
-        for (Object element : collection) {
-            if (!contains(element)) {
-                return false;
-            }
-        }
-        return true;
+    /**
+     * {@inheritDoc}
+     * The default implementation is equivalent to
+     * {@code that.allMatch(this::contains)}.
+     * Though not equivalent when there are repeated elements,
+     * consider using {@code that.difference(this).isEmpty()},
+     * which has better asymptotic performance.
+     */
+    default boolean containsAll(Collection<?> that) {
+        return view(that).allMatch(this::contains);
     }
 
-    public default boolean addAll(Collection<? extends E> collection) {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default boolean addAll(Collection<? extends E> that) {
         throw new UnsupportedOperationException();
     }
 
-    public default boolean removeAll(Collection<?> collection) {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default boolean removeAll(Collection<?> that) {
         throw new UnsupportedOperationException();
     }
 
-    public default boolean removeIf(Predicate<? super E> filter) {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default boolean removeIf(Predicate<? super E> filter) {
         throw new UnsupportedOperationException();
     }
 
-    public default boolean retainAll(Collection<?> collection) {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default boolean retainAll(Collection<?> that) {
         throw new UnsupportedOperationException();
     }
 
-    public default void clear() {
+    /**
+     * Throws {@code UnsupportedOperationException}.
+     */
+    default void clear() {
         throw new UnsupportedOperationException();
     }
 
-    public default SeqStream<E> stream() {
+    /**
+     * Returns a {@code SeqStream} with this collection as its source,
+     * and which defines lazy versions of many of the methods on {@code Seq}.
+     */
+    default SeqStream<E> stream() {
         return SeqStream.view(spliterator());
     }
 
-    public default Iterator<E> iterator() {
+    /**
+     * Returns an {@code Iterator} over the elements of this {@code Seq}.
+     */
+    default Iterator<E> iterator() {
         return Spliterators.iterator(spliterator());
     }
 
-    public static interface Builder<E> {
-        public abstract Builder<E> add(E element);
-        public abstract Seq<E> build();
+    /**
+     * A builder for creating {@link Seq} instances.
+     */
+    interface Builder<E> {
+
+        /**
+         * Adds the element and returns {@code this}.
+         */
+        Builder<E> add(E element);
+
+        /**
+         * Builds the {@link Seq} instance.
+         * May be called multiple times and interleaved with {@link #add}.
+         */
+        Seq<E> build();
     }
 }
