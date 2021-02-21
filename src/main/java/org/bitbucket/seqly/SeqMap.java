@@ -1,4 +1,4 @@
-package seqly;
+package org.bitbucket.seqly;
 
 import java.util.AbstractMap;
 import java.util.AbstractSet;

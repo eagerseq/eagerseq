@@ -1,4 +1,4 @@
-package seqly;
+package org.bitbucket.seqly;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -38,7 +38,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static seqly.Seq.toSeq;
+import static org.bitbucket.seqly.Seq.toSeq;
 
 @RunWith(Parameterized.class)
 public class SeqTest {

@@ -1,4 +1,4 @@
-package seqly;
+package org.bitbucket.seqly;
 
 import java.util.Arrays;
 

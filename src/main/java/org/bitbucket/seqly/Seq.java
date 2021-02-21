@@ -1,4 +1,4 @@
-package seqly;
+package org.bitbucket.seqly;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -99,7 +99,7 @@ import static java.util.stream.Collectors.joining;
  * <h2>Streams</h2>
  *
  * <p>When laziness is desired, {@link Seq#stream()}
- * can be called as usual, and the resulting type {@link seqly.SeqStream}
+ * can be called as usual, and the resulting type {@link SeqStream}
  * retains the additional methods of {@code Seq}.
  *
  * <pre>{@code

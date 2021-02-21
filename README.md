@@ -63,7 +63,7 @@ Other methods convert to existing types.
 ## Streams
 
 When laziness is desired, `Seq.stream()`
-can be called as usual, and the resulting type `seqly.SeqStream`
+can be called as usual, and the resulting type `org.bitbucket.seqly.SeqStream`
 retains the additional methods of `Seq`.
 
     Seq<Integer> lengths = words.stream()
