@@ -11,11 +11,12 @@ import org.junit.Test;
 public class SeqStreamTest {
 
     @Test
-    public void testAllStreamReturningMethodsReturnSeqStream() throws Exception {
+    public void testAllStreamReturningMethodsReturnSeqStream() {
         for (Method method : SeqStream.class.getMethods()) {
             if (Stream.class.isAssignableFrom(method.getReturnType())
                     && !method.isSynthetic()
-                    && !Seq.of("collect", "stream")
+                    && !Seq.of("collect", "stream",
+                    "takeWhile", "dropWhile") // compiling with -release 8 where these methods don't exist on stream
                     .contains(method.getName())) {
                 assertThat(method.getName(), method.getReturnType(),
                         equalTo(SeqStream.class));
