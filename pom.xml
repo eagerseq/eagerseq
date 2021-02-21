@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.bitbucket.seqly</groupId>
     <artifactId>seqly</artifactId>
-    <version>develop-SNAPSHOT</version>
+    <version>0.2.0</version>
     <name>Seqly</name>
     <description>A collections library</description>
     <url>https://bitbucket.org/seqly/seqly/</url>
