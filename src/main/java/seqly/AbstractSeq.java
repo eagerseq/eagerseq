@@ -1,5 +1,9 @@
 package seqly;
 
+/**
+ * Implements {@code equals}, {@code hashCode} and {@code toString} so that
+ * subclasses only have to implement {@link Seq#spliterator()}.
+ */
 public abstract class AbstractSeq<E> implements Seq<E> {
 
     /**

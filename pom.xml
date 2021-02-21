@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.bitbucket.jancellor</groupId>
+    <groupId>org.bitbucket.seqly</groupId>
     <artifactId>seqly</artifactId>
     <version>develop-SNAPSHOT</version>
     <name>Seqly</name>
-    <description>A tiny collections library</description>
-    <url>https://bitbucket.org/jancellor/seqly/</url>
+    <description>A collections library</description>
+    <url>https://bitbucket.org/seqly/seqly/</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -21,9 +21,9 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://bitbucket.org/jancellor/seqly.git</connection>
-        <developerConnection>scm:git:ssh://bitbucket.org:jancellor/seqly.git</developerConnection>
-        <url>https://bitbucket.org/jancellor/seqly/src</url>
+        <connection>scm:git:git://bitbucket.org/seqly/seqly.git</connection>
+        <developerConnection>scm:git:ssh://bitbucket.org:seqly/seqly.git</developerConnection>
+        <url>https://bitbucket.org/seqly/seqly/src</url>
     </scm>
     <distributionManagement>
         <snapshotRepository>
@@ -36,8 +36,7 @@
         </repository>
     </distributionManagement>
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.release>8</maven.compiler.release>
     </properties>
     <dependencies>
         <dependency>
@@ -57,6 +56,11 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <executions>
                     <execution>
@@ -72,6 +76,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <doclint>none</doclint>
+                    <additionalJOption>--override-methods=summary</additionalJOption>
                 </configuration>
                 <executions>
                     <execution>

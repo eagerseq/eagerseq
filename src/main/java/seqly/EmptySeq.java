@@ -1,6 +1,5 @@
 package seqly;
 
-import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
 
@@ -20,7 +19,7 @@ final class EmptySeq extends AbstractSeq<Object> implements Seq<Object> {
     }
 
     public Object get(int index) {
-        throw new NoSuchElementException();
+        throw new IndexOutOfBoundsException();
     }
 
     public Spliterator<Object> spliterator() {

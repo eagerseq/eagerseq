@@ -1,0 +1,125 @@
+# Seqly
+
+## Introduction
+
+`Seq` extends `Collection` and defines eager versions
+of almost all `Stream` methods like
+`map`, `filter` and `reduce`. For example:
+
+    Seq<Integer> lengths = words.map(String::length);
+
+Compare with the `Stream` version:
+
+    List<Integer> lengths = words.stream()
+            .map(String::length)
+            .collect(toList());
+
+These are extremely common operations, and laziness is often not required.
+`Stream`s are extremely verbose
+for this case, hence `Seq`.
+
+## Usage
+
+`Seq` can be used as the default choice of `Collection`
+most of the time unless specific features
+(such as constant-time `contains`) are required.
+
+    Seq.of(0, 1, 2);
+
+    Seq.Builder<String> builder = Seq.builder();
+    while (scanner.hasNext()) {
+        builder.add(scanner.next());
+    }
+    builder.build();
+
+Most `Seq` implementations
+support constant-time indexing and are backed by an array or similar.
+Only `Seq.view(Iterable)` in this library does not.
+
+## Collections
+
+Factory methods convert from existing types.
+
+    Seq.copy(new Integer[]{4, 5})
+    Seq.view(Optional.of(6))
+    Seq.view(List.of(7, 8))
+    Seq.copy(List.of(9, 10).iterator())
+    Seq.copy(Stream.of(11, 12, 13))
+
+Other methods convert to existing types.
+
+    seq.asList()
+    seq.asSet()
+    seq.asMap(Entity::getId)
+    seq.toArray()
+    seq.toArray(new String[5])
+    seq.toArray(String[]::new)
+    seq.findFirst()
+    seq.findLast()
+    seq.findOnly()
+    seq.collect(toList())
+    seq.collect(toSet())
+
+## Streams
+
+When laziness is desired, `Seq.stream()`
+can be called as usual, and the resulting type `seqly.SeqStream`
+retains the additional methods of `Seq`.
+
+    Seq<Integer> lengths = words.stream()
+            .filter(w -> w.contains("e"))
+            .map(String::length)
+            .reversed()
+            .collect();
+
+All functional operations defined on `Seq` have the same
+signature as the `Stream` version, so code using both types looks
+natural.
+
+## Equality
+
+`Seq` defines `equals()`
+such that two `Seq`s are equal only if they have the same elements in the same
+order. This is like `List`, though a `Seq` is never equal
+to a `List` and vice versa, as required by
+`List.equals()`.
+The methods `listEquals()`, `setEquals()` and `multisetEquals()`
+may be used for other definitions of equality
+and do not depend on the subtype of the given `Iterable`.
+The methods `asList()`,
+`asSet()` and `asMap()` may be useful for equality comparisons
+in other cases.
+
+## Immutability
+
+`Seq` does not contain any mutating methods. All inherited
+mutating methods from `Collection` throw
+`UnsupportedOperationException`.
+Note, factory methods can create views of mutable collections, in which
+case mutations to the underlying collection are reflected in `Seq`.
+
+## Implementation
+
+Most of `Seq` simply delegates to existing classes.
+`Seq` is an interface whose only abstract method is
+`spliterator()`, ie all other methods are have default implementations
+defined in terms of `spliterator()`. For example, the most common
+implementation of `Seq` is `ArraySeq`, which wraps an
+array and uses `Spliterators.spliterator()` to
+implement `spliterator()`. Methods like `map` and `filter`
+ultimately delegate to a `Stream` created by
+`StreamSupport` using this `Spliterator`.
+Other methods have original implementations.
+
+## Examples
+
+    seq.filter(Objects::isNull)
+    seq.flatMap(s -> s)
+    seq.reduce(0, (len, str) -> len + str.length())
+    seq.intersection(otherSeq)
+    seq.shuffled(new Random())
+    seq.zip(seq.indexes(), (elem, idx) -> idx + ": " + elem)
+    seq.get(2)
+    seq.indexesOf(element)
+    seq.limitLast(3)
+    seq.toString("; ", "<", ">")

@@ -34,3 +34,36 @@ specialisations
 - set
   - filter -> set
   - intersection -> set
+
+FIND_ONLY vs Guava MoreCollectors.toOptional and MoreCollectors.onlyElement
+and Iterables.getOnlyElement(it, [default])
+
+
+with the set-like methods, there is some difference in behaviour depending on
+how we interpret repeated values. java.util.set does not allow repeated values
+so there is no question of the correct behaviour for them on set-specific methods
+
+but we have containsAll, retainAll, removeAll which is kind of as if the argument
+is turned into a set with new HashSet<>(it) or .collect(toSet()). what do I mean
+as if? as if you do that before invoking the original method? circular logic.
+
+
+
+
+intersection     min(a, b)         b < a ? b     : a
+difference       max(0, a - b)     b < a ? a - b : 0
+union            max(a, b)         b < a ? a     : b
+sum              a + b             b < a ? a + b : a + b
+
+retainAll                          b < 1 ? 0     : a
+removeAll                          b < 1 ? a     : 0
+addAll                             b < 1 ? a[+ b]: a + b
+unionAll (hypothetical)            b < 1 ? a[+ b]: a + b // simple, same as addAll, no need for extra method
+                                                 : b     // if s.removeAll(t).unionAll(t)
+                                   a < 1 ? b     : a     // if s.unionAll(t.removeAll(s))
+containsAll                        a < 1 ? !b : true
+
+
+a.containsAll(b) = b.removeAll(a).isEmpty()
+
+

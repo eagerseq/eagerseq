@@ -373,20 +373,20 @@ class Util {
     static <E> Spliterator<E> intersection(
             Spliterator<? extends E> first,
             Spliterator<?> second) {
-        return setOperation(first, (Spliterator<E>) second, false, false);
+        return multisetOperation(first, (Spliterator<E>) second, false, false);
     }
 
     @SuppressWarnings("unchecked")
     static <E> Spliterator<E> difference(
             Spliterator<? extends E> first,
             Spliterator<?> second) {
-        return setOperation(first, (Spliterator<E>) second, true, false);
+        return multisetOperation(first, (Spliterator<E>) second, true, false);
     }
 
     static <E> Spliterator<E> union(
             Spliterator<? extends E> first,
             Spliterator<? extends E> second) {
-        return setOperation(second, first, true, true);
+        return multisetOperation(second, first, true, true);
     }
 
     static Spliterator.OfInt indexesOfSlice(
@@ -442,7 +442,7 @@ class Util {
         spliterator.forEachRemaining((IntConsumer) e -> slice[i[0]++] = e);
     }
 
-    private static <E> Spliterator<E> setOperation(
+    private static <E> Spliterator<E> multisetOperation(
             Spliterator<? extends E> first,
             Spliterator<? extends E> second,
             boolean difference, boolean union) {

@@ -392,6 +392,17 @@ public class SeqTest {
     }
 
     @Test
+    public void testContainsMultiset() {
+        assertTrue(seqOf(1).containsMultiset(seqOf()));
+        assertFalse(seqOf().containsMultiset(seqOf(1)));
+        assertTrue(seqOf(1, 2, 3).containsMultiset(seqOf(2, 3)));
+        assertFalse(seqOf(0, 1).containsMultiset(seqOf(1, 2)));
+        assertTrue(seqOf(0, 0, 0).containsMultiset(seqOf(0, 0)));
+        assertFalse(seqOf(0, 0).containsMultiset(seqOf(0, 0, 0)));
+        assertTrue(seqOf(null, null, null).containsMultiset(seqOf(null, null)));
+    }
+
+    @Test
     public void testSlice() {
         assertThat(seqOf(0, 1, 2, 3).slice(1, 3), contains(1, 2));
         assertThat(seqOf(0, 1, 2, 3).slice(3, 1), empty());

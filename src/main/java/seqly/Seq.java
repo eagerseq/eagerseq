@@ -28,8 +28,6 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 
 /**
- * <h2>Introduction</h2>
- *
  * <p>{@code Seq} extends {@code Collection} and defines eager versions
  * of almost all {@link java.util.stream.Stream Stream} methods like
  * {@code map}, {@code filter} and {@code reduce}. For example:
@@ -68,9 +66,9 @@ import static java.util.stream.Collectors.joining;
  *
  * <p>Most {@code Seq} implementations
  * support constant-time indexing and are backed by an array or similar.
- * Only {@code Seq.view(java.lang.Iterable)} in this library does not.
+ * Only {@code Seq.view(Iterable)} in this library does not.
  *
- * <h2>Other {@code Collection}s</h2>
+ * <h2>Collections</h2>
  *
  * <p>Factory methods convert from existing types.
  *
@@ -98,7 +96,7 @@ import static java.util.stream.Collectors.joining;
  *     seq.collect(toSet())
  * }</pre>
  *
- * <h2>{@code Stream}s</h2>
+ * <h2>Streams</h2>
  *
  * <p>When laziness is desired, {@link Seq#stream()}
  * can be called as usual, and the resulting type {@link seqly.SeqStream}
@@ -116,14 +114,6 @@ import static java.util.stream.Collectors.joining;
  * signature as the {@code Stream} version, so code using both types looks
  * natural.
  *
- * <h2>Immutability</h2>
- *
- * <p>{@code Seq} does not contain any mutating methods. All inherited
- * mutating methods from {@code Collection} throw
- * {@code UnsupportedOperationException}.
- * Note, factory methods can create views of mutable collections, in which
- * case mutations to the underlying collection are reflected in {@code Seq}.
- *
  * <h2>Equality</h2>
  *
  * <p>{@code Seq} defines {@code equals()}
@@ -137,6 +127,14 @@ import static java.util.stream.Collectors.joining;
  * The methods {@code asList()},
  * {@code asSet()} and {@code asMap()} may be useful for equality comparisons
  * in other cases.
+ *
+ * <h2>Immutability</h2>
+ *
+ * <p>{@code Seq} does not contain any mutating methods. All inherited
+ * mutating methods from {@code Collection} throw
+ * {@code UnsupportedOperationException}.
+ * Note, factory methods can create views of mutable collections, in which
+ * case mutations to the underlying collection are reflected in {@code Seq}.
  *
  * <h2>Implementation</h2>
  *
@@ -189,8 +187,8 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns a {@code Seq} containing the given elements.
      */
-    static <E> Seq<E> copy(E[] elements) {
-        return new ArraySeq<>(Arrays.copyOf(elements, elements.length));
+    static <E> Seq<E> copy(E[] array) {
+        return new ArraySeq<>(Arrays.copyOf(array, array.length));
     }
 
     /**
@@ -198,8 +196,8 @@ public interface Seq<E> extends Collection<E> {
      * Does not copy the argument, so subsequent mutations to the argument
      * are reflected in the returned {@code Seq}.
      */
-    static <E> Seq<E> view(E[] elements) {
-        return new ArraySeq<>(Objects.requireNonNull(elements));
+    static <E> Seq<E> view(E[] array) {
+        return new ArraySeq<>(Objects.requireNonNull(array));
     }
 
     /**
@@ -264,10 +262,8 @@ public interface Seq<E> extends Collection<E> {
      */
     static <E> Collector<E, ?, Seq<E>> toSeq() {
         return Collector.<E, Builder<E>, Seq<E>>of(
-                Seq::builder, Builder::add, (b, c) -> {
-                    c.build().forEach(b::add);
-                    return b;
-                }, Builder::build);
+                Seq::builder, Builder::add,
+                (b, c) -> b.addAll(c.build()), Builder::build);
     }
 
     /**
@@ -375,10 +371,12 @@ public interface Seq<E> extends Collection<E> {
 
     /**
      * Returns {@code true} only if the given {@code Iterable}
-     * contains the same elements in any order
+     * would contain the same elements in any order
+     * after removing repeated elements from both {@code Collection}s
      * according to the {@code equals} method of individual elements.
      * The result does not depend on the multiplicity of repeated elements.
      * The type of the given {@code Iterable} is irrelevant.
+     * See also {@link #multisetEquals(Iterable)}.
      */
     default boolean setEquals(Iterable<?> that) {
         return stream().setEquals(view(that).stream());
@@ -388,8 +386,11 @@ public interface Seq<E> extends Collection<E> {
      * Returns {@code true} only if the given {@code Iterable}
      * contains the same elements in any order
      * according to the {@code equals} method of individual elements.
+     * In other words, {@code true} only if some permutation of the given
+     * {@code Iterable} contains the same elements in the same order.
      * The result depends on the multiplicity of repeated elements.
      * The type of the given {@code Iterable} is irrelevant.
+     * See also {@link #setEquals(Iterable)}.
      */
     default boolean multisetEquals(Iterable<?> that) {
         return stream().multisetEquals(view(that).stream());
@@ -466,8 +467,8 @@ public interface Seq<E> extends Collection<E> {
      * from the given {@code Iterable} which occur last in encounter order.
      * Equivalent to {@code sum(that.difference(this))}.
      * Implementation converts {@code this} to a {@code HashMap} of multiplicities.
-     * See also {@link #intersection(Iterable)},
-     * {@link #difference(Iterable)}, {@link #sum(Iterable)}.
+     * See also {@link #intersection(Iterable)}, {@link #difference(Iterable)},
+     * {@link #sum(Iterable)}.
      */
     default Seq<E> union(Iterable<? extends E> that) {
         return stream().union(view(that).stream()).collect();
@@ -477,11 +478,20 @@ public interface Seq<E> extends Collection<E> {
      * Returns the elements of this {@code Seq} followed by
      * the elements of the given {@code Iterable}.
      * Equivalent to {@link #concat(Iterable...)} but as an instance method.
-     * See also {@link #difference(Iterable)}, {@link #intersection(Iterable)},
+     * See also {@link #intersection(Iterable)}, {@link #difference(Iterable)},
      * {@link #union(Iterable)}.
      */
     default Seq<E> sum(Iterable<? extends E> that) {
         return stream().sum(view(that).stream()).collect();
+    }
+
+    /**
+     * Equivalent to {@link #difference(Iterable) that.difference(this).isEmpty()}.
+     * See also {@link #intersection(Iterable)},
+     * {@link #union(Iterable)}, {@link #sum(Iterable)}.
+     */
+    default boolean containsMultiset(Iterable<?> that) {
+        return stream().containsMultiset(view(that).stream());
     }
 
     /**
@@ -564,7 +574,7 @@ public interface Seq<E> extends Collection<E> {
 
     /**
      * Return the element at the given index, or throws
-     * {@link java.util.NoSuchElementException NoSuchElementException}
+     * {@code IndexOutOfBoundsException}
      * if the index is not between zero and the size of this {@code Seq}.
      */
     default E get(int index) {
@@ -913,15 +923,12 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * {@inheritDoc}
-     * The default implementation is equivalent to
-     * {@code that.allMatch(this::contains)}.
-     * Though not equivalent when there are repeated elements,
-     * consider using {@code that.difference(this).isEmpty()},
-     * which has better asymptotic performance.
+     * Returns {@code true} if this {@code Seq} contains all of the elements
+     * in the specified collection.
+     * See also {@link #containsMultiset(Iterable)}.
      */
     default boolean containsAll(Collection<?> that) {
-        return view(that).allMatch(this::contains);
+        return stream().containsAll(that.stream());
     }
 
     /**
@@ -989,5 +996,10 @@ public interface Seq<E> extends Collection<E> {
          * May be called multiple times and interleaved with {@link #add}.
          */
         Seq<E> build();
+
+        default Builder<E> addAll(Iterable<E> iterable) {
+            iterable.forEach(this::add);
+            return this;
+        }
     }
 }

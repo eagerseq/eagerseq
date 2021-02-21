@@ -1,8 +1,8 @@
 package seqly;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
@@ -27,15 +27,13 @@ import java.util.stream.Stream;
 import static java.util.function.Predicate.isEqual;
 
 /**
- * <h2>SeqStream</h2>
- *
- * {@code SeqStream} is the subtype of {@code Stream} returned by
+ * <p>The subtype of {@code Stream} returned by
  * {@link Seq#stream()}. In addition to {@code Stream} methods like
  * {@code map}, {@code filter} and {@code reduce}, {@code SeqStream} defines
  * lazy versions of most other {@link Seq} methods like
  * {@code slice}, {@code intersection} and {@code zip}. Intermediate operations
  * return {@code SeqStream} so they can be chained and a no-args
- * {@code collect()} method simply returns a {@code Seq}.
+ * {@code collect()} method converts back to {@code Seq}.
  */
 public interface SeqStream<E> extends Stream<E> {
 
@@ -165,6 +163,14 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#containsMultiset(Iterable)}.
+     */
+    default boolean containsMultiset(Stream<?> that) {
+        return !Util.difference(that.spliterator(), spliterator())
+                .tryAdvance(e -> {});
+    }
+
+    /**
      * Stream equivalent of {@link Seq#slice(int, int)}.
      */
     default SeqStream<E> slice(int from, int to) {
@@ -223,10 +229,10 @@ public interface SeqStream<E> extends Stream<E> {
      */
     @SuppressWarnings("unchecked")
     default E get(int index) {
-        if (index < 0) throw new NoSuchElementException();
+        if (index < 0) throw new IndexOutOfBoundsException();
         // findFirst throws for null
         Object[] some = skip(index).limit(1).toArray();
-        if (some.length == 0) throw new NoSuchElementException();
+        if (some.length == 0) throw new IndexOutOfBoundsException();
         return (E) some[0];
     }
 
@@ -308,6 +314,13 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <T> T[] toArray(T[] ts) {
         return Util.toArray(this::toArray, ts);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#containsAll(Collection)}.
+     */
+    default boolean containsAll(Stream<?> that) {
+        return containsMultiset(that.distinct());
     }
 
     /**
