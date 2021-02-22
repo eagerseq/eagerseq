@@ -25,7 +25,6 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.joining;
 
 /**
  * <p>{@code Seq} extends {@code Collection} and defines eager versions
@@ -73,27 +72,27 @@ import static java.util.stream.Collectors.joining;
  * <p>Factory methods convert from existing types.
  *
  * <pre>{@code
- *     Seq.copy(new Integer[]{4, 5})
- *     Seq.view(Optional.of(6))
- *     Seq.view(List.of(7, 8))
- *     Seq.copy(List.of(9, 10).iterator())
- *     Seq.copy(Stream.of(11, 12, 13))
+ *     Seq.copy(new Integer[]{4, 5});
+ *     Seq.view(Optional.of(6));
+ *     Seq.view(List.of(7, 8));
+ *     Seq.copy(List.of(9, 10).iterator());
+ *     Seq.copy(Stream.of(11, 12, 13));
  * }</pre>
  *
  * <p>Other methods convert to existing types.
  *
  * <pre>{@code
- *     seq.asList()
- *     seq.asSet()
- *     seq.asMap(Entity::getId)
- *     seq.toArray()
- *     seq.toArray(new String[5])
- *     seq.toArray(String[]::new)
- *     seq.findFirst()
- *     seq.findLast()
- *     seq.findOnly()
- *     seq.collect(toList())
- *     seq.collect(toSet())
+ *     seq.asList();
+ *     seq.asSet();
+ *     seq.asMap(Entity::getId);
+ *     seq.toArray();
+ *     seq.toArray(new String[5]);
+ *     seq.toArray(String[]::new);
+ *     seq.findFirst();
+ *     seq.findLast();
+ *     seq.findOnly();
+ *     seq.collect(toList());
+ *     seq.collect(toSet());
  * }</pre>
  *
  * <h2>Streams</h2>
@@ -130,10 +129,13 @@ import static java.util.stream.Collectors.joining;
  *
  * <h2>Immutability</h2>
  *
- * <p>{@code Seq} does not contain any mutating methods. All inherited
- * mutating methods from {@code Collection} throw
+ * <p>The {@code Seq} interface itself does not have default implementations
+ * of any mutating methods.
+ * All inherited mutating methods from {@code Collection} throw
  * {@code UnsupportedOperationException}.
- * Note, factory methods can create views of mutable collections, in which
+ * But there is no restriction on what additional methods {@code Seq}
+ * implementations may contain.
+ * Note that factory methods can create views of mutable collections, in which
  * case mutations to the underlying collection are reflected in {@code Seq}.
  *
  * <h2>Implementation</h2>
@@ -152,16 +154,16 @@ import static java.util.stream.Collectors.joining;
  * <h2>Examples</h2>
  *
  * <pre>{@code
- *     seq.filter(Objects::isNull)
- *     seq.flatMap(s -> s)
- *     seq.reduce(0, (len, str) -> len + str.length())
- *     seq.intersection(otherSeq)
- *     seq.shuffled(new Random())
- *     seq.zip(seq.indexes(), (elem, idx) -> idx + ": " + elem)
- *     seq.get(2)
- *     seq.indexesOf(element)
- *     seq.limitLast(3)
- *     seq.toString("; ", "<", ">")
+ *     seq.filter(Objects::isNull);
+ *     seq.flatMap(s -> s);
+ *     seq.reduce(0, (len, str) -> len + str.length());
+ *     seq.intersection(otherSeq);
+ *     seq.shuffled(new Random());
+ *     seq.zip(seq.indexes(), (elem, idx) -> idx + ": " + elem);
+ *     seq.get(2);
+ *     seq.indexesOf(element);
+ *     seq.limitLast(3);
+ *     seq.toString("; ", "<", ">");
  * }</pre>
  */
 public interface Seq<E> extends Collection<E> {
@@ -283,7 +285,7 @@ public interface Seq<E> extends Collection<E> {
     @SafeVarargs
     static <E> Seq<E> concat(
             Iterable<? extends E>... iterables) {
-        return flatten(Arrays.asList(iterables));
+        return flatten(Seq.view(iterables));
     }
 
     /**
@@ -872,12 +874,12 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Returns a {@code String}.
+     * Returns a {@code String} using
+     * {@link java.util.stream.Collectors#joining(CharSequence, CharSequence, CharSequence)}.
      */
     default String toString(
             CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
-        return stream().map(Object::toString)
-                .collect(joining(delimiter, prefix, suffix));
+        return stream().toString(delimiter, prefix, suffix);
     }
 
     /**
@@ -997,6 +999,9 @@ public interface Seq<E> extends Collection<E> {
          */
         Seq<E> build();
 
+        /**
+         * Adds all elements and returns {@code this}.
+         */
         default Builder<E> addAll(Iterable<E> iterable) {
             iterable.forEach(this::add);
             return this;
