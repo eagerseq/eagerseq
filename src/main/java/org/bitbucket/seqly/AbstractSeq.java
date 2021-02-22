@@ -1,4 +1,4 @@
-package seqly;
+package org.bitbucket.seqly;
 
 /**
  * Implements {@code equals}, {@code hashCode} and {@code toString} so that

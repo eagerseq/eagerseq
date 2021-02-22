@@ -5,7 +5,7 @@
     <artifactId>seqly</artifactId>
     <version>0.2.0</version>
     <name>Seqly</name>
-    <description>A collections library</description>
+    <description>A small collection library</description>
     <url>https://bitbucket.org/seqly/seqly/</url>
     <licenses>
         <license>

@@ -1,4 +1,4 @@
-package seqly;
+package org.bitbucket.seqly;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -25,6 +25,7 @@ import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import static java.util.function.Predicate.isEqual;
+import static java.util.stream.Collectors.joining;
 
 /**
  * <p>The subtype of {@code Stream} returned by
@@ -629,6 +630,16 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> peek(Consumer<? super E> action) {
         return view(stream().peek(action));
+    }
+
+    /**
+     * Stream equivalent of
+     * {@link Seq#toString(CharSequence, CharSequence, CharSequence)}.
+     */
+    default String toString(
+            CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
+        return stream().map(Object::toString)
+                .collect(joining(delimiter, prefix, suffix));
     }
 
     /**
