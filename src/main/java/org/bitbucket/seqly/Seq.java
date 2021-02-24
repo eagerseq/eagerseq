@@ -25,6 +25,7 @@ import java.util.stream.Collector;
 import java.util.stream.Stream;
 
 import static java.util.function.Function.identity;
+import static org.bitbucket.seqly.Util.toSeqStream;
 
 /**
  * <p>{@code Seq} extends {@code Collection} and defines eager versions
@@ -169,14 +170,6 @@ import static java.util.function.Function.identity;
 public interface Seq<E> extends Collection<E> {
 
     /**
-     * Returns an empty {@code Seq}.
-     */
-    @SuppressWarnings("unchecked")
-    static <E> Seq<E> of() {
-        return (Seq<E>) EmptySeq.INSTANCE;
-    }
-
-    /**
      * Returns a {@code Seq} containing the given elements.
      * Does not copy the argument, so subsequent mutations to the argument
      * are reflected in the returned {@code Seq}.
@@ -218,8 +211,7 @@ public interface Seq<E> extends Collection<E> {
      */
     @SuppressWarnings("unchecked")
     static <E> Seq<E> view(Iterable<? extends E> iterable) {
-        return iterable instanceof Seq<?> ? (Seq<E>) iterable
-                : new IterableSeq<>(Objects.requireNonNull(iterable));
+        return new IterableSeq<>(Objects.requireNonNull(iterable));
     }
 
     /**
@@ -285,7 +277,7 @@ public interface Seq<E> extends Collection<E> {
     @SafeVarargs
     static <E> Seq<E> concat(
             Iterable<? extends E>... iterables) {
-        return flatten(Seq.view(iterables));
+        return flatten(view(iterables));
     }
 
     /**
@@ -295,7 +287,7 @@ public interface Seq<E> extends Collection<E> {
     static <E> Seq<E> flatten(
             Iterable<? extends Iterable<? extends E>> iterables) {
         return SeqStream.<E>flatten(
-                view(iterables).stream().map(i -> view(i).stream()))
+                toSeqStream(iterables).map(Util::toSeqStream))
                 .collect();
     }
 
@@ -315,6 +307,11 @@ public interface Seq<E> extends Collection<E> {
      * according to the {@code equals} method of individual elements.
      */
     boolean equals(Object o);
+
+    /**
+     * Equivalent to {@code asList().toString()}.
+     */
+    String toString();
 
     /**
      * Returns a view of this {@code Seq} as a {@link List} in constant time.
@@ -368,7 +365,7 @@ public interface Seq<E> extends Collection<E> {
      * The type of the given {@code Iterable} is irrelevant.
      */
     default boolean listEquals(Iterable<?> that) {
-        return stream().listEquals(view(that).stream());
+        return stream().listEquals(toSeqStream(that));
     }
 
     /**
@@ -381,7 +378,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #multisetEquals(Iterable)}.
      */
     default boolean setEquals(Iterable<?> that) {
-        return stream().setEquals(view(that).stream());
+        return stream().setEquals(toSeqStream(that));
     }
 
     /**
@@ -395,7 +392,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #setEquals(Iterable)}.
      */
     default boolean multisetEquals(Iterable<?> that) {
-        return stream().multisetEquals(view(that).stream());
+        return stream().multisetEquals(toSeqStream(that));
     }
 
     /**
@@ -407,7 +404,7 @@ public interface Seq<E> extends Collection<E> {
     default <F, R> Seq<R> zip(
             Iterable<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
-        return stream().<F, R>zip(view(that).stream(), mapper).collect();
+        return stream().<F, R>zip(toSeqStream(that), mapper).collect();
     }
 
     /**
@@ -434,7 +431,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> intersection(Iterable<?> that) {
-        return stream().intersection(view(that).stream()).collect();
+        return stream().intersection(toSeqStream(that)).collect();
     }
 
     /**
@@ -453,7 +450,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> difference(Iterable<?> that) {
-        return stream().difference(view(that).stream()).collect();
+        return stream().difference(toSeqStream(that)).collect();
     }
 
     /**
@@ -473,7 +470,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link #sum(Iterable)}.
      */
     default Seq<E> union(Iterable<? extends E> that) {
-        return stream().union(view(that).stream()).collect();
+        return stream().union(toSeqStream(that)).collect();
     }
 
     /**
@@ -484,7 +481,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link #union(Iterable)}.
      */
     default Seq<E> sum(Iterable<? extends E> that) {
-        return stream().sum(view(that).stream()).collect();
+        return stream().sum(toSeqStream(that)).collect();
     }
 
     /**
@@ -493,7 +490,35 @@ public interface Seq<E> extends Collection<E> {
      * {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default boolean containsMultiset(Iterable<?> that) {
-        return stream().containsMultiset(view(that).stream());
+        return stream().containsMultiset(toSeqStream(that));
+    }
+
+    /**
+     * Returns all permutations
+     * in lexical order of the original index of each element.
+     */
+    // wildcard gives subtypes more flexibility and makes zero restrictions on callers
+    // but given how rare subtype overrides would be, maybe the tiny benefit of not
+    // needing the wildcard in client code that assigns the result to a variable would be better?
+    default Seq<? extends Seq<E>> permutations() {
+        return stream().permutations().map(SeqStream::collect).collect();
+    }
+
+    /**
+     * Returns combinations of the given {@code size}
+     * in lexical order of the original index of each element.
+     */
+    default Seq<? extends Seq<E>> combinations(int size) {
+        return stream().combinations(size).map(SeqStream::collect).collect();
+    }
+
+    /**
+     * Returns all subsets
+     * in shortlex order of the original index of each element.
+     * That is, the subsets are ordered by length then lexically.
+     */
+    default Seq<? extends Seq<E>> powerSet() {
+        return stream().powerSet().map(SeqStream::collect).collect();
     }
 
     /**
@@ -501,8 +526,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
-        return stream().<R>flatMap(mapper.andThen(i -> view(i).stream()))
-                .collect();
+        return stream().<R>flatMap(mapper.andThen(Util::toSeqStream)).collect();
     }
 
     /**
@@ -521,7 +545,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default Seq<Integer> indexesOfSlice(Iterable<?> that) {
-        return stream().indexesOfSlice(view(that).stream()).collect();
+        return stream().indexesOfSlice(toSeqStream(that)).collect();
     }
 
     /**
@@ -532,7 +556,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such value exists.
      */
     default int indexOfSlice(Iterable<?> that) {
-        return stream().indexOfSlice(view(that).stream());
+        return stream().indexOfSlice(toSeqStream(that));
     }
 
     /**
@@ -543,7 +567,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such value exists.
      */
     default int lastIndexOfSlice(Iterable<?> that) {
-        return stream().lastIndexOfSlice(view(that).stream());
+        return stream().lastIndexOfSlice(toSeqStream(that));
     }
 
     /**
@@ -553,7 +577,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean containsSlice(Iterable<?> that) {
-        return stream().containsSlice(view(that).stream());
+        return stream().containsSlice(toSeqStream(that));
     }
 
     /**
@@ -562,7 +586,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean startsWith(Iterable<?> that) {
-        return stream().startsWith(view(that).stream());
+        return stream().startsWith(toSeqStream(that));
     }
 
     /**
@@ -571,7 +595,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean endsWith(Iterable<?> that) {
-        return stream().endsWith(view(that).stream());
+        return stream().endsWith(toSeqStream(that));
     }
 
     /**
@@ -969,11 +993,18 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Returns a {@code SeqStream} with this collection as its source,
-     * and which defines lazy versions of many of the methods on {@code Seq}.
+     * Returns a {@code SeqStream} with this collection as its source.
      */
     default SeqStream<E> stream() {
         return SeqStream.view(spliterator());
+    }
+
+    /**
+     * Returns a {@code SeqStream} with this collection as its source.
+     * The returned {@code Stream} is <em>not</em> parallel.
+     */
+    default SeqStream<E> parallelStream() {
+        return stream().parallel();
     }
 
     /**

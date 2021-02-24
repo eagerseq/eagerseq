@@ -19,7 +19,7 @@ final class DefaultBuilder<E> implements Seq.Builder<E> {
 
     @SuppressWarnings("unchecked")
     public Seq<E> build() {
-        return size == 0 ? (Seq<E>) EmptySeq.INSTANCE : new ArraySeq<>(
-                size == array.length ? array : Arrays.copyOf(array, size));
+        return new ArraySeq<>(size == array.length
+                ? array : Arrays.copyOf(array, size));
     }
 }

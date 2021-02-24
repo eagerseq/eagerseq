@@ -27,6 +27,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
@@ -54,11 +55,6 @@ public class SeqTest {
         return Seq.of(
                 parameters("default", TestSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
-                parameters("Seq#of() overloads", new Factory() {
-                    public <E> Seq<E> create(E[] es) {
-                        return es.length == 0 ? Seq.of() : Seq.of(es);
-                    }
-                }),
                 parameters("Seq#copy(E[])", Seq::copy),
                 parameters("Seq#view(E[])", Seq::view),
                 parameters("Seq#copy(Iterable<E>)", new Factory() {
@@ -85,19 +81,39 @@ public class SeqTest {
                     public <E> Seq<E> create(E[] elements) {
                         return Seq.copy(Arrays.stream(elements));
                     }
+                }),
+                parameters("SeqStream#of(E...)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.of(elements).collect();
+                    }
+                }),
+                parameters("SeqStream#view(Iterator<E>)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.view(Arrays.asList(elements).iterator()).collect();
+                    }
+                }),
+                parameters("SeqStream#view(Spliterator<E>)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.view(Arrays.asList(elements).spliterator()).collect();
+                    }
+                }),
+                parameters("SeqStream#view(Stream<E>)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.view(Arrays.stream(elements)).collect();
+                    }
                 }));
     }
 
-    private static Object[] parameters(String name, Factory factory) {
-        return new Object[]{name, factory};
-    }
-
-    private static void assertThrows(Runnable action) {
+    public static void assertThrows(Runnable action) {
         try {
             action.run();
             fail("expected exception");
         } catch (RuntimeException ignored) {
         }
+    }
+
+    private static Object[] parameters(String name, Factory factory) {
+        return new Object[]{name, factory};
     }
 
     @Test
@@ -400,6 +416,62 @@ public class SeqTest {
         assertTrue(seqOf(0, 0, 0).containsMultiset(seqOf(0, 0)));
         assertFalse(seqOf(0, 0).containsMultiset(seqOf(0, 0, 0)));
         assertTrue(seqOf(null, null, null).containsMultiset(seqOf(null, null)));
+    }
+
+    @Test
+    public void testPermutations() {
+        assertThat(seqOf().permutations(), contains(seqOf()));
+        assertThat(seqOf(4).permutations(), contains(seqOf(4)));
+        assertThat(seqOf(4, 2).permutations(), contains(seqOf(4, 2), seqOf(2, 4)));
+        assertThat(seqOf(0, 1, 2, 3, 4).permutations().size(), equalTo(120));
+        seqOf(0, 1, 2, 3, 4).permutations().forEach(p ->
+                assertThat(p, containsInAnyOrder(0, 1, 2, 3, 4)));
+        assertTrue(seqOf(0, 1, 2, 3, 4).permutations()
+                .zip( // permutations are in ascending lexicographical order
+                        seqOf(0, 1, 2, 3, 4).permutations().skip(1),
+                        (s, t) -> s.zip(t, (i, j) -> i - j)
+                                .filter(n -> n != 0).findFirst()
+                                .map(n -> n < 0).orElse(true))
+                .allMatch(b -> b));
+    }
+
+    @Test
+    public void testCombinations() {
+        assertThat(seqOf().combinations(0), contains(seqOf()));
+        assertThat(seqOf(4).combinations(0), contains(seqOf()));
+        assertThat(seqOf(4).combinations(1), contains(seqOf(4)));
+        assertThat(seqOf(4, 2).combinations(0), contains(seqOf()));
+        assertThat(seqOf(4, 2).combinations(1), contains(seqOf(4), seqOf(2)));
+        assertThat(seqOf(4, 2).combinations(2), contains(seqOf(4, 2)));
+        assertThrows(() -> seqOf(4, 2).combinations(-1));
+        assertThrows(() -> seqOf(4, 2).combinations(3));
+        assertThat(seqOf(0, 1, 2, 3, 4).combinations(2).size(), equalTo(10));
+        seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
+                assertThat(p, hasSize(3)));
+        assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4)
+                .zip( // combinations are in ascending lexicographical order
+                        seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4).skip(1),
+                        (s, t) -> s.zip(t, (i, j) -> i - j)
+                                .filter(n -> n != 0).findFirst()
+                                .map(n -> n < 0).orElse(true))
+                .allMatch(b -> b));
+    }
+
+    @Test
+    public void testPowerSet() {
+        assertThat(seqOf().powerSet(), contains(seqOf()));
+        assertThat(seqOf(4).powerSet(), contains(seqOf(), seqOf(4)));
+        assertThat(seqOf(4, 2).powerSet(), contains(seqOf(), seqOf(4), seqOf(2), seqOf(4, 2)));
+        assertThat(seqOf(0, 1, 2, 3, 4).powerSet().size(), equalTo(32));
+        seqOf(0, 1, 2, 3, 4).powerSet().forEach(p ->
+                assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(p)));
+        assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).powerSet()
+                .zip( // combinations are in ascending shortlex order
+                        seqOf(0, 1, 2, 3, 4, 5, 6).powerSet().skip(1),
+                        (s, t) -> s.size() < t.size() || s.zip(t, (i, j) -> i - j)
+                                .filter(n -> n != 0).findFirst()
+                                .map(n -> n < 0).orElse(true))
+                .allMatch(b -> b));
     }
 
     @Test
@@ -844,7 +916,7 @@ public class SeqTest {
 
     @Test
     public void testParallelStream() {
-        seqOf(0, 1, 2).parallelStream().collect(toList());
+        seqOf(0, 1, 2).parallelStream().collect();
     }
 
     @Test

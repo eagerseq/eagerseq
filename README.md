@@ -1,19 +1,17 @@
-# Seqly
-
 ## Maven
 
 ```
 <dependency>
     <groupId>org.bitbucket.seqly</groupId>
     <artifactId>seqly</artifactId>
-    <version>0.0.0</version>
+    <version>x.y.z</version>
 </dependency>
 ```
 
 ## Gradle
 
 ```
-implementation 'org.bitbucket.seqly:seqly:0.0.0'
+implementation 'org.bitbucket.seqly:seqly:x.y.z'
 ```
 
 ## Introduction

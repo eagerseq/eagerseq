@@ -13,6 +13,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.Spliterators.AbstractIntSpliterator;
 import java.util.Spliterators.AbstractSpliterator;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -20,6 +21,7 @@ import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -30,38 +32,38 @@ class Util {
     private Util() {
     }
 
-    static <E> Stream<E> stream(Iterable<? extends E> iterable) {
-        return stream(iterable.spliterator());
+    static <E> SeqStream<E> toSeqStream(Iterable<E> iterable) {
+        return new SpliteratorSeqStream<>(iterable.spliterator());
     }
 
-    static <E> Stream<E> stream(Iterator<? extends E> iterator) {
-        return stream(spliterator(iterator));
+    static <E> SeqStream<E> toSeqStream(Object[] array) {
+        return new SpliteratorSeqStream<>(Spliterators.spliterator(array, 0));
     }
 
-    @SuppressWarnings("unchecked")
-    static <E> Stream<E> stream(Spliterator<? extends E> spliterator) {
-        return (Stream<E>) StreamSupport.stream(spliterator, false);
+    static <E> Stream<E> toStream(SeqStream<E> stream) {
+        return StreamSupport.stream(stream.spliterator(), false);
     }
 
-    static <E> Spliterator<E> spliterator(Iterator<? extends E> iterator) {
+    static <E> Spliterator<E> toSpliterator(Iterator<E> iterator) {
         return Spliterators.spliteratorUnknownSize(iterator, 0);
     }
 
     @SuppressWarnings("unchecked")
-    static <E> Spliterator<E> spliterator(Object[] array) {
+    static <E> Spliterator<E> toSpliterator(Object[] array) {
         return Spliterators.spliterator(array, 0);
     }
 
     static Object[] toArray(Iterable<?> iterable) {
-        return stream(iterable).toArray();
+        return StreamSupport.stream(iterable.spliterator(), false).toArray();
     }
 
     static Object[] toArray(Iterator<?> iterator) {
-        return stream(iterator).toArray();
+        return StreamSupport.stream(Spliterators
+                .spliteratorUnknownSize(iterator, 0), false).toArray();
     }
 
     static Object[] toArray(Spliterator<?> spliterator) {
-        return stream(spliterator).toArray();
+        return StreamSupport.stream(spliterator, false).toArray();
     }
 
     static <T> T[] toArray(
@@ -98,7 +100,7 @@ class Util {
 
     static long count(Spliterator<?> spliterator) {
         return (spliterator.characteristics() & Spliterator.SIZED) == 0
-                ? stream(spliterator).count()
+                ? StreamSupport.stream(spliterator, false).count()
                 : spliterator.estimateSize();
     }
 
@@ -175,23 +177,20 @@ class Util {
             private Spliterator<? extends E> current = emptySpliterator();
             public boolean tryAdvance(Consumer<? super E> action) {
                 while (true) {
-                    if (current.tryAdvance(action)) {
-                        return true;
-                    }
-                    if (!spliterators.tryAdvance(s -> current = s)) {
-                        return false;
-                    }
+                    if (current.tryAdvance(action)) return true;
+                    if (spliterators.tryAdvance(s -> current = s)) continue;
+                    return false;
                 }
             }
         };
     }
 
-    static <E> Spliterator<Integer> indexesOf(
+    static <E> Spliterator.OfInt indexesOf(
             Spliterator<? extends E> spliterator, Object object) {
-        return new AbstractSpliterator<Integer>(Long.MAX_VALUE, 0) {
+        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
             private int index;
             private E next;
-            public boolean tryAdvance(Consumer<? super Integer> action) {
+            public boolean tryAdvance(IntConsumer action) {
                 while (spliterator.tryAdvance(e -> next = e)) {
                     if (Objects.equals(object, next)) {
                         action.accept(index++);
@@ -221,13 +220,21 @@ class Util {
         };
     }
 
-    static Spliterator<Integer> indexes(Spliterator<?> spliterator) {
-        return new AbstractSpliterator<Integer>(Long.MAX_VALUE, 0) {
-            private int index;
-            public boolean tryAdvance(Consumer<? super Integer> action) {
-                return spliterator.tryAdvance(e -> action.accept(index++));
+    static Spliterator.OfInt range(int from, int to) {
+        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+            private int index = from;
+            public boolean tryAdvance(IntConsumer action) {
+                if (index < to) {
+                    action.accept(index++);
+                    return true;
+                }
+                return false;
             }
         };
+    }
+
+    static Spliterator.OfInt indexes(Spliterator<?> spliterator) {
+        return range(0, toInt(count(spliterator)));
     }
 
 //    static <E> Spliterator slice(
@@ -391,15 +398,65 @@ class Util {
 
     static Spliterator.OfInt indexesOfSlice(
             Spliterator<?> spliterator, Spliterator<?> slice) {
-        Object[] array = stream(slice).toArray();
+        Object[] array = toArray(slice);
         int[] jumps = new int[array.length + 1];
-        copyInto(matchLengths(spliterator(array), array, jumps, -1), jumps);
+        copyInto(matchLengths(toSpliterator(array), array, jumps, -1), jumps);
         return toMatchIndexes(matchLengths(spliterator, array, jumps, 0), array.length);
+    }
+
+    static Spliterator<Object[]> permutations(Object[] array) {
+        return new AbstractSpliterator<Object[]>(Long.MAX_VALUE, 0) {
+            private int[] index = IntStream.range(0, array.length).toArray();
+            public boolean tryAdvance(Consumer<? super Object[]> action) {
+                if (index == null) return false;
+                Object[] r = Arrays.stream(index).mapToObj(i -> array[i]).toArray();
+                int a = index.length - 2;
+                while (a >= 0 && index[a + 1] < index[a]) a--;
+                if (a < 0) {
+                    index = null;
+                } else {
+                    int b = a + 1;
+                    while (b < index.length && index[a] < index[b]) b++;
+                    swap(a++, b - 1);
+                    b = index.length - 1;
+                    while (a < b) swap(a++, b--);
+                }
+                action.accept(r);
+                return true;
+            }
+            private void swap(int a, int b) {
+                int t = index[a];
+                index[a] = index[b];
+                index[b] = t;
+            }
+        };
+    }
+
+    static Spliterator<Object[]> combinations(Object[] array, int size) {
+        if (size < 0 | size > array.length) throw new IllegalArgumentException();
+        return new AbstractSpliterator<Object[]>(Long.MAX_VALUE, 0) {
+            private int[] index = IntStream.range(0, size).toArray();
+            public boolean tryAdvance(Consumer<? super Object[]> action) {
+                if (index == null) return false;
+                Object[] r = Arrays.stream(index).mapToObj(i -> array[i]).toArray();
+                int a = index.length - 1;
+                int i = array.length - 1;
+                while (a >= 0 && index[a] == i--) a--;
+                if (a < 0) {
+                    index = null;
+                } else {
+                    i = ++index[a++] + 1;
+                    while (a < index.length) index[a++] = i++;
+                }
+                action.accept(r);
+                return true;
+            }
+        };
     }
 
     private static Spliterator.OfInt matchLengths(
             Spliterator<?> spliterator, Object[] slice, int[] jumps, int from) {
-        return new Spliterators.AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
             private int j = from;
             private Object next;
             private boolean started;
@@ -421,7 +478,7 @@ class Util {
 
     private static Spliterator.OfInt toMatchIndexes(
             Spliterator.OfInt lengths, int sliceLength) {
-        return new Spliterators.AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
             private int index;
             private int length;
             public boolean tryAdvance(IntConsumer action) {

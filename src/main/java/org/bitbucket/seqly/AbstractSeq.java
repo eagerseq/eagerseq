@@ -19,11 +19,12 @@ public abstract class AbstractSeq<E> implements Seq<E> {
     public boolean equals(Object object) {
         if (object == this) return true;
         if (!(object instanceof Seq)) return false;
-        return Util.listEquals(spliterator(), ((Seq<?>) object).spliterator());
+        Seq<?> that = (Seq<?>) object;
+        return Util.listEquals(spliterator(), that.spliterator());
     }
 
     /**
-     * Equivalent to {@code asList().toString()}.
+     * {@inheritDoc}
      */
     public String toString() {
         return toString(", ", "[", "]");
