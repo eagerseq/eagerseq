@@ -27,6 +27,6 @@ public abstract class AbstractSeq<E> implements Seq<E> {
      * {@inheritDoc}
      */
     public String toString() {
-        return toString(", ", "[", "]");
+        return Util.toString(spliterator(), ", ", "[", "]");
     }
 }

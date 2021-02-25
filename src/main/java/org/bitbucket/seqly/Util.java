@@ -3,6 +3,7 @@ package org.bitbucket.seqly;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -15,19 +16,22 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.Spliterators.AbstractIntSpliterator;
 import java.util.Spliterators.AbstractSpliterator;
+import java.util.StringJoiner;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Spliterators.emptySpliterator;
 
-class Util {
+final class Util {
 
     private Util() {
     }
@@ -44,11 +48,12 @@ class Util {
         return StreamSupport.stream(stream.spliterator(), false);
     }
 
+    // maybe inline the following conversions
+
     static <E> Spliterator<E> toSpliterator(Iterator<E> iterator) {
         return Spliterators.spliteratorUnknownSize(iterator, 0);
     }
 
-    @SuppressWarnings("unchecked")
     static <E> Spliterator<E> toSpliterator(Object[] array) {
         return Spliterators.spliterator(array, 0);
     }
@@ -63,19 +68,37 @@ class Util {
     }
 
     static Object[] toArray(Spliterator<?> spliterator) {
-        return StreamSupport.stream(spliterator, false).toArray();
+        return toArray(spliterator, Object[]::new);
     }
 
-    static <T> T[] toArray(
-            Function<IntFunction<T[]>, T[]> maker, T[] ts) {
+    static <E, T> T[] toArray(
+            Spliterator<E> spliterator, T[] ts) {
         Class<?> type = ts.getClass().getComponentType();
         @SuppressWarnings("unchecked")
         IntFunction<T[]> generator = length -> (T[]) Array.newInstance(type, length);
-        T[] array = maker.apply(generator);
+        T[] array = toArray(spliterator, generator);
         if (ts.length < array.length) return array;
         System.arraycopy(array, 0, ts, 0, array.length);
         if (array.length < ts.length) ts[array.length] = null;
         return ts;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <E, A> A[] toArray(
+            Spliterator<E> spliterator, IntFunction<A[]> generator) {
+        A[] array = generator.apply(
+                (spliterator.characteristics() & Spliterator.SIZED) == 0
+                        ? 0 : toInt(spliterator.estimateSize()));
+        Object[] next = new Object[1];
+        int index = 0;
+        while (spliterator.tryAdvance(e -> next[0] = e)) {
+            if (index == array.length) {
+                array = arrayCopy(array, index * 2 + 1, generator);
+            }
+            array[index++] = (A) next[0];
+        }
+        return index == array.length
+                ? array : arrayCopy(array, index, generator);
     }
 
     static int toInt(long value) {
@@ -99,9 +122,12 @@ class Util {
     }
 
     static long count(Spliterator<?> spliterator) {
-        return (spliterator.characteristics() & Spliterator.SIZED) == 0
-                ? StreamSupport.stream(spliterator, false).count()
-                : spliterator.estimateSize();
+        if ((spliterator.characteristics() & Spliterator.SIZED) != 0) {
+            return spliterator.estimateSize();
+        }
+        long[] count = new long[1];
+        while (spliterator.tryAdvance(e -> count[0]++)) {}
+        return count[0];
     }
 
     static <E> int listHash(Spliterator<E> spliterator) {
@@ -141,26 +167,30 @@ class Util {
         return set0.equals(set1);
     }
 
-    static <E> Optional<E> findOnly(
-            Spliterator<? extends E> spliterator) {
+    static <E> Optional<E> findFirst(
+            Spliterator<E> spliterator) {
         @SuppressWarnings("unchecked")
         E[] next = (E[]) new Object[1];
-        if (spliterator.tryAdvance(e -> next[0] = e)) {
-            if (spliterator.tryAdvance(e -> {})) {
-                return Optional.empty();
-            }
-            return Optional.of(next[0]);
-        }
-        return Optional.empty();
+        return spliterator.tryAdvance(e -> next[0] = e)
+                ? Optional.of(next[0]) : Optional.empty();
+    }
+
+    static <E> Optional<E> findOnly(
+            Spliterator<E> spliterator) {
+        @SuppressWarnings("unchecked")
+        E[] next = (E[]) new Object[1];
+        return spliterator.tryAdvance(e -> next[0] = e)
+                && !spliterator.tryAdvance(e -> {})
+                ? Optional.of(next[0]) : Optional.empty();
     }
 
     static <E> Optional<E> findLast(
-            Spliterator<? extends E> spliterator) {
+            Spliterator<E> spliterator) {
         @SuppressWarnings("unchecked")
         E[] next = (E[]) new Object[1];
         boolean set = false;
         while (true) {
-            Spliterator<? extends E> prefix = spliterator.trySplit();
+            Spliterator<E> prefix = spliterator.trySplit();
             if (spliterator.tryAdvance(e -> next[0] = e)) {
                 set = true;
             } else if (prefix != null) {
@@ -172,9 +202,9 @@ class Util {
     }
 
     static <E> Spliterator<E> flatten(
-            Spliterator<? extends Spliterator<? extends E>> spliterators) {
+            Spliterator<Spliterator<E>> spliterators) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            private Spliterator<? extends E> current = emptySpliterator();
+            private Spliterator<E> current = emptySpliterator();
             public boolean tryAdvance(Consumer<? super E> action) {
                 while (true) {
                     if (current.tryAdvance(action)) return true;
@@ -186,7 +216,7 @@ class Util {
     }
 
     static <E> Spliterator.OfInt indexesOf(
-            Spliterator<? extends E> spliterator, Object object) {
+            Spliterator<E> spliterator, Object object) {
         return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
             private int index;
             private E next;
@@ -204,7 +234,7 @@ class Util {
     }
 
     static <E, F, R> Spliterator<R> zip(
-            Spliterator<? extends E> spl0,
+            Spliterator<E> spl0,
             Spliterator<? extends F> spl1,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
         return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
@@ -236,31 +266,6 @@ class Util {
     static Spliterator.OfInt indexes(Spliterator<?> spliterator) {
         return range(0, toInt(count(spliterator)));
     }
-
-//    static <E> Spliterator slice(
-//            Spliterator<E> spliterator, int from, int to) {
-//        if (to < from | from < 0) throw new IllegalArgumentException();
-//        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-//            private E next;
-//            private int index;
-//            public boolean tryAdvance(Consumer<? super E> action) {
-//                while (index < from) {
-//                    if (!tryAdvance(e -> {})) {
-//                        throw new IllegalArgumentException();
-//                    }
-//                    index++;
-//                }
-//                if (index < to) {
-//                    if (!spliterator.tryAdvance(action)) {
-//                        throw new IllegalArgumentException();
-//                    }
-//                    index++;
-//                    return true;
-//                }
-//                return false;
-//            }
-//        };
-//    }
 
     static <E> Spliterator limitLast(
             Spliterator<E> spliterator, long sizeLong) {
@@ -329,9 +334,8 @@ class Util {
         };
     }
 
-    // Can remove once Java 8 support is dropped.
     static <E> Spliterator<E> takeWhile(
-            Spliterator<? extends E> spliterator,
+            Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
@@ -353,9 +357,8 @@ class Util {
         };
     }
 
-    // Can remove once Java 8 support is dropped.
     static <E> Spliterator<E> dropWhile(
-            Spliterator<? extends E> spliterator,
+            Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
@@ -378,20 +381,20 @@ class Util {
 
     @SuppressWarnings("unchecked")
     static <E> Spliterator<E> intersection(
-            Spliterator<? extends E> first,
+            Spliterator<E> first,
             Spliterator<?> second) {
         return multisetOperation(first, (Spliterator<E>) second, false, false);
     }
 
     @SuppressWarnings("unchecked")
     static <E> Spliterator<E> difference(
-            Spliterator<? extends E> first,
+            Spliterator<E> first,
             Spliterator<?> second) {
         return multisetOperation(first, (Spliterator<E>) second, true, false);
     }
 
     static <E> Spliterator<E> union(
-            Spliterator<? extends E> first,
+            Spliterator<E> first,
             Spliterator<? extends E> second) {
         return multisetOperation(second, first, true, true);
     }
@@ -452,6 +455,172 @@ class Util {
                 return true;
             }
         };
+    }
+
+    static <E> Spliterator<E> filter(
+            Spliterator<E> spliterator,
+            Predicate<? super E> predicate) {
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            private E next;
+            public boolean tryAdvance(Consumer<? super E> action) {
+                while (spliterator.tryAdvance(e -> next = e)) {
+                    if (predicate.test(next)) {
+                        action.accept(next);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+    }
+
+    static <E, R> Spliterator<R> map(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends R> mapper) {
+        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
+            public boolean tryAdvance(Consumer<? super R> action) {
+                return spliterator.tryAdvance(e ->
+                        action.accept(mapper.apply(e)));
+            }
+        };
+    }
+
+    static <E> Spliterator<E> distinct(
+            Spliterator<E> spliterator) {
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            private E next;
+            private Set<E> seen = new HashSet<>();
+            public boolean tryAdvance(Consumer<? super E> action) {
+                while (spliterator.tryAdvance(e -> next = e)) {
+                    if (seen.add(next)) {
+                        action.accept(next);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+    }
+
+    static <E> Spliterator<E> sorted(
+            Spliterator<E> spliterator,
+            Comparator<? super E> comparator) {
+        // make this method accept array if/when directly called by Seq
+        @SuppressWarnings("unchecked")
+        E[] array = (E[]) toArray(spliterator);
+        Arrays.sort(array, comparator);
+        return toSpliterator(array);
+    }
+
+    static <E> Spliterator limit(
+            Spliterator<E> spliterator, long sizeLong) {
+        int size = toInt(sizeLong);
+        if (size < 0) throw new IllegalArgumentException();
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            private E next;
+            private int index;
+            public boolean tryAdvance(Consumer<? super E> action) {
+                if (index >= size) return false;
+                if (spliterator.tryAdvance(e -> next = e)) {
+                    index++;
+                    action.accept(next);
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    static <E> Spliterator skip(
+            Spliterator<E> spliterator, long sizeLong) {
+        int size = toInt(sizeLong);
+        if (size < 0) throw new IllegalArgumentException();
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            private E next;
+            private int index;
+            public boolean tryAdvance(Consumer<? super E> action) {
+                while (spliterator.tryAdvance(e -> next = e)) {
+                    if (index++ >= size) {
+                        action.accept(next);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+    }
+
+    static <E, R> R reduce(
+            Spliterator<E> spliterator,
+            R identity,
+            BiFunction<R, ? super E, R> accumulator) {
+        @SuppressWarnings("unchecked")
+        E[] next = (E[]) new Object[1];
+        while (spliterator.tryAdvance(e -> next[0] = e)) {
+            identity = accumulator.apply(identity, next[0]);
+        }
+        return identity;
+    }
+
+    static <E, R> R collect(
+            Spliterator<E> spliterator,
+            Supplier<R> supplier,
+            BiConsumer<R, ? super E> accumulator) {
+        @SuppressWarnings("unchecked")
+        E[] next = (E[]) new Object[1];
+        R acc = supplier.get();
+        while (spliterator.tryAdvance(e -> next[0] = e)) {
+            accumulator.accept(acc, next[0]);
+        }
+        return acc;
+    }
+
+    static <E> Optional<E> min(
+            Spliterator<E> spliterator,
+            Comparator<? super E> comparator) {
+        E min;
+        @SuppressWarnings("unchecked")
+        E[] next = (E[]) new Object[1];
+        if (spliterator.tryAdvance(e -> next[0] = e)) min = next[0];
+        else return Optional.empty();
+        while (spliterator.tryAdvance(e -> next[0] = e)) {
+            if (comparator.compare(next[0], min) < 0) min = next[0];
+        }
+        return Optional.of(min);
+    }
+
+    static <E> boolean noneMatch(
+            Spliterator<E> spliterator,
+            Predicate<? super E> predicate) {
+        @SuppressWarnings("unchecked")
+        E[] next = (E[]) new Object[1];
+        while (spliterator.tryAdvance(e -> next[0] = e)) {
+            if (predicate.test(next[0])) return false;
+        }
+        return true;
+    }
+
+    static <E> Spliterator<E> peek(
+            Spliterator<E> spliterator,
+            Consumer<? super E> peeker) {
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+            public boolean tryAdvance(Consumer<? super E> action) {
+                return spliterator.tryAdvance(e -> {
+                    peeker.accept(e);
+                    action.accept(e);
+                });
+            }
+        };
+    }
+
+    static String toString(
+            Spliterator<?> spliterator,
+            CharSequence delimiter,
+            CharSequence prefix,
+            CharSequence suffix) {
+        StringJoiner joiner = new StringJoiner(delimiter, prefix, suffix);
+        spliterator.forEachRemaining(e -> joiner.add(e.toString()));
+        return joiner.toString();
     }
 
     private static Spliterator.OfInt matchLengths(
@@ -548,5 +717,12 @@ class Util {
             return true;
         }
         return false;
+    }
+
+    private static <A> A[] arrayCopy(
+            A[] array, int length, IntFunction<A[]> generator) {
+        A[] copy = generator.apply(length);
+        System.arraycopy(array, 0, copy, 0, Math.min(array.length, length));
+        return copy;
     }
 }

@@ -26,6 +26,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -64,7 +65,8 @@ public class SeqTest {
                 }),
                 parameters("Seq#view(Iterable<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.view(Arrays.asList(elements));
+                        // ::iterator makes iterable have non-SIZED spliterator
+                        return Seq.view(Arrays.asList(elements)::iterator);
                     }
                 }),
                 parameters("Seq#copy(Iterator<E>)", new Factory() {
@@ -488,7 +490,6 @@ public class SeqTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testIndexesOfSlice() {
         Function<String, Seq<Integer>> toSeq =
                 s -> seqOf(s.chars().boxed().toArray(Integer[]::new));
@@ -510,6 +511,7 @@ public class SeqTest {
                 Seq.of("", "", Seq.of(0))).forEach(args -> {
             Seq<Integer> seq = toSeq.apply((String) args.get(0));
             Seq<Integer> slice = toSeq.apply((String) args.get(1));
+            @SuppressWarnings("unchecked")
             Seq<Integer> indexes = (Seq<Integer>) args.get(2);
             assertThat(seq.indexesOfSlice(slice),
                     equalTo(indexes));
@@ -745,6 +747,9 @@ public class SeqTest {
         assertThat(seq.toArray(new Integer[0]), arrayContaining(0, 1, 2));
         assertThat(seq.toArray(new Integer[0]).getClass().getComponentType(),
                 equalTo(Integer.class));
+        assertThat(seq.toArray(new Integer[5]), arrayWithSize(5));
+        assertThat(seq.toArray(new Integer[5])[2], equalTo(2));
+        assertThat(seq.toArray(new Integer[5])[3], equalTo(null));
         Integer[] target = new Integer[seq.size()];
         assertThat(seq.toArray(target), arrayContaining(0, 1, 2));
         assertThat(seq.toArray(target), sameInstance(target));
@@ -758,11 +763,11 @@ public class SeqTest {
                 this.<Integer>seqOf().min(naturalOrder()),
                 equalTo(Optional.empty()));
         assertThat(
-                seqOf(2, 3, 1).min(naturalOrder()),
+                seqOf(2, 3, 1, 4, 9, 7).min(naturalOrder()),
                 equalTo(Optional.of(1)));
         assertThat(
-                seqOf("the", "quick").min(comparing(String::length)),
-                equalTo(Optional.of("the")));
+                seqOf("quick", "brown", "fox", "jumped").min(comparing(String::length)),
+                equalTo(Optional.of("fox")));
     }
 
     @Test
@@ -771,11 +776,11 @@ public class SeqTest {
                 this.<Integer>seqOf().max(naturalOrder()),
                 equalTo(Optional.empty()));
         assertThat(
-                seqOf(2, 3, 1).max(naturalOrder()),
-                equalTo(Optional.of(3)));
+                seqOf(2, 3, 1, 4, 9, 7).max(naturalOrder()),
+                equalTo(Optional.of(9)));
         assertThat(
-                seqOf("the", "quick").max(comparing(String::length)),
-                equalTo(Optional.of("quick")));
+                seqOf("quick", "brown", "fox", "jumped").max(comparing(String::length)),
+                equalTo(Optional.of("jumped")));
     }
 
     @Test
@@ -901,12 +906,9 @@ public class SeqTest {
     @Test
     public void testSpliterator() {
         Spliterator<String> spliterator = seqOf("the", "quick").spliterator();
-        assertTrue(spliterator.hasCharacteristics(Spliterator.SIZED));
-        assertTrue(spliterator.hasCharacteristics(Spliterator.SUBSIZED));
         assertTrue(spliterator.tryAdvance(s -> assertThat(s, Matchers.equalTo("the"))));
         assertTrue(spliterator.tryAdvance(s -> assertThat(s, Matchers.equalTo("quick"))));
-        assertFalse(spliterator.tryAdvance(s -> {
-        }));
+        assertFalse(spliterator.tryAdvance(s -> {}));
     }
 
     @Test

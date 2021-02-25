@@ -209,7 +209,6 @@ public interface Seq<E> extends Collection<E> {
      * Unlike most {@code Seq} instances, the returned instance will not
      * support constant-time {@link #size()} or {@link #get(int)}.
      */
-    @SuppressWarnings("unchecked")
     static <E> Seq<E> view(Iterable<? extends E> iterable) {
         return new IterableSeq<>(Objects.requireNonNull(iterable));
     }

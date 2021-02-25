@@ -24,8 +24,8 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import static java.util.Collections.reverseOrder;
 import static java.util.function.Predicate.isEqual;
-import static java.util.stream.Collectors.joining;
 import static org.bitbucket.seqly.Util.toStream;
 
 /**
@@ -260,13 +260,13 @@ public interface SeqStream<E> extends Stream<E> {
     /**
      * Stream equivalent of {@link Seq#get(int)}.
      */
-    @SuppressWarnings("unchecked")
     default E get(int index) {
         if (index < 0) throw new IndexOutOfBoundsException();
         // findFirst throws for null
-        Object[] some = skip(index).limit(1).toArray();
+        @SuppressWarnings("unchecked")
+        E[] some = (E[]) skip(index).limit(1).toArray();
         if (some.length == 0) throw new IndexOutOfBoundsException();
-        return (E) some[0];
+        return some[0];
     }
 
     /**
@@ -346,7 +346,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#toArray(Object[])}.
      */
     default <T> T[] toArray(T[] ts) {
-        return Util.toArray(this::toArray, ts);
+        return Util.toArray(spliterator(), ts);
     }
 
     /**
@@ -388,7 +388,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> filter(Predicate<? super E> predicate) {
-        return view(toStream(this).filter(predicate));
+        return view(Util.filter(spliterator(), predicate));
     }
 
     /**
@@ -396,7 +396,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R> SeqStream<R> map(
             Function<? super E, ? extends R> mapper) {
-        return view(toStream(this).map(mapper));
+        return view(Util.map(spliterator(), mapper));
     }
 
     /**
@@ -458,77 +458,78 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> distinct() {
-        return view(toStream(this).distinct());
+        return view(Util.distinct(spliterator()));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {
-        return view(toStream(this).sorted());
+        return view(Util.sorted(spliterator(), null));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
-        return view(toStream(this).sorted(comparator));
+        return view(Util.sorted(spliterator(), comparator));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> limit(long size) {
-        return view(toStream(this).limit(size));
+        return view(Util.limit(spliterator(), size));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> skip(long size) {
-        return view(toStream(this).skip(size));
+        return view(Util.skip(spliterator(), size));
     }
 
     /**
      * {@inheritDoc}
      */
     default void forEach(Consumer<? super E> action) {
-        toStream(this).forEach(action);
+        spliterator().forEachRemaining(action);
     }
 
     /**
      * {@inheritDoc}
      */
     default void forEachOrdered(Consumer<? super E> action) {
-        toStream(this).forEachOrdered(action);
+        spliterator().forEachRemaining(action);
     }
 
     /**
      * {@inheritDoc}
      */
     default Object[] toArray() {
-        return toStream(this).toArray();
+        return Util.toArray(spliterator());
     }
 
     /**
      * {@inheritDoc}
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
-        return toStream(this).toArray(generator);
+        return Util.toArray(spliterator(), generator);
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> reduce(BinaryOperator<E> accumulator) {
-        return toStream(this).reduce(accumulator);
+        return Util.reduce(spliterator(), Optional.empty(), (o, e) ->
+                Optional.of(o.isPresent() ? accumulator.apply(o.get(), e) : e));
     }
 
     /**
      * {@inheritDoc}
      */
     default E reduce(E identity, BinaryOperator<E> accumulator) {
-        return toStream(this).reduce(identity, accumulator);
+        return Util.reduce(spliterator(), identity, accumulator);
     }
 
     /**
@@ -537,9 +538,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <U> U reduce(
             U identity,
             BiFunction<U, ? super E, U> accumulator) {
-        return toStream(this).reduce(identity, accumulator, (a, b) -> {
-            throw new RuntimeException();
-        });
+        return Util.reduce(spliterator(), identity, accumulator);
     }
 
     /**
@@ -548,15 +547,16 @@ public interface SeqStream<E> extends Stream<E> {
     default <U> U reduce(
             U identity,
             BiFunction<U, ? super E, U> accumulator,
-            BinaryOperator<U> combiner) {
-        return toStream(this).reduce(identity, accumulator, combiner);
+            BinaryOperator<U> ignored) {
+        return Util.reduce(spliterator(), identity, accumulator);
     }
 
     /**
      * Equivalent to {@code collect(Seq.toSeq())}.
      */
     default Seq<E> collect() {
-        return collect(Seq.toSeq());
+        return Util.<E, Seq.Builder<E>>collect(
+                spliterator(), Seq::builder, Seq.Builder::add).build();
     }
 
     /**
@@ -565,9 +565,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <U> U collect(
             Supplier<U> supplier,
             BiConsumer<U, ? super E> accumulator) {
-        return toStream(this).collect(supplier, accumulator, (a, b) -> {
-            throw new RuntimeException();
-        });
+        return Util.collect(spliterator(), supplier, accumulator);
     }
 
     /**
@@ -576,29 +574,30 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> R collect(
             Supplier<R> supplier,
             BiConsumer<R, ? super E> accumulator,
-            BiConsumer<R, R> combiner) {
-        return toStream(this).collect(supplier, accumulator, combiner);
+            BiConsumer<R, R> ignored) {
+        return Util.collect(spliterator(), supplier, accumulator);
     }
 
     /**
      * {@inheritDoc}
      */
     default <R, A> R collect(Collector<? super E, A, R> collector) {
-        return toStream(this).collect(collector);
+        return collector.finisher().apply(Util.collect(
+                spliterator(), collector.supplier(), collector.accumulator()));
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> min(Comparator<? super E> comparator) {
-        return toStream(this).min(comparator);
+        return Util.min(spliterator(), comparator);
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> max(Comparator<? super E> comparator) {
-        return toStream(this).max(comparator);
+        return Util.min(spliterator(), reverseOrder(comparator));
     }
 
     /**
@@ -612,35 +611,35 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default boolean anyMatch(Predicate<? super E> predicate) {
-        return toStream(this).anyMatch(predicate);
+        return !Util.noneMatch(spliterator(), predicate);
     }
 
     /**
      * {@inheritDoc}
      */
     default boolean allMatch(Predicate<? super E> predicate) {
-        return toStream(this).allMatch(predicate);
+        return Util.noneMatch(spliterator(), predicate.negate());
     }
 
     /**
      * {@inheritDoc}
      */
     default boolean noneMatch(Predicate<? super E> predicate) {
-        return toStream(this).noneMatch(predicate);
+        return Util.noneMatch(spliterator(), predicate);
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> findFirst() {
-        return toStream(this).findFirst();
+        return Util.findFirst(spliterator());
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> findAny() {
-        return toStream(this).findAny();
+        return Util.findFirst(spliterator());
     }
 
     /**
@@ -661,7 +660,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> peek(Consumer<? super E> action) {
-        return view(toStream(this).peek(action));
+        return view(Util.peek(spliterator(), action));
     }
 
     /**
@@ -670,8 +669,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default String toString(
             CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
-        return toStream(this).map(Object::toString)
-                .collect(joining(delimiter, prefix, suffix));
+        return Util.toString(spliterator(), delimiter, prefix, suffix);
     }
 
     /**
