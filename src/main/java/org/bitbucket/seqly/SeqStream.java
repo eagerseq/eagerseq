@@ -3,6 +3,7 @@ package org.bitbucket.seqly;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
@@ -24,8 +25,6 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-import static java.util.Collections.reverseOrder;
-import static java.util.function.Predicate.isEqual;
 import static org.bitbucket.seqly.Util.toStream;
 
 /**
@@ -85,7 +84,7 @@ public interface SeqStream<E> extends Stream<E> {
     @SafeVarargs
     static <E> SeqStream<E> concat(
             Stream<? extends E>... streams) {
-        return flatten(Stream.of(streams));
+        return flatten(of(streams));
     }
 
     /**
@@ -93,9 +92,8 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static <E> SeqStream<E> flatten(
             Stream<? extends Stream<? extends E>> streams) {
-        // avoid Stream.flatMap bug
         return view(Util.flatten(
-                streams.map(Stream::spliterator).spliterator()));
+                Util.map(streams.spliterator(), Stream::spliterator)));
     }
 
     /**
@@ -165,49 +163,43 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#sum(Iterable)}.
      */
     default SeqStream<E> sum(Stream<? extends E> that) {
-        return flatten(Stream.of(this, that));
+        return flatten(of(this, that));
     }
 
     /**
      * Stream equivalent of {@link Seq#containsMultiset(Iterable)}.
      */
     default boolean containsMultiset(Stream<?> that) {
-        return !Util.difference(that.spliterator(), spliterator())
-                .tryAdvance(e -> {});
+        return Util.containsMultiset(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#permutations()}.
      */
     default SeqStream<? extends SeqStream<E>> permutations() {
-        return view(Util.permutations(toArray()))
-                .map(Util::toSeqStream);
+        return view(Util.map(Util.permutations(toArray()), Util::toSeqStream));
     }
 
     /**
      * Stream equivalent of {@link Seq#combinations(int)}.
      */
     default SeqStream<? extends SeqStream<E>> combinations(int size) {
-        return view(Util.combinations(toArray(), size))
-                .map(Util::toSeqStream);
+        return view(Util.map(Util.combinations(toArray(), size),
+                Util::toSeqStream));
     }
 
     /**
      * Stream equivalent of {@link Seq#powerSet()}.
      */
     default SeqStream<? extends SeqStream<E>> powerSet() {
-        Object[] arr = toArray();
-        return flatten(
-                range(0, arr.length + 1)
-                        .map(size -> view(Util.combinations(arr, size))))
-                .map(Util::toSeqStream);
+        return view(Util.map(Util.powerSet(toArray()), Util::toSeqStream));
     }
 
     /**
      * Stream equivalent of {@link Seq#slice(int, int)}.
      */
     default SeqStream<E> slice(int from, int to) {
-        return limit(to).skip(from);
+        return view(Util.slice(spliterator(), from, to));
     }
 
     /**
@@ -221,70 +213,56 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#indexesOfSlice(Iterable)}.
      */
     default int indexOfSlice(Stream<?> that) {
-        return indexesOfSlice(that).findFirst().orElse(-1);
+        return Util.indexOfSlice(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#lastIndexOfSlice(Iterable)}.
      */
     default int lastIndexOfSlice(Stream<?> that) {
-        return indexesOfSlice(that).findLast().orElse(-1);
+        return Util.lastIndexOfSlice(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#containsSlice(Iterable)}.
      */
     default boolean containsSlice(Stream<?> that) {
-        return !indexesOfSlice(that).isEmpty();
+        return Util.containsSlice(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#startsWith(Iterable)}.
      */
     default boolean startsWith(Stream<?> that) {
-        // return zip(that, Objects::equals).allMatch(e -> e);
-        Object[] array = that.toArray();
-        return limit(array.length)
-                .listEquals(Util.toSeqStream(array));
+        return Util.startsWith(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#endsWith(Iterable)}.
      */
     default boolean endsWith(Stream<?> that) {
-        Object[] array = that.toArray();
-        return limitLast(array.length)
-                .listEquals(Util.toSeqStream(array));
+        return Util.endsWith(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#get(int)}.
      */
     default E get(int index) {
-        if (index < 0) throw new IndexOutOfBoundsException();
-        // findFirst throws for null
-        @SuppressWarnings("unchecked")
-        E[] some = (E[]) skip(index).limit(1).toArray();
-        if (some.length == 0) throw new IndexOutOfBoundsException();
-        return some[0];
+        return Util.get(spliterator(), index);
     }
 
     /**
      * Stream equivalent of {@link Seq#indexOf(Object)}.
      */
     default int indexOf(Object object) {
-        // findFirst throws for null
-        Object[] some = indexesOf(object).limit(1).toArray();
-        return some.length == 0 ? -1 : (int) some[0];
+        return Util.indexOf(spliterator(), object);
     }
 
     /**
      * Stream equivalent of {@link Seq#lastIndexOf(Object)}.
      */
     default int lastIndexOf(Object object) {
-        // findLast throws for null
-        Object[] some = indexesOf(object).limitLast(1).toArray();
-        return some.length == 0 ? -1 : (int) some[0];
+        return Util.lastIndexOf(spliterator(), object);
     }
 
     /**
@@ -298,48 +276,42 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#reversed()}.
      */
     default SeqStream<E> reversed() {
-        Object[] array = toArray();
-        Util.reverse(array);
-        return Util.toSeqStream(array);
+        return view(Util.reversed(spliterator()));
     }
 
     /**
      * Stream equivalent of {@link Seq#rotated(int)}.
      */
     default SeqStream<E> rotated(int size) {
-        Object[] array = toArray();
-        Util.rotate(array, size);
-        return Util.toSeqStream(array);
+        return view(Util.rotated(spliterator(), size));
     }
 
     /**
      * Stream equivalent of {@link Seq#shuffled(Random)}.
      */
     default SeqStream<E> shuffled(Random random) {
-        Object[] array = toArray();
-        Util.shuffle(array, random);
-        return Util.toSeqStream(array);
+        return view(Util.shuffled(spliterator(), random));
     }
 
     /**
      * Stream equivalent of {@link Seq#size()}.
      */
     default int size() {
-        return Util.toInt(count());
+        return Util.size(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#isEmpty()}.
      */
     default boolean isEmpty() {
-        return noneMatch(element -> true);
+        return Util.isEmpty(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#contains(Object)}.
      */
     default boolean contains(Object object) {
-        return anyMatch(isEqual(object));
+        return Util.contains(spliterator(), object);
     }
 
     /**
@@ -353,7 +325,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#containsAll(Collection)}.
      */
     default boolean containsAll(Stream<?> that) {
-        return containsMultiset(that.distinct());
+        return Util.containsAll(spliterator(), that.spliterator());
     }
 
     /**
@@ -426,8 +398,8 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R> SeqStream<R> flatMap(
             Function<? super E, ? extends Stream<? extends R>> mapper) {
-        // avoid Stream.flatMap bug
-        return flatten(map(mapper));
+        return view(Util.flatMap(
+                spliterator(), mapper.andThen(Stream::spliterator)));
     }
 
     /**
@@ -472,7 +444,8 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
-        return view(Util.sorted(spliterator(), comparator));
+        return view(Util.sorted(spliterator(),
+                Objects.requireNonNull(comparator)));
     }
 
     /**
@@ -521,8 +494,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default Optional<E> reduce(BinaryOperator<E> accumulator) {
-        return Util.reduce(spliterator(), Optional.empty(), (o, e) ->
-                Optional.of(o.isPresent() ? accumulator.apply(o.get(), e) : e));
+        return Util.reduce(spliterator(), accumulator);
     }
 
     /**
@@ -555,8 +527,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Equivalent to {@code collect(Seq.toSeq())}.
      */
     default Seq<E> collect() {
-        return Util.<E, Seq.Builder<E>>collect(
-                spliterator(), Seq::builder, Seq.Builder::add).build();
+        return Seq.copy(spliterator());
     }
 
     /**
@@ -582,8 +553,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default <R, A> R collect(Collector<? super E, A, R> collector) {
-        return collector.finisher().apply(Util.collect(
-                spliterator(), collector.supplier(), collector.accumulator()));
+        return Util.collect(spliterator(), collector);
     }
 
     /**
@@ -597,7 +567,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default Optional<E> max(Comparator<? super E> comparator) {
-        return Util.min(spliterator(), reverseOrder(comparator));
+        return Util.max(spliterator(), comparator);
     }
 
     /**
@@ -611,14 +581,14 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default boolean anyMatch(Predicate<? super E> predicate) {
-        return !Util.noneMatch(spliterator(), predicate);
+        return Util.anyMatch(spliterator(), predicate);
     }
 
     /**
      * {@inheritDoc}
      */
     default boolean allMatch(Predicate<? super E> predicate) {
-        return Util.noneMatch(spliterator(), predicate.negate());
+        return Util.allMatch(spliterator(), predicate);
     }
 
     /**

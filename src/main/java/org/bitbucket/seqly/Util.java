@@ -19,16 +19,19 @@ import java.util.Spliterators.AbstractSpliterator;
 import java.util.StringJoiner;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collector;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.Collections.reverseOrder;
 import static java.util.Spliterators.emptySpliterator;
 
 final class Util {
@@ -109,16 +112,22 @@ final class Util {
         return intValue;
     }
 
-    static void reverse(Object[] array) {
+    static <E> Spliterator<E> reversed(Spliterator<E> spliterator) {
+        Object[] array = toArray(spliterator);
         Collections.reverse(Arrays.asList(array));
+        return toSpliterator(array);
     }
 
-    static void rotate(Object[] array, int size) {
+    static <E> Spliterator<E> rotated(Spliterator<E> spliterator, int size) {
+        Object[] array = toArray(spliterator);
         Collections.rotate(Arrays.asList(array), size);
+        return toSpliterator(array);
     }
 
-    static void shuffle(Object[] array, Random random) {
+    static <E> Spliterator<E> shuffled(Spliterator<E> spliterator, Random random) {
+        Object[] array = toArray(spliterator);
         Collections.shuffle(Arrays.asList(array), random);
+        return toSpliterator(array);
     }
 
     static long count(Spliterator<?> spliterator) {
@@ -128,6 +137,14 @@ final class Util {
         long[] count = new long[1];
         while (spliterator.tryAdvance(e -> count[0]++)) {}
         return count[0];
+    }
+
+    static int size(Spliterator<?> spliterator) {
+        return toInt(count(spliterator));
+    }
+
+    static boolean isEmpty(Spliterator<?> spliterator) {
+        return !spliterator.tryAdvance(e -> {});
     }
 
     static <E> int listHash(Spliterator<E> spliterator) {
@@ -215,6 +232,16 @@ final class Util {
         };
     }
 
+    static <E> E get(
+            Spliterator<E> spliterator, int index) {
+        if (index < 0) throw new IndexOutOfBoundsException();
+        @SuppressWarnings("unchecked")
+        E[] next = (E[]) new Object[1];
+        if (skip(spliterator, index)
+                .tryAdvance(e -> next[0] = e)) return next[0];
+        throw new IndexOutOfBoundsException();
+    }
+
     static <E> Spliterator.OfInt indexesOf(
             Spliterator<E> spliterator, Object object) {
         return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
@@ -231,6 +258,21 @@ final class Util {
                 return false;
             }
         };
+    }
+
+    static <E> int indexOf(
+            Spliterator<E> spliterator, Object object) {
+        return findFirst(indexesOf(spliterator, object)).orElse(-1);
+    }
+
+    static <E> int lastIndexOf(
+            Spliterator<E> spliterator, Object object) {
+        return findLast(indexesOf(spliterator, object)).orElse(-1);
+    }
+
+    static <E> boolean contains(
+            Spliterator<E> spliterator, Object object) {
+        return indexesOf(spliterator, object).tryAdvance((int e) -> {});
     }
 
     static <E, F, R> Spliterator<R> zip(
@@ -399,6 +441,19 @@ final class Util {
         return multisetOperation(second, first, true, true);
     }
 
+    static boolean containsMultiset(
+            Spliterator<?> first,
+            Spliterator<?> second) {
+        return !multisetOperation(second, first, true, false)
+                .tryAdvance(e -> {});
+    }
+
+    static boolean containsAll(
+            Spliterator<?> first,
+            Spliterator<?> second) {
+        return containsMultiset(first, distinct(second));
+    }
+
     static Spliterator.OfInt indexesOfSlice(
             Spliterator<?> spliterator, Spliterator<?> slice) {
         Object[] array = toArray(slice);
@@ -407,12 +462,44 @@ final class Util {
         return toMatchIndexes(matchLengths(spliterator, array, jumps, 0), array.length);
     }
 
-    static Spliterator<Object[]> permutations(Object[] array) {
-        return new AbstractSpliterator<Object[]>(Long.MAX_VALUE, 0) {
+    static int indexOfSlice(
+            Spliterator<?> spliterator, Spliterator<?> slice) {
+        return findFirst(indexesOfSlice(spliterator, slice)).orElse(-1);
+    }
+
+    static int lastIndexOfSlice(
+            Spliterator<?> spliterator, Spliterator<?> slice) {
+        return findLast(indexesOfSlice(spliterator, slice)).orElse(-1);
+    }
+
+    static boolean containsSlice(
+            Spliterator<?> spliterator, Spliterator<?> slice) {
+        return indexesOfSlice(spliterator, slice).tryAdvance((int e) -> {});
+    }
+
+    static boolean startsWith(
+            Spliterator<?> spliterator, Spliterator<?> slice) {
+        // return zip(that, Objects::equals).allMatch(e -> e);
+        Object[] array = toArray(slice);
+        return listEquals(
+                limit(spliterator, array.length), toSpliterator(array));
+    }
+
+    static boolean endsWith(
+            Spliterator<?> spliterator, Spliterator<?> slice) {
+        Object[] array = toArray(slice);
+        return listEquals(
+                limitLast(spliterator, array.length), toSpliterator(array));
+    }
+
+    static <E> Spliterator<E[]> permutations(Object[] array) {
+        return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
             private int[] index = IntStream.range(0, array.length).toArray();
-            public boolean tryAdvance(Consumer<? super Object[]> action) {
+            public boolean tryAdvance(Consumer<? super E[]> action) {
                 if (index == null) return false;
-                Object[] r = Arrays.stream(index).mapToObj(i -> array[i]).toArray();
+                @SuppressWarnings("unchecked")
+                E[] r = (E[]) Arrays.stream(index)
+                        .mapToObj(i -> array[i]).toArray();
                 int a = index.length - 2;
                 while (a >= 0 && index[a + 1] < index[a]) a--;
                 if (a < 0) {
@@ -435,13 +522,14 @@ final class Util {
         };
     }
 
-    static Spliterator<Object[]> combinations(Object[] array, int size) {
+    static <E> Spliterator<E[]> combinations(Object[] array, int size) {
         if (size < 0 | size > array.length) throw new IllegalArgumentException();
-        return new AbstractSpliterator<Object[]>(Long.MAX_VALUE, 0) {
+        return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
             private int[] index = IntStream.range(0, size).toArray();
-            public boolean tryAdvance(Consumer<? super Object[]> action) {
+            public boolean tryAdvance(Consumer<? super E[]> action) {
                 if (index == null) return false;
-                Object[] r = Arrays.stream(index).mapToObj(i -> array[i]).toArray();
+                @SuppressWarnings("unchecked")
+                E[] r = (E[]) Arrays.stream(index).mapToObj(i -> array[i]).toArray();
                 int a = index.length - 1;
                 int i = array.length - 1;
                 while (a >= 0 && index[a] == i--) a--;
@@ -455,6 +543,12 @@ final class Util {
                 return true;
             }
         };
+    }
+
+    static <E> Spliterator<E[]> powerSet(Object[] array) {
+        return flatten(map(
+                range(0, array.length + 1),
+                size -> combinations(array, size)));
     }
 
     static <E> Spliterator<E> filter(
@@ -485,6 +579,12 @@ final class Util {
         };
     }
 
+    static <E, R> Spliterator<R> flatMap(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends Spliterator<R>> mapper) {
+        return flatten(map(spliterator, mapper));
+    }
+
     static <E> Spliterator<E> distinct(
             Spliterator<E> spliterator) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
@@ -512,7 +612,7 @@ final class Util {
         return toSpliterator(array);
     }
 
-    static <E> Spliterator limit(
+    static <E> Spliterator<E> limit(
             Spliterator<E> spliterator, long sizeLong) {
         int size = toInt(sizeLong);
         if (size < 0) throw new IllegalArgumentException();
@@ -531,7 +631,7 @@ final class Util {
         };
     }
 
-    static <E> Spliterator skip(
+    static <E> Spliterator<E> skip(
             Spliterator<E> spliterator, long sizeLong) {
         int size = toInt(sizeLong);
         if (size < 0) throw new IllegalArgumentException();
@@ -550,6 +650,11 @@ final class Util {
         };
     }
 
+    static <E> Spliterator<E> slice(
+            Spliterator<E> spliterator, long from, long to) {
+        return skip(limit(spliterator, to), from);
+    }
+
     static <E, R> R reduce(
             Spliterator<E> spliterator,
             R identity,
@@ -560,6 +665,13 @@ final class Util {
             identity = accumulator.apply(identity, next[0]);
         }
         return identity;
+    }
+
+    static <E> Optional<E> reduce(
+            Spliterator<E> spliterator,
+            BinaryOperator<E> accumulator) {
+        return reduce(spliterator, Optional.empty(), (o, e) ->
+                Optional.of(o.isPresent() ? accumulator.apply(o.get(), e) : e));
     }
 
     static <E, R> R collect(
@@ -573,6 +685,13 @@ final class Util {
             accumulator.accept(acc, next[0]);
         }
         return acc;
+    }
+
+    static <E, A, R> R collect(
+            Spliterator<E> spliterator,
+            Collector<? super E, A, R> collector) {
+        return collector.finisher().apply(collect(
+                spliterator, collector.supplier(), collector.accumulator()));
     }
 
     static <E> Optional<E> min(
@@ -589,6 +708,12 @@ final class Util {
         return Optional.of(min);
     }
 
+    static <E> Optional<E> max(
+            Spliterator<E> spliterator,
+            Comparator<? super E> comparator) {
+        return min(spliterator, reverseOrder(comparator));
+    }
+
     static <E> boolean noneMatch(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
@@ -598,6 +723,18 @@ final class Util {
             if (predicate.test(next[0])) return false;
         }
         return true;
+    }
+
+    static <E> boolean anyMatch(
+            Spliterator<E> spliterator,
+            Predicate<? super E> predicate) {
+        return !noneMatch(spliterator, predicate);
+    }
+
+    static <E> boolean allMatch(
+            Spliterator<E> spliterator,
+            Predicate<? super E> predicate) {
+        return noneMatch(spliterator, predicate.negate());
     }
 
     static <E> Spliterator<E> peek(
