@@ -34,13 +34,13 @@ import java.util.stream.StreamSupport;
 import static java.util.Collections.reverseOrder;
 import static java.util.Spliterators.emptySpliterator;
 
-final class Util {
+final class Split {
 
     private static final int INITIAL_CAPACITY = 7;
     private static final int MAX_ARRAY_LENGTH = Integer.MAX_VALUE - 8;
     private static final int HALF_ARRAY_LENGTH = (MAX_ARRAY_LENGTH - 1) / 2;
 
-    private Util() {
+    private Split() {
     }
 
     static <E> SeqStream<E> toSeqStream(Iterable<E> iterable) {
@@ -107,7 +107,8 @@ final class Util {
             Spliterator<E> spliterator, T[] ts) {
         Class<?> type = ts.getClass().getComponentType();
         @SuppressWarnings("unchecked")
-        IntFunction<T[]> generator = length -> (T[]) Array.newInstance(type, length);
+        IntFunction<T[]> generator =
+                length -> (T[]) Array.newInstance(type, length);
         T[] array = toArray(spliterator, generator);
         if (ts.length < array.length) return array;
         System.arraycopy(array, 0, ts, 0, array.length);
@@ -135,7 +136,8 @@ final class Util {
         return toSpliterator(array);
     }
 
-    static <E> Spliterator<E> shuffled(Spliterator<E> spliterator, Random random) {
+    static <E> Spliterator<E> shuffled(
+            Spliterator<E> spliterator, Random random) {
         Object[] array = toArray(spliterator);
         Collections.shuffle(Arrays.asList(array), random);
         return toSpliterator(array);
@@ -326,6 +328,7 @@ final class Util {
             private int used;
             private int index;
             private boolean skipped;
+            @SuppressWarnings("unchecked")
             private E[] queue = (E[]) new Object[size];
             public boolean tryAdvance(Consumer<? super E> action) {
                 if (!skipped) {
@@ -429,18 +432,16 @@ final class Util {
         };
     }
 
-    @SuppressWarnings("unchecked")
     static <E> Spliterator<E> intersection(
             Spliterator<E> first,
             Spliterator<?> second) {
-        return multisetOperation(first, (Spliterator<E>) second, false, false);
+        return multisetOperation(first, second, false, false);
     }
 
-    @SuppressWarnings("unchecked")
     static <E> Spliterator<E> difference(
             Spliterator<E> first,
             Spliterator<?> second) {
-        return multisetOperation(first, (Spliterator<E>) second, true, false);
+        return multisetOperation(first, second, true, false);
     }
 
     static <E> Spliterator<E> union(
@@ -467,7 +468,8 @@ final class Util {
         Object[] array = toArray(slice);
         int[] jumps = new int[array.length + 1];
         copyInto(matchLengths(toSpliterator(array), array, jumps, -1), jumps);
-        return toMatchIndexes(matchLengths(spliterator, array, jumps, 0), array.length);
+        return toMatchIndexes(matchLengths(spliterator, array, jumps, 0),
+                array.length);
     }
 
     static int indexOfSlice(
@@ -531,13 +533,16 @@ final class Util {
     }
 
     static <E> Spliterator<E[]> combinations(Object[] array, int size) {
-        if (size < 0 | size > array.length) throw new IllegalArgumentException();
+        if (size < 0 | size > array.length) {
+            throw new IllegalArgumentException();
+        }
         return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
             private int[] index = IntStream.range(0, size).toArray();
             public boolean tryAdvance(Consumer<? super E[]> action) {
                 if (index == null) return false;
                 @SuppressWarnings("unchecked")
-                E[] r = (E[]) Arrays.stream(index).mapToObj(i -> array[i]).toArray();
+                E[] r = (E[]) Arrays.stream(index)
+                        .mapToObj(i -> array[i]).toArray();
                 int a = index.length - 1;
                 int i = array.length - 1;
                 while (a >= 0 && index[a] == i--) a--;
@@ -777,7 +782,8 @@ final class Util {
                     return true;
                 }
                 if (!spliterator.tryAdvance(e -> next = e)) return false;
-                while (j == slice.length || j >= 0 && !Objects.equals(next, slice[j])) {
+                while (j == slice.length
+                        || j >= 0 && !Objects.equals(next, slice[j])) {
                     j = jumps[j];
                 }
                 action.accept(++j);
@@ -809,9 +815,10 @@ final class Util {
         spliterator.forEachRemaining((int e) -> slice[i[0]++] = e);
     }
 
+    @SuppressWarnings("unchecked")
     private static <E> Spliterator<E> multisetOperation(
             Spliterator<? extends E> first,
-            Spliterator<? extends E> second,
+            Spliterator<?> second,
             boolean difference, boolean union) {
         Map<Object, Long> multiset = new HashMap<>();
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
@@ -819,7 +826,7 @@ final class Util {
             private boolean concatenated;
             public boolean tryAdvance(Consumer<? super E> action) {
                 if (!concatenated) {
-                    while (second.tryAdvance(e -> next = e)) {
+                    while (second.tryAdvance(e -> next = (E) e)) {
                         multisetAdd(multiset, next);
                         if (union) {
                             action.accept(next);

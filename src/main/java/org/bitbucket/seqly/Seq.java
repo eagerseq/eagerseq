@@ -22,6 +22,7 @@ import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.function.Function.identity;
@@ -116,12 +117,12 @@ import static java.util.function.Function.identity;
  * <h2>Equality</h2>
  *
  * <p>{@code Seq} defines {@code equals()}
- * such that two {@code Seq}s are equal only if they have the same elements in the same
- * order. This is like {@code List}, though a {@code Seq} is never equal
- * to a {@code List} and vice versa, as required by
+ * such that two {@code Seq}s are equal only if they have the same elements
+ * in the same order. This is like {@code List}, though a {@code Seq}
+ * is never equal to a {@code List} and vice versa, as required by
  * {@code List.equals()}.
- * The methods {@code listEquals()}, {@code setEquals()} and {@code multisetEquals()}
- * may be used for other definitions of equality
+ * The methods {@code listEquals()}, {@code setEquals()} and
+ * {@code multisetEquals()} may be used for other definitions of equality
  * and do not depend on the subtype of the given {@code Iterable}.
  * The methods {@code asList()},
  * {@code asSet()} and {@code asMap()} may be useful for equality comparisons
@@ -198,7 +199,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns a {@code Seq} containing the given elements.
      */
     static <E> Seq<E> copy(Iterable<? extends E> iterable) {
-        return new ArraySeq<>(Util.toArray(iterable));
+        return new ArraySeq<>(Split.toArray(iterable));
     }
 
     /**
@@ -224,14 +225,14 @@ public interface Seq<E> extends Collection<E> {
      * Returns a {@code Seq} containing the given elements.
      */
     static <E> Seq<E> copy(Iterator<? extends E> iterator) {
-        return new ArraySeq<>(Util.toArray(iterator));
+        return new ArraySeq<>(Split.toArray(iterator));
     }
 
     /**
      * Returns a {@code Seq} containing the given elements.
      */
     static <E> Seq<E> copy(Spliterator<? extends E> spliterator) {
-        return new ArraySeq<>(Util.toArray(spliterator));
+        return new ArraySeq<>(Split.toArray(spliterator));
     }
 
     /**
@@ -264,7 +265,7 @@ public interface Seq<E> extends Collection<E> {
      * if ascending, otherwise returns an empty {@code Seq}.
      */
     static Seq<Integer> range(int from, int to) {
-        return copy(Util.range(from, to));
+        return copy(Split.range(from, to));
     }
 
     /**
@@ -284,8 +285,8 @@ public interface Seq<E> extends Collection<E> {
      */
     static <E> Seq<E> flatten(
             Iterable<? extends Iterable<? extends E>> iterables) {
-        return copy(Util.flatten(
-                Util.map(iterables.spliterator(), Iterable::spliterator)));
+        return copy(Split.flatten(
+                Split.map(iterables.spliterator(), Iterable::spliterator)));
     }
 
     /**
@@ -334,7 +335,8 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Equivalent to {@link #asMap(Function, Function) asMap(keyMapper, e -> e)}.
+     * Equivalent to
+     * {@link #asMap(Function, Function) asMap(keyMapper, e -> e)}.
      */
     default <K> Map<K, E> asMap(
             Function<? super E, ? extends K> keyMapper) {
@@ -362,7 +364,7 @@ public interface Seq<E> extends Collection<E> {
      * The type of the given {@code Iterable} is irrelevant.
      */
     default boolean listEquals(Iterable<?> that) {
-        return Util.listEquals(spliterator(), that.spliterator());
+        return Split.listEquals(spliterator(), that.spliterator());
     }
 
     /**
@@ -375,7 +377,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #multisetEquals(Iterable)}.
      */
     default boolean setEquals(Iterable<?> that) {
-        return Util.setEquals(spliterator(), that.spliterator());
+        return Split.setEquals(spliterator(), that.spliterator());
     }
 
     /**
@@ -389,7 +391,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #setEquals(Iterable)}.
      */
     default boolean multisetEquals(Iterable<?> that) {
-        return Util.multisetEquals(spliterator(), that.spliterator());
+        return Split.multisetEquals(spliterator(), that.spliterator());
     }
 
     /**
@@ -401,7 +403,7 @@ public interface Seq<E> extends Collection<E> {
     default <F, R> Seq<R> zip(
             Iterable<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
-        return copy(Util.zip(spliterator(), that.spliterator(), mapper));
+        return copy(Split.zip(spliterator(), that.spliterator(), mapper));
     }
 
     /**
@@ -409,7 +411,7 @@ public interface Seq<E> extends Collection<E> {
      * from zero (inclusive) to the size of this {@code Seq} (exclusive).
      */
     default Seq<Integer> indexes() {
-        return copy(Util.indexes(spliterator()));
+        return copy(Split.indexes(spliterator()));
     }
 
     /**
@@ -424,11 +426,11 @@ public interface Seq<E> extends Collection<E> {
      * from this {@code Seq} which occur first in encounter order.
      * The {@link #difference(Iterable)} contains the remaining
      * {@code max(0, a - b)} elements from this {@code Seq}.
-     * Implementation converts the argument to a {@code HashMap} of multiplicities.
+     * The implementation uses hash tables.
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> intersection(Iterable<?> that) {
-        return copy(Util.intersection(spliterator(), that.spliterator()));
+        return copy(Split.intersection(spliterator(), that.spliterator()));
     }
 
     /**
@@ -443,11 +445,11 @@ public interface Seq<E> extends Collection<E> {
      * from this {@code Seq} which occur last in encounter order.
      * The {@link #intersection(Iterable)} contains the remaining
      * {@code min(a, b)} elements from this {@code Seq}.
-     * Implementation converts the argument to a {@code HashMap} of multiplicities.
+     * The implementation uses hash tables.
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> difference(Iterable<?> that) {
-        return copy(Util.difference(spliterator(), that.spliterator()));
+        return copy(Split.difference(spliterator(), that.spliterator()));
     }
 
     /**
@@ -462,12 +464,12 @@ public interface Seq<E> extends Collection<E> {
      * elements from this {@code Seq} then those {@code max(0, b - a)} elements
      * from the given {@code Iterable} which occur last in encounter order.
      * Equivalent to {@code sum(that.difference(this))}.
-     * Implementation converts {@code this} to a {@code HashMap} of multiplicities.
+     * The implementation uses hash tables.
      * See also {@link #intersection(Iterable)}, {@link #difference(Iterable)},
      * {@link #sum(Iterable)}.
      */
     default Seq<E> union(Iterable<? extends E> that) {
-        return copy(Util.union(spliterator(), that.spliterator()));
+        return copy(Split.union(spliterator(), that.spliterator()));
     }
 
     /**
@@ -482,23 +484,25 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Equivalent to {@link #difference(Iterable) that.difference(this).isEmpty()}.
+     * Equivalent to
+     * {@link #difference(Iterable) that.difference(this).isEmpty()}.
      * See also {@link #intersection(Iterable)},
      * {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default boolean containsMultiset(Iterable<?> that) {
-        return Util.containsMultiset(spliterator(), that.spliterator());
+        return Split.containsMultiset(spliterator(), that.spliterator());
     }
 
     /**
      * Returns all permutations
      * in lexical order of the original index of each element.
      */
-    // wildcard gives subtypes more flexibility and makes zero restrictions on callers
-    // but given how rare subtype overrides would be, maybe the tiny benefit of not
-    // needing the wildcard in client code that assigns the result to a variable would be better?
+    // wildcard gives subtypes more flexibility and makes zero restrictions
+    // on callers but given how rare subtype overrides would be, maybe the tiny
+    // benefit of not needing the wildcard in client code that assigns the
+    // result to a variable would be better?
     default Seq<? extends Seq<E>> permutations() {
-        return copy(Util.map(Util.<E>permutations(toArray()), Seq::view));
+        return copy(Split.map(Split.<E>permutations(toArray()), Seq::view));
     }
 
     /**
@@ -506,7 +510,8 @@ public interface Seq<E> extends Collection<E> {
      * in lexical order of the original index of each element.
      */
     default Seq<? extends Seq<E>> combinations(int size) {
-        return copy(Util.map(Util.<E>combinations(toArray(), size), Seq::view));
+        return copy(Split.map(
+                Split.<E>combinations(toArray(), size), Seq::view));
     }
 
     /**
@@ -515,7 +520,7 @@ public interface Seq<E> extends Collection<E> {
      * That is, the subsets are ordered by length then lexically.
      */
     default Seq<? extends Seq<E>> powerSet() {
-        return copy(Util.map(Util.<E>powerSet(toArray()), Seq::view));
+        return copy(Split.map(Split.<E>powerSet(toArray()), Seq::view));
     }
 
     /**
@@ -523,7 +528,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
-        return copy(Util.flatMap(
+        return copy(Split.flatMap(
                 spliterator(), mapper.andThen(Iterable::spliterator)));
     }
 
@@ -533,7 +538,7 @@ public interface Seq<E> extends Collection<E> {
      * Throws only if either argument is negative. Is not a view.
      */
     default Seq<E> slice(int from, int to) {
-        return copy(Util.slice(spliterator(), from, to));
+        return copy(Split.slice(spliterator(), from, to));
     }
 
     /**
@@ -543,7 +548,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default Seq<Integer> indexesOfSlice(Iterable<?> that) {
-        return copy(Util.indexesOfSlice(spliterator(), that.spliterator()));
+        return copy(Split.indexesOfSlice(spliterator(), that.spliterator()));
     }
 
     /**
@@ -554,7 +559,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such value exists.
      */
     default int indexOfSlice(Iterable<?> that) {
-        return Util.indexOfSlice(spliterator(), that.spliterator());
+        return Split.indexOfSlice(spliterator(), that.spliterator());
     }
 
     /**
@@ -565,7 +570,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such value exists.
      */
     default int lastIndexOfSlice(Iterable<?> that) {
-        return Util.lastIndexOfSlice(spliterator(), that.spliterator());
+        return Split.lastIndexOfSlice(spliterator(), that.spliterator());
     }
 
     /**
@@ -575,25 +580,25 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean containsSlice(Iterable<?> that) {
-        return Util.containsSlice(spliterator(), that.spliterator());
+        return Split.containsSlice(spliterator(), that.spliterator());
     }
 
     /**
-     * Returns {@code true} only if there exists some value of {@code size} such that
-     * {@link #limit(long) limit(size)} is equal to the given
+     * Returns {@code true} only if there exists some value of {@code size}
+     * such that {@link #limit(long) limit(size)} is equal to the given
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean startsWith(Iterable<?> that) {
-        return Util.startsWith(spliterator(), that.spliterator());
+        return Split.startsWith(spliterator(), that.spliterator());
     }
 
     /**
-     * Returns {@code true} only if there exists some value of {@code size} such that
-     * {@link #limitLast(long) limitLast(size)} is equal to the given
+     * Returns {@code true} only if there exists some value of {@code size}
+     * such that {@link #limitLast(long) limitLast(size)} is equal to the given
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean endsWith(Iterable<?> that) {
-        return Util.endsWith(spliterator(), that.spliterator());
+        return Split.endsWith(spliterator(), that.spliterator());
     }
 
     /**
@@ -602,7 +607,7 @@ public interface Seq<E> extends Collection<E> {
      * if the index is not between zero and the size of this {@code Seq}.
      */
     default E get(int index) {
-        return Util.get(spliterator(), index);
+        return Split.get(spliterator(), index);
     }
 
     /**
@@ -610,7 +615,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such element exists.
      */
     default int indexOf(Object object) {
-        return Util.indexOf(spliterator(), object);
+        return Split.indexOf(spliterator(), object);
     }
 
     /**
@@ -618,14 +623,14 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such element exists.
      */
     default int lastIndexOf(Object object) {
-        return Util.lastIndexOf(spliterator(), object);
+        return Split.lastIndexOf(spliterator(), object);
     }
 
     /**
      * Returns the indexes of all elements equal to the given argument.
      */
     default Seq<Integer> indexesOf(Object object) {
-        return copy(Util.indexesOf(spliterator(), object));
+        return copy(Split.indexesOf(spliterator(), object));
     }
 
     /**
@@ -633,7 +638,7 @@ public interface Seq<E> extends Collection<E> {
      * See {@link Collections#reverse(List)}.
      */
     default Seq<E> reversed() {
-        return copy(Util.reversed(spliterator()));
+        return copy(Split.reversed(spliterator()));
     }
 
     /**
@@ -641,7 +646,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link Collections#rotate(List, int)}.
      */
     default Seq<E> rotated(int size) {
-        return copy(Util.rotated(spliterator(), size));
+        return copy(Split.rotated(spliterator(), size));
     }
 
     /**
@@ -649,21 +654,21 @@ public interface Seq<E> extends Collection<E> {
      * See {@link Collections#shuffle(List)}.
      */
     default Seq<E> shuffled(Random random) {
-        return copy(Util.shuffled(spliterator(), random));
+        return copy(Split.shuffled(spliterator(), random));
     }
 
     /**
      * Returns the last {@code size} elements.
      */
     default Seq<E> limitLast(long size) {
-        return copy(Util.limitLast(spliterator(), size));
+        return copy(Split.limitLast(spliterator(), size));
     }
 
     /**
      * Returns all except the last {@code size} elements.
      */
     default Seq<E> skipLast(long size) {
-        return copy(Util.skipLast(spliterator(), size));
+        return copy(Split.skipLast(spliterator(), size));
     }
 
     /**
@@ -671,7 +676,7 @@ public interface Seq<E> extends Collection<E> {
      * the given {@code Predicate} returns false (exclusive).
      */
     default Seq<E> takeWhile(Predicate<? super E> predicate) {
-        return copy(Util.takeWhile(spliterator(), predicate));
+        return copy(Split.takeWhile(spliterator(), predicate));
     }
 
     /**
@@ -679,42 +684,42 @@ public interface Seq<E> extends Collection<E> {
      * {@code Predicate} returns false (inclusive) and the end.
      */
     default Seq<E> dropWhile(Predicate<? super E> predicate) {
-        return copy(Util.dropWhile(spliterator(), predicate));
+        return copy(Split.dropWhile(spliterator(), predicate));
     }
 
     /**
      * Eager equivalent of {@link Stream#filter(Predicate)}.
      */
     default Seq<E> filter(Predicate<? super E> predicate) {
-        return copy(Util.filter(spliterator(), predicate));
+        return copy(Split.filter(spliterator(), predicate));
     }
 
     /**
      * Eager equivalent of {@link Stream#map(Function)}.
      */
     default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
-        return copy(Util.map(spliterator(), mapper));
+        return copy(Split.map(spliterator(), mapper));
     }
 
     /**
      * Equivalent of {@link Stream#distinct()}.
      */
     default Seq<E> distinct() {
-        return copy(Util.distinct(spliterator()));
+        return copy(Split.distinct(spliterator()));
     }
 
     /**
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {
-        return copy(Util.sorted(spliterator(), null));
+        return copy(Split.sorted(spliterator(), null));
     }
 
     /**
      * Equivalent of {@link Stream#sorted(Comparator)}.
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return copy(Util.sorted(spliterator(),
+        return copy(Split.sorted(spliterator(),
                 Objects.requireNonNull(comparator)));
     }
 
@@ -722,14 +727,14 @@ public interface Seq<E> extends Collection<E> {
      * Eager equivalent of {@link Stream#limit(long)}.
      */
     default Seq<E> limit(long size) {
-        return copy(Util.limit(spliterator(), size));
+        return copy(Split.limit(spliterator(), size));
     }
 
     /**
      * Eager equivalent of {@link Stream#skip(long)}.
      */
     default Seq<E> skip(long size) {
-        return copy(Util.skip(spliterator(), size));
+        return copy(Split.skip(spliterator(), size));
     }
 
     /**
@@ -750,28 +755,28 @@ public interface Seq<E> extends Collection<E> {
      * {@inheritDoc}
      */
     default Object[] toArray() {
-        return Util.toArray(spliterator());
+        return Split.toArray(spliterator());
     }
 
     /**
      * Equivalent of {@link Stream#toArray(IntFunction)}.
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
-        return Util.toArray(spliterator(), generator);
+        return Split.toArray(spliterator(), generator);
     }
 
     /**
      * Equivalent of {@link Stream#reduce(Object, BinaryOperator)}.
      */
     default E reduce(E identity, BinaryOperator<E> accumulator) {
-        return Util.reduce(spliterator(), identity, accumulator);
+        return Split.reduce(spliterator(), identity, accumulator);
     }
 
     /**
      * Equivalent of {@link Stream#reduce(BinaryOperator)}.
      */
     default Optional<E> reduce(BinaryOperator<E> accumulator) {
-        return Util.reduce(spliterator(), accumulator);
+        return Split.reduce(spliterator(), accumulator);
     }
 
     /**
@@ -782,7 +787,7 @@ public interface Seq<E> extends Collection<E> {
     default <U> U reduce(
             U identity,
             BiFunction<U, ? super E, U> accumulator) {
-        return Util.reduce(spliterator(), identity, accumulator);
+        return Split.reduce(spliterator(), identity, accumulator);
     }
 
     /**
@@ -800,56 +805,56 @@ public interface Seq<E> extends Collection<E> {
     default <U> U collect(
             Supplier<U> supplier,
             BiConsumer<U, ? super E> accumulator) {
-        return Util.collect(spliterator(), supplier, accumulator);
+        return Split.collect(spliterator(), supplier, accumulator);
     }
 
     /**
      * Equivalent of {@link Stream#collect(Collector)}.
      */
     default <R, A> R collect(Collector<? super E, A, R> collector) {
-        return Util.collect(spliterator(), collector);
+        return Split.collect(spliterator(), collector);
     }
 
     /**
      * Equivalent of {@link Stream#min(Comparator)}.
      */
     default Optional<E> min(Comparator<? super E> comparator) {
-        return Util.min(spliterator(), comparator);
+        return Split.min(spliterator(), comparator);
     }
 
     /**
      * Equivalent of {@link Stream#max(Comparator)}.
      */
     default Optional<E> max(Comparator<? super E> comparator) {
-        return Util.max(spliterator(), comparator);
+        return Split.max(spliterator(), comparator);
     }
 
     /**
      * Equivalent of {@link Stream#count()}.
      */
     default long count() {
-        return Util.count(spliterator());
+        return Split.count(spliterator());
     }
 
     /**
      * Equivalent of {@link Stream#anyMatch(Predicate)}.
      */
     default boolean anyMatch(Predicate<? super E> predicate) {
-        return Util.anyMatch(spliterator(), predicate);
+        return Split.anyMatch(spliterator(), predicate);
     }
 
     /**
      * Equivalent of {@link Stream#allMatch(Predicate)}.
      */
     default boolean allMatch(Predicate<? super E> predicate) {
-        return Util.allMatch(spliterator(), predicate);
+        return Split.allMatch(spliterator(), predicate);
     }
 
     /**
      * Equivalent of {@link Stream#noneMatch(Predicate)}.
      */
     default boolean noneMatch(Predicate<? super E> predicate) {
-        return Util.noneMatch(spliterator(), predicate);
+        return Split.noneMatch(spliterator(), predicate);
     }
 
     /**
@@ -858,7 +863,7 @@ public interface Seq<E> extends Collection<E> {
      * otherwise returns an empty {@code Optional}.
      */
     default Optional<E> findFirst() {
-        return Util.findFirst(spliterator());
+        return Split.findFirst(spliterator());
     }
 
     /**
@@ -867,7 +872,7 @@ public interface Seq<E> extends Collection<E> {
      * otherwise returns an empty {@code Optional}.
      */
     default Optional<E> findAny() {
-        return Util.findFirst(spliterator());
+        return Split.findFirst(spliterator());
     }
 
     /**
@@ -876,7 +881,7 @@ public interface Seq<E> extends Collection<E> {
      * otherwise returns an empty {@code Optional}.
      */
     default Optional<E> findOnly() {
-        return Util.findOnly(spliterator());
+        return Split.findOnly(spliterator());
     }
 
     /**
@@ -885,7 +890,7 @@ public interface Seq<E> extends Collection<E> {
      * otherwise returns an empty {@code Optional}.
      */
     default Optional<E> findLast() {
-        return Util.findLast(spliterator());
+        return Split.findLast(spliterator());
     }
 
     /**
@@ -898,39 +903,39 @@ public interface Seq<E> extends Collection<E> {
 
     /**
      * Returns a {@code String} using
-     * {@link java.util.stream.Collectors#joining(CharSequence, CharSequence, CharSequence)}.
+     * {@link Collectors#joining(CharSequence, CharSequence, CharSequence)}.
      */
     default String toString(
             CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
-        return Util.toString(spliterator(), delimiter, prefix, suffix);
+        return Split.toString(spliterator(), delimiter, prefix, suffix);
     }
 
     /**
      * {@inheritDoc}
      */
     default int size() {
-        return Util.size(spliterator());
+        return Split.size(spliterator());
     }
 
     /**
      * {@inheritDoc}
      */
     default boolean isEmpty() {
-        return Util.isEmpty(spliterator());
+        return Split.isEmpty(spliterator());
     }
 
     /**
      * {@inheritDoc}
      */
     default boolean contains(Object object) {
-        return Util.contains(spliterator(), object);
+        return Split.contains(spliterator(), object);
     }
 
     /**
      * {@inheritDoc}
      */
     default <T> T[] toArray(T[] ts) {
-        return Util.toArray(spliterator(), ts);
+        return Split.toArray(spliterator(), ts);
     }
 
     /**
@@ -953,7 +958,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #containsMultiset(Iterable)}.
      */
     default boolean containsAll(Collection<?> that) {
-        return Util.containsAll(spliterator(), that.spliterator());
+        return Split.containsAll(spliterator(), that.spliterator());
     }
 
     /**

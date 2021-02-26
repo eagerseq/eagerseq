@@ -92,17 +92,20 @@ public class SeqTest {
                 }),
                 parameters("SeqStream#view(Iterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.view(Arrays.asList(elements).iterator()).collect();
+                        return SeqStream.view(Arrays.asList(elements)
+                                .iterator()).collect();
                     }
                 }),
                 parameters("SeqStream#view(Spliterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.view(Arrays.asList(elements).spliterator()).collect();
+                        return SeqStream.view(Arrays.asList(elements)
+                                .spliterator()).collect();
                     }
                 }),
                 parameters("SeqStream#view(Stream<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.view(Arrays.stream(elements)).collect();
+                        return SeqStream.view(Arrays.stream(elements))
+                                .collect();
                     }
                 }));
     }
@@ -247,8 +250,10 @@ public class SeqTest {
         assertThat(seqOf(0, 1, 2).asList().get(1), equalTo(1));
         assertThat(seqOf(0, 1, 2).asList(), not(equalTo(seqOf(0, 1, 2))));
         assertThat(seqOf(0, 1, 2).asList(), equalTo(Arrays.asList(0, 1, 2)));
-        assertThat(seqOf(0, 1, 2).asList(), not(equalTo(Arrays.asList(2, 1, 0))));
-        assertThat(Seq.copy(seqOf(0, 1, 2).asList().spliterator()), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2).asList(),
+                not(equalTo(Arrays.asList(2, 1, 0))));
+        assertThat(Seq.copy(seqOf(0, 1, 2).asList().spliterator()),
+                contains(0, 1, 2));
     }
 
     @Test
@@ -257,10 +262,14 @@ public class SeqTest {
         assertThat(seqOf(0, 1, 2).asSet(), hasSize(3));
         assertThat(seqOf(0, 1, 2).asSet().contains(1), equalTo(true));
         assertThat(seqOf(0, 1, 2).asSet(), not(equalTo(seqOf(0, 1, 2))));
-        assertThat(seqOf(0, 1, 2).asSet(), equalTo(Stream.of(0, 1, 2).collect(toSet())));
-        assertThat(seqOf(0, 1, 2).asSet(), equalTo(Stream.of(2, 1, 0).collect(toSet())));
-        assertThat(seqOf(0, 1, 2).asSet(), not(equalTo(Stream.of(0, 1).collect(toSet()))));
-        assertThat(Seq.copy(seqOf(0, 1, 2).asSet().spliterator()), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2).asSet(),
+                equalTo(Stream.of(0, 1, 2).collect(toSet())));
+        assertThat(seqOf(0, 1, 2).asSet(),
+                equalTo(Stream.of(2, 1, 0).collect(toSet())));
+        assertThat(seqOf(0, 1, 2).asSet(),
+                not(equalTo(Stream.of(0, 1).collect(toSet()))));
+        assertThat(Seq.copy(seqOf(0, 1, 2).asSet().spliterator()),
+                contains(0, 1, 2));
     }
 
     @Test
@@ -430,16 +439,15 @@ public class SeqTest {
     public void testPermutations() {
         assertThat(seqOf().permutations(), contains(seqOf()));
         assertThat(seqOf(4).permutations(), contains(seqOf(4)));
-        assertThat(seqOf(4, 2).permutations(), contains(seqOf(4, 2), seqOf(2, 4)));
+        assertThat(seqOf(4, 2).permutations(),
+                contains(seqOf(4, 2), seqOf(2, 4)));
         assertThat(seqOf(0, 1, 2, 3, 4).permutations().size(), equalTo(120));
         seqOf(0, 1, 2, 3, 4).permutations().forEach(p ->
                 assertThat(p, containsInAnyOrder(0, 1, 2, 3, 4)));
         assertTrue(seqOf(0, 1, 2, 3, 4).permutations()
-                .zip( // permutations are in ascending lexicographical order
+                .zip(
                         seqOf(0, 1, 2, 3, 4).permutations().skip(1),
-                        (s, t) -> s.zip(t, (i, j) -> i - j)
-                                .filter(n -> n != 0).findFirst()
-                                .map(n -> n < 0).orElse(true))
+                        this::isLexicalOrder)
                 .allMatch(b -> b));
     }
 
@@ -457,11 +465,9 @@ public class SeqTest {
         seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
                 assertThat(p, hasSize(3)));
         assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4)
-                .zip( // combinations are in ascending lexicographical order
+                .zip(
                         seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4).skip(1),
-                        (s, t) -> s.zip(t, (i, j) -> i - j)
-                                .filter(n -> n != 0).findFirst()
-                                .map(n -> n < 0).orElse(true))
+                        this::isLexicalOrder)
                 .allMatch(b -> b));
     }
 
@@ -469,16 +475,15 @@ public class SeqTest {
     public void testPowerSet() {
         assertThat(seqOf().powerSet(), contains(seqOf()));
         assertThat(seqOf(4).powerSet(), contains(seqOf(), seqOf(4)));
-        assertThat(seqOf(4, 2).powerSet(), contains(seqOf(), seqOf(4), seqOf(2), seqOf(4, 2)));
+        assertThat(seqOf(4, 2).powerSet(),
+                contains(seqOf(), seqOf(4), seqOf(2), seqOf(4, 2)));
         assertThat(seqOf(0, 1, 2, 3, 4).powerSet().size(), equalTo(32));
         seqOf(0, 1, 2, 3, 4).powerSet().forEach(p ->
                 assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(p)));
         assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).powerSet()
-                .zip( // combinations are in ascending shortlex order
+                .zip(
                         seqOf(0, 1, 2, 3, 4, 5, 6).powerSet().skip(1),
-                        (s, t) -> s.size() < t.size() || s.zip(t, (i, j) -> i - j)
-                                .filter(n -> n != 0).findFirst()
-                                .map(n -> n < 0).orElse(true))
+                        (s, t) -> s.size() < t.size() || isLexicalOrder(s, t))
                 .allMatch(b -> b));
     }
 
@@ -500,7 +505,8 @@ public class SeqTest {
         Function<String, Seq<Integer>> toSeq =
                 s -> seqOf(s.chars().boxed().toArray(Integer[]::new));
         Seq.of(
-                Seq.of("abacabadac", "", Seq.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
+                Seq.of("abacabadac", "",
+                        Seq.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
                 Seq.of("abacabadac", "a", Seq.of(0, 2, 4, 6, 8)),
                 Seq.of("abacabadac", "aba", Seq.of(0, 4)),
                 Seq.of("abacabadac", "bac", Seq.of(1)),
@@ -535,7 +541,8 @@ public class SeqTest {
                             .map(i -> i == seq.size() - slice.size())
                             .orElse(false)));
         });
-        assertThat(seqOf(3, null, 4).indexesOfSlice(seqOf(null, 4)), equalTo(Seq.of(1)));
+        assertThat(seqOf(3, null, 4).indexesOfSlice(seqOf(null, 4)),
+                equalTo(Seq.of(1)));
     }
 
     @Test
@@ -772,7 +779,8 @@ public class SeqTest {
                 seqOf(2, 3, 1, 4, 9, 7).min(naturalOrder()),
                 equalTo(Optional.of(1)));
         assertThat(
-                seqOf("quick", "brown", "fox", "jumped").min(comparing(String::length)),
+                seqOf("quick", "brown", "fox", "jumped")
+                        .min(comparing(String::length)),
                 equalTo(Optional.of("fox")));
     }
 
@@ -785,7 +793,8 @@ public class SeqTest {
                 seqOf(2, 3, 1, 4, 9, 7).max(naturalOrder()),
                 equalTo(Optional.of(9)));
         assertThat(
-                seqOf("quick", "brown", "fox", "jumped").max(comparing(String::length)),
+                seqOf("quick", "brown", "fox", "jumped")
+                        .max(comparing(String::length)),
                 equalTo(Optional.of("jumped")));
     }
 
@@ -911,9 +920,9 @@ public class SeqTest {
 
     @Test
     public void testSpliterator() {
-        Spliterator<String> spliterator = seqOf("the", "quick").spliterator();
-        assertTrue(spliterator.tryAdvance(s -> assertThat(s, Matchers.equalTo("the"))));
-        assertTrue(spliterator.tryAdvance(s -> assertThat(s, Matchers.equalTo("quick"))));
+        Spliterator<String> spliterator = seqOf("the", "fox").spliterator();
+        assertTrue(spliterator.tryAdvance(s -> assertThat(s, equalTo("the"))));
+        assertTrue(spliterator.tryAdvance(s -> assertThat(s, equalTo("fox"))));
         assertFalse(spliterator.tryAdvance(s -> {}));
     }
 
@@ -941,7 +950,8 @@ public class SeqTest {
                 seqOf(3, 7),
                 seqOf(7, 3),
                 seqOf("the", "quick", "brown"))) {
-            assertThat(seq.hashCode(), equalTo(new ArrayList<>(seq).hashCode()));
+            assertThat(seq.hashCode(),
+                    equalTo(new ArrayList<>(seq).hashCode()));
         }
     }
 
@@ -973,6 +983,12 @@ public class SeqTest {
     @SafeVarargs
     private final <E> Seq<E> seqOf(E... elements) {
         return factory.create(elements);
+    }
+
+    private boolean isLexicalOrder(Seq<Integer> s, Seq<Integer> t) {
+        return s.zip(t, (i, j) -> i - j)
+                .filter(n -> n != 0).findFirst()
+                .map(n -> n < 0).orElse(true);
     }
 
     private interface Factory {
