@@ -1,17 +1,15 @@
 package org.bitbucket.seqly;
 
-import static org.bitbucket.seqly.SeqTest.assertThrows;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
-import org.junit.Test;
+import static org.bitbucket.seqly.SeqTest.assertThrows;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 public class SeqStreamTest {
 
@@ -66,6 +64,11 @@ public class SeqStreamTest {
                         .listEquals(streamOf(0, 1, 2, 3, 4, 5)));
         assertThrows(() -> SeqStream.flatten(streamOf(streamOf(), null)).collect());
         assertThrows(() -> SeqStream.flatten(streamOf(null, streamOf())).collect());
+    }
+
+    @Test
+    public void testToInt() {
+        assertThrows(() -> Util.toInt(Integer.MAX_VALUE + 1L));
     }
 
     @SafeVarargs

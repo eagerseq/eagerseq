@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptySet;
@@ -196,6 +197,8 @@ public class SeqTest {
                 Stream.of(0, 1, 2, null).collect(toSeq()),
                 contains(0, 1, 2, null));
         assertThat(Stream.of("").collect(toSeq()), contains(""));
+        assertThat(IntStream.range(0, 1000).boxed().parallel()
+                .collect(toSeq()).size(), equalTo(1000));
     }
 
     @Test
@@ -245,6 +248,7 @@ public class SeqTest {
         assertThat(seqOf(0, 1, 2).asList(), not(equalTo(seqOf(0, 1, 2))));
         assertThat(seqOf(0, 1, 2).asList(), equalTo(Arrays.asList(0, 1, 2)));
         assertThat(seqOf(0, 1, 2).asList(), not(equalTo(Arrays.asList(2, 1, 0))));
+        assertThat(Seq.copy(seqOf(0, 1, 2).asList().spliterator()), contains(0, 1, 2));
     }
 
     @Test
@@ -256,10 +260,12 @@ public class SeqTest {
         assertThat(seqOf(0, 1, 2).asSet(), equalTo(Stream.of(0, 1, 2).collect(toSet())));
         assertThat(seqOf(0, 1, 2).asSet(), equalTo(Stream.of(2, 1, 0).collect(toSet())));
         assertThat(seqOf(0, 1, 2).asSet(), not(equalTo(Stream.of(0, 1).collect(toSet()))));
+        assertThat(Seq.copy(seqOf(0, 1, 2).asSet().spliterator()), contains(0, 1, 2));
     }
 
     @Test
     public void testAsMap() {
+        assertThat(seqOf("zero").asMap().size(), equalTo(1));
         assertThat(
                 seqOf("zero").asMap(),
                 hasEntry("zero", "zero"));
@@ -941,6 +947,10 @@ public class SeqTest {
 
     @Test
     public void testEquals() {
+        Seq<Object> instance = seqOf();
+        assertTrue(instance.equals(instance));
+        assertFalse(seqOf().equals(null));
+        assertFalse(seqOf().equals(Arrays.asList()));
         assertTrue(seqOf().equals(seqOf()));
         assertFalse(seqOf().equals(seqOf(0)));
         assertFalse(seqOf(0).equals(seqOf()));
