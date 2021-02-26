@@ -11,7 +11,7 @@ final class DefaultBuilder<E> implements Seq.Builder<E> {
 
     public Seq.Builder<E> add(E element) {
         if (size == array.length) {
-            array = Arrays.copyOf(array, size * 2 + 1);
+            array = Arrays.copyOf(array, Util.expand(size));
         }
         array[size++] = element;
         return this;

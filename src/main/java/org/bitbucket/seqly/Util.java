@@ -36,6 +36,10 @@ import static java.util.Spliterators.emptySpliterator;
 
 final class Util {
 
+    private static final int INITIAL_CAPACITY = 7;
+    private static final int MAX_ARRAY_LENGTH = Integer.MAX_VALUE - 8;
+    private static final int HALF_ARRAY_LENGTH = (MAX_ARRAY_LENGTH - 1) / 2;
+
     private Util() {
     }
 
@@ -74,6 +78,31 @@ final class Util {
         return toArray(spliterator, Object[]::new);
     }
 
+    @SuppressWarnings("unchecked")
+    public static <E, A> A[] toArray(
+            Spliterator<E> spliterator, IntFunction<A[]> generator) {
+        if ((spliterator.characteristics() & Spliterator.SIZED) != 0) {
+            A[] array = generator.apply(toInt(spliterator.estimateSize()));
+            Box<E> next = new Box<>();
+            int index = 0;
+            while (spliterator.tryAdvance(next.assign)) {
+                array[index++] = (A) next.value;
+            }
+            return array;
+        }
+        A[] array = generator.apply(0);
+        Box<E> next = new Box<>();
+        int index = 0;
+        while (spliterator.tryAdvance(next.assign)) {
+            if (index == array.length) {
+                array = arrayCopy(array, expand(index), generator);
+            }
+            array[index++] = (A) next.value;
+        }
+        return index == array.length
+                ? array : arrayCopy(array, index, generator);
+    }
+
     static <E, T> T[] toArray(
             Spliterator<E> spliterator, T[] ts) {
         Class<?> type = ts.getClass().getComponentType();
@@ -84,24 +113,6 @@ final class Util {
         System.arraycopy(array, 0, ts, 0, array.length);
         if (array.length < ts.length) ts[array.length] = null;
         return ts;
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <E, A> A[] toArray(
-            Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        A[] array = generator.apply(
-                (spliterator.characteristics() & Spliterator.SIZED) == 0
-                        ? 0 : toInt(spliterator.estimateSize()));
-        Object[] next = new Object[1];
-        int index = 0;
-        while (spliterator.tryAdvance(e -> next[0] = e)) {
-            if (index == array.length) {
-                array = arrayCopy(array, index * 2 + 1, generator);
-            }
-            array[index++] = (A) next[0];
-        }
-        return index == array.length
-                ? array : arrayCopy(array, index, generator);
     }
 
     static int toInt(long value) {
@@ -186,34 +197,31 @@ final class Util {
 
     static <E> Optional<E> findFirst(
             Spliterator<E> spliterator) {
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
-        return spliterator.tryAdvance(e -> next[0] = e)
-                ? Optional.of(next[0]) : Optional.empty();
+        Box<E> next = new Box<>();
+        return spliterator.tryAdvance(next.assign)
+                ? Optional.of(next.value) : Optional.empty();
     }
 
     static <E> Optional<E> findOnly(
             Spliterator<E> spliterator) {
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
-        return spliterator.tryAdvance(e -> next[0] = e)
+        Box<E> next = new Box<>();
+        return spliterator.tryAdvance(next.assign)
                 && !spliterator.tryAdvance(e -> {})
-                ? Optional.of(next[0]) : Optional.empty();
+                ? Optional.of(next.value) : Optional.empty();
     }
 
     static <E> Optional<E> findLast(
             Spliterator<E> spliterator) {
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
+        Box<E> next = new Box<>();
         boolean set = false;
         while (true) {
             Spliterator<E> prefix = spliterator.trySplit();
-            if (spliterator.tryAdvance(e -> next[0] = e)) {
+            if (spliterator.tryAdvance(next.assign)) {
                 set = true;
             } else if (prefix != null) {
                 spliterator = prefix;
             } else {
-                return set ? Optional.of(next[0]) : Optional.empty();
+                return set ? Optional.of(next.value) : Optional.empty();
             }
         }
     }
@@ -235,10 +243,9 @@ final class Util {
     static <E> E get(
             Spliterator<E> spliterator, int index) {
         if (index < 0) throw new IndexOutOfBoundsException();
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
+        Box<E> next = new Box<>();
         if (skip(spliterator, index)
-                .tryAdvance(e -> next[0] = e)) return next[0];
+                .tryAdvance(next.assign)) return next.value;
         throw new IndexOutOfBoundsException();
     }
 
@@ -352,6 +359,7 @@ final class Util {
             private int used;
             private int index;
             private boolean skipped;
+            @SuppressWarnings("unchecked")
             private E[] queue = (E[]) new Object[size];
             public boolean tryAdvance(Consumer<? super E> action) {
                 if (!skipped) {
@@ -659,10 +667,9 @@ final class Util {
             Spliterator<E> spliterator,
             R identity,
             BiFunction<R, ? super E, R> accumulator) {
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
-        while (spliterator.tryAdvance(e -> next[0] = e)) {
-            identity = accumulator.apply(identity, next[0]);
+        Box<E> next = new Box<>();
+        while (spliterator.tryAdvance(next.assign)) {
+            identity = accumulator.apply(identity, next.value);
         }
         return identity;
     }
@@ -678,11 +685,10 @@ final class Util {
             Spliterator<E> spliterator,
             Supplier<R> supplier,
             BiConsumer<R, ? super E> accumulator) {
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
+        Box<E> next = new Box<>();
         R acc = supplier.get();
-        while (spliterator.tryAdvance(e -> next[0] = e)) {
-            accumulator.accept(acc, next[0]);
+        while (spliterator.tryAdvance(next.assign)) {
+            accumulator.accept(acc, next.value);
         }
         return acc;
     }
@@ -698,12 +704,11 @@ final class Util {
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
         E min;
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
-        if (spliterator.tryAdvance(e -> next[0] = e)) min = next[0];
+        Box<E> next = new Box<>();
+        if (spliterator.tryAdvance(next.assign)) min = next.value;
         else return Optional.empty();
-        while (spliterator.tryAdvance(e -> next[0] = e)) {
-            if (comparator.compare(next[0], min) < 0) min = next[0];
+        while (spliterator.tryAdvance(next.assign)) {
+            if (comparator.compare(next.value, min) < 0) min = next.value;
         }
         return Optional.of(min);
     }
@@ -717,10 +722,9 @@ final class Util {
     static <E> boolean noneMatch(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
-        @SuppressWarnings("unchecked")
-        E[] next = (E[]) new Object[1];
-        while (spliterator.tryAdvance(e -> next[0] = e)) {
-            if (predicate.test(next[0])) return false;
+        Box<E> next = new Box<>();
+        while (spliterator.tryAdvance(next.assign)) {
+            if (predicate.test(next.value)) return false;
         }
         return true;
     }
@@ -802,7 +806,7 @@ final class Util {
 
     private static void copyInto(Spliterator.OfInt spliterator, int[] slice) {
         int[] i = new int[1];
-        spliterator.forEachRemaining((IntConsumer) e -> slice[i[0]++] = e);
+        spliterator.forEachRemaining((int e) -> slice[i[0]++] = e);
     }
 
     private static <E> Spliterator<E> multisetOperation(
@@ -856,10 +860,26 @@ final class Util {
         return false;
     }
 
+    static int expand(int s) {
+        return s == 0 ? INITIAL_CAPACITY
+                : s <= HALF_ARRAY_LENGTH ? s * 2 + 1
+                        : s < MAX_ARRAY_LENGTH ? MAX_ARRAY_LENGTH
+                                : outOfMemoryError();
+    }
+
+    private static int outOfMemoryError() {
+        throw new OutOfMemoryError();
+    }
+
     private static <A> A[] arrayCopy(
             A[] array, int length, IntFunction<A[]> generator) {
         A[] copy = generator.apply(length);
         System.arraycopy(array, 0, copy, 0, Math.min(array.length, length));
         return copy;
+    }
+
+    private static class Box<E> {
+        E value;
+        Consumer<E> assign = e -> value = e;
     }
 }
