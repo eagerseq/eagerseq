@@ -32,13 +32,15 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Collections.reverseOrder;
+import static java.util.Spliterator.SIZED;
 import static java.util.Spliterators.emptySpliterator;
 
 final class Split {
 
-    private static final int INITIAL_CAPACITY = 7;
+    private static final int INITIAL_ARRAY_LENGTH = 7;
     private static final int MAX_ARRAY_LENGTH = Integer.MAX_VALUE - 8;
-    private static final int HALF_ARRAY_LENGTH = (MAX_ARRAY_LENGTH - 1) / 2;
+    private static final int RESTRICTED_ARRAY_LENGTH =
+            (MAX_ARRAY_LENGTH - 1) / 2 + 1;
 
     private Split() {
     }
@@ -78,29 +80,11 @@ final class Split {
         return toArray(spliterator, Object[]::new);
     }
 
-    @SuppressWarnings("unchecked")
     public static <E, A> A[] toArray(
             Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        if ((spliterator.characteristics() & Spliterator.SIZED) != 0) {
-            A[] array = generator.apply(toInt(spliterator.estimateSize()));
-            Box<E> next = new Box<>();
-            int index = 0;
-            while (spliterator.tryAdvance(next.assign)) {
-                array[index++] = (A) next.value;
-            }
-            return array;
-        }
-        A[] array = generator.apply(0);
-        Box<E> next = new Box<>();
-        int index = 0;
-        while (spliterator.tryAdvance(next.assign)) {
-            if (index == array.length) {
-                array = arrayCopy(array, expand(index), generator);
-            }
-            array[index++] = (A) next.value;
-        }
-        return index == array.length
-                ? array : arrayCopy(array, index, generator);
+        return (spliterator.characteristics() & SIZED) != 0
+                ? sizedToArray(spliterator, generator)
+                : unsizedToArray(spliterator, generator);
     }
 
     static <E, T> T[] toArray(
@@ -144,7 +128,7 @@ final class Split {
     }
 
     static long count(Spliterator<?> spliterator) {
-        if ((spliterator.characteristics() & Spliterator.SIZED) != 0) {
+        if ((spliterator.characteristics() & SIZED) != 0) {
             return spliterator.estimateSize();
         }
         long[] count = new long[1];
@@ -302,7 +286,8 @@ final class Split {
     }
 
     static Spliterator.OfInt range(int from, int to) {
-        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new AbstractIntSpliterator(
+                Math.max(0, (long) to - (long) from), SIZED) {
             private int index = from;
             public boolean tryAdvance(IntConsumer action) {
                 if (index < to) {
@@ -339,7 +324,7 @@ final class Split {
                         index %= size;
                         if (used < size) used++;
                     }
-                    if (used < size) index -= used;
+                    if (used < size) index = 0;
                 }
                 if (used == 0) return false;
                 used--;
@@ -371,7 +356,7 @@ final class Split {
                         queue[index] = next;
                         index++;
                         index %= size;
-                        if (used < size) used++;
+                        used++;
                         if (used == size) break;
                     }
                 }
@@ -399,10 +384,9 @@ final class Split {
                         if (!predicate.test(next)) {
                             found = true;
                             return false;
-                        } else {
-                            action.accept(next);
-                            return true;
                         }
+                        action.accept(next);
+                        return true;
                     }
                 }
                 return false;
@@ -584,7 +568,8 @@ final class Split {
     static <E, R> Spliterator<R> map(
             Spliterator<E> spliterator,
             Function<? super E, ? extends R> mapper) {
-        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
+        return new AbstractSpliterator<R>(spliterator.estimateSize(),
+                spliterator.characteristics() & SIZED) {
             public boolean tryAdvance(Consumer<? super R> action) {
                 return spliterator.tryAdvance(e ->
                         action.accept(mapper.apply(e)));
@@ -749,7 +734,8 @@ final class Split {
     static <E> Spliterator<E> peek(
             Spliterator<E> spliterator,
             Consumer<? super E> peeker) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new AbstractSpliterator<E>(spliterator.estimateSize(),
+                spliterator.characteristics() & SIZED) {
             public boolean tryAdvance(Consumer<? super E> action) {
                 return spliterator.tryAdvance(e -> {
                     peeker.accept(e);
@@ -867,15 +853,32 @@ final class Split {
         return false;
     }
 
-    static int expand(int s) {
-        return s == 0 ? INITIAL_CAPACITY
-                : s <= HALF_ARRAY_LENGTH ? s * 2 + 1
-                        : s < MAX_ARRAY_LENGTH ? MAX_ARRAY_LENGTH
-                                : outOfMemoryError();
+    @SuppressWarnings("unchecked")
+    private static <E, A> A[] sizedToArray(
+            Spliterator<E> spliterator, IntFunction<A[]> generator) {
+        A[] array = generator.apply(toInt(spliterator.estimateSize()));
+        Box<E> next = new Box<>();
+        int index = 0;
+        while (spliterator.tryAdvance(next.assign)) {
+            array[index++] = (A) next.value;
+        }
+        return array;
     }
 
-    private static int outOfMemoryError() {
-        throw new OutOfMemoryError();
+    @SuppressWarnings("unchecked")
+    private static <E, A> A[] unsizedToArray(
+            Spliterator<E> spliterator, IntFunction<A[]> generator) {
+        A[] array = generator.apply(INITIAL_ARRAY_LENGTH);
+        Box<E> next = new Box<>();
+        int index = 0;
+        while (spliterator.tryAdvance(next.assign)) {
+            if (index == array.length) {
+                array = arrayCopy(array, expand(index), generator);
+            }
+            array[index++] = (A) next.value;
+        }
+        return index == array.length
+                ? array : arrayCopy(array, index, generator);
     }
 
     private static <A> A[] arrayCopy(
@@ -883,6 +886,13 @@ final class Split {
         A[] copy = generator.apply(length);
         System.arraycopy(array, 0, copy, 0, Math.min(array.length, length));
         return copy;
+    }
+
+    static int expand(int s) {
+        if (s == 0) return INITIAL_ARRAY_LENGTH;
+        if (s < RESTRICTED_ARRAY_LENGTH) return s * 2 + 1;
+        if (s < MAX_ARRAY_LENGTH) return MAX_ARRAY_LENGTH;
+        throw new OutOfMemoryError();
     }
 
     private static class Box<E> {

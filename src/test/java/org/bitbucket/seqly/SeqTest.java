@@ -1,6 +1,5 @@
 package org.bitbucket.seqly;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -10,6 +9,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -25,6 +25,7 @@ import static java.util.Comparator.naturalOrder;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static org.bitbucket.seqly.Seq.toSeq;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.arrayWithSize;
@@ -41,7 +42,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.bitbucket.seqly.Seq.toSeq;
 
 @RunWith(Parameterized.class)
 public class SeqTest {
@@ -56,6 +56,7 @@ public class SeqTest {
     public static Iterable<Object[]> parametersList() {
         return Seq.of(
                 parameters("default", TestSeq::new),
+                parameters("blah", DelegatingTestSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
                 parameters("Seq#copy(E[])", Seq::copy),
                 parameters("Seq#view(E[])", Seq::view),
@@ -648,6 +649,7 @@ public class SeqTest {
     public void testLimitLast() {
         assertThat(seqOf().limitLast(2), empty());
         assertThat(seqOf(0, 1, 2).limitLast(0), empty());
+        assertThat(seqOf(0, 1, 2).limitLast(3), contains(0, 1, 2));
         assertThat(seqOf(0, 1, 2).limitLast(5), contains(0, 1, 2));
         assertThat(seqOf(0, 1, 2, 3, 4).limitLast(2), contains(3, 4));
         assertThat(seqOf(0, 1, 2, 3, 4, 5).limitLast(3), contains(3, 4, 5));
@@ -658,6 +660,7 @@ public class SeqTest {
     public void testSkipLast() {
         assertThat(seqOf().skipLast(2), empty());
         assertThat(seqOf(0, 1, 2).skipLast(0), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2).skipLast(3), empty());
         assertThat(seqOf(0, 1, 2).skipLast(5), empty());
         assertThat(seqOf(0, 1, 2, 3, 4).skipLast(2), contains(0, 1, 2));
         assertThat(seqOf(0, 1, 2, 3, 4, 5).skipLast(3), contains(0, 1, 2));
@@ -672,6 +675,12 @@ public class SeqTest {
         assertThat(numbers.takeWhile(n -> false), empty());
         assertThat(numbers.takeWhile(n -> true), contains(0, 1, 2, 1, 0));
         assertThat(numbers.takeWhile(n -> n < 2), contains(0, 1));
+        Spliterator<Integer> s = Split.takeWhile(
+                numbers.spliterator(), n -> n < 2);
+        assertTrue(s.tryAdvance(e -> {}));
+        assertTrue(s.tryAdvance(e -> {}));
+        assertFalse(s.tryAdvance(e -> {}));
+        assertFalse(s.tryAdvance(e -> {})); // code coverage
     }
 
     @Test
@@ -938,7 +947,12 @@ public class SeqTest {
 
     @Test
     public void testIterator() {
-        assertTrue(true);
+        Iterator<String> iterator = seqOf("the", "fox").iterator();
+        assertTrue(iterator.hasNext());
+        assertThat(iterator.next(), equalTo("the"));
+        assertTrue(iterator.hasNext());
+        assertThat(iterator.next(), equalTo("fox"));
+        assertFalse(iterator.hasNext());
     }
 
     @Test
@@ -1018,6 +1032,21 @@ public class SeqTest {
 
         public String toString() {
             return Seq.view(list).toString();
+        }
+    }
+
+    private static class DelegatingTestSeq<E>
+            extends AbstractSeq<E> implements DelegatingSeq<E> {
+
+        private final List<E> list;
+
+        @SafeVarargs
+        public DelegatingTestSeq(E... elements) {
+            list = Arrays.asList(elements);
+        }
+
+        public Spliterator<E> spliterator() {
+            return list.spliterator();
         }
     }
 }
