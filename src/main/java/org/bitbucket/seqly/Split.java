@@ -37,11 +37,6 @@ import static java.util.Spliterators.emptySpliterator;
 
 final class Split {
 
-    private static final int INITIAL_ARRAY_LENGTH = 7;
-    private static final int MAX_ARRAY_LENGTH = Integer.MAX_VALUE - 8;
-    private static final int RESTRICTED_ARRAY_LENGTH =
-            (MAX_ARRAY_LENGTH - 1) / 2 + 1;
-
     private Split() {
     }
 
@@ -77,14 +72,17 @@ final class Split {
     }
 
     static Object[] toArray(Spliterator<?> spliterator) {
-        return toArray(spliterator, Object[]::new);
+        SeqBuilder<Object> builder = new SeqBuilder<>();
+        spliterator.forEachRemaining(builder::add);
+        return builder.trim();
     }
 
+    @SuppressWarnings("unchecked")
     public static <E, A> A[] toArray(
             Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        return (spliterator.characteristics() & SIZED) != 0
-                ? sizedToArray(spliterator, generator)
-                : unsizedToArray(spliterator, generator);
+        SeqBuilder<A> builder = new SeqBuilder<>(generator);
+        spliterator.forEachRemaining(((SeqBuilder<E>) builder)::add);
+        return builder.trim();
     }
 
     static <E, T> T[] toArray(
@@ -132,7 +130,7 @@ final class Split {
             return spliterator.estimateSize();
         }
         long[] count = new long[1];
-        while (spliterator.tryAdvance(e -> count[0]++)) {}
+        spliterator.forEachRemaining(e -> count[0]++);
         return count[0];
     }
 
@@ -146,11 +144,10 @@ final class Split {
 
     static <E> int listHash(Spliterator<E> spliterator) {
         int[] hash = new int[]{1};
-        while (spliterator.tryAdvance(e -> {
+        spliterator.forEachRemaining(e -> {
             hash[0] *= 31;
             hash[0] += Objects.hashCode(e);
-        })) {
-        }
+        });
         return hash[0];
     }
 
@@ -667,19 +664,17 @@ final class Split {
     static <E> Optional<E> reduce(
             Spliterator<E> spliterator,
             BinaryOperator<E> accumulator) {
-        return reduce(spliterator, Optional.empty(), (o, e) ->
-                Optional.of(o.isPresent() ? accumulator.apply(o.get(), e) : e));
+        Box<E> next = new Box<>();
+        if (!spliterator.tryAdvance(next.assign)) return Optional.empty();
+        return Optional.of(reduce(spliterator, next.value, accumulator));
     }
 
     static <E, R> R collect(
             Spliterator<E> spliterator,
             Supplier<R> supplier,
             BiConsumer<R, ? super E> accumulator) {
-        Box<E> next = new Box<>();
         R acc = supplier.get();
-        while (spliterator.tryAdvance(next.assign)) {
-            accumulator.accept(acc, next.value);
-        }
+        spliterator.forEachRemaining(e -> accumulator.accept(acc, e));
         return acc;
     }
 
@@ -851,48 +846,6 @@ final class Split {
             return true;
         }
         return false;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <E, A> A[] sizedToArray(
-            Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        A[] array = generator.apply(toInt(spliterator.estimateSize()));
-        Box<E> next = new Box<>();
-        int index = 0;
-        while (spliterator.tryAdvance(next.assign)) {
-            array[index++] = (A) next.value;
-        }
-        return array;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <E, A> A[] unsizedToArray(
-            Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        A[] array = generator.apply(INITIAL_ARRAY_LENGTH);
-        Box<E> next = new Box<>();
-        int index = 0;
-        while (spliterator.tryAdvance(next.assign)) {
-            if (index == array.length) {
-                array = arrayCopy(array, expand(index), generator);
-            }
-            array[index++] = (A) next.value;
-        }
-        return index == array.length
-                ? array : arrayCopy(array, index, generator);
-    }
-
-    private static <A> A[] arrayCopy(
-            A[] array, int length, IntFunction<A[]> generator) {
-        A[] copy = generator.apply(length);
-        System.arraycopy(array, 0, copy, 0, Math.min(array.length, length));
-        return copy;
-    }
-
-    static int expand(int s) {
-        if (s == 0) return INITIAL_ARRAY_LENGTH;
-        if (s < RESTRICTED_ARRAY_LENGTH) return s * 2 + 1;
-        if (s < MAX_ARRAY_LENGTH) return MAX_ARRAY_LENGTH;
-        throw new OutOfMemoryError();
     }
 
     private static class Box<E> {

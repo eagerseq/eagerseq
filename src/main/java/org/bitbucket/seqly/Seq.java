@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -25,6 +24,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 
 /**
@@ -176,7 +176,7 @@ public interface Seq<E> extends Collection<E> {
      */
     @SafeVarargs
     static <E> Seq<E> of(E... elements) {
-        return new ArraySeq<>(Objects.requireNonNull(elements));
+        return new ArraySeq<>(requireNonNull(elements));
     }
 
     /**
@@ -192,7 +192,7 @@ public interface Seq<E> extends Collection<E> {
      * are reflected in the returned {@code Seq}.
      */
     static <E> Seq<E> view(E[] array) {
-        return new ArraySeq<>(Objects.requireNonNull(array));
+        return new ArraySeq<>(requireNonNull(array));
     }
 
     /**
@@ -210,7 +210,7 @@ public interface Seq<E> extends Collection<E> {
      * support constant-time {@link #size()} or {@link #get(int)}.
      */
     static <E> Seq<E> view(Iterable<? extends E> iterable) {
-        return new IterableSeq<>(Objects.requireNonNull(iterable));
+        return new IterableSeq<>(requireNonNull(iterable));
     }
 
     /**
@@ -246,7 +246,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns a {@link Builder}.
      */
     static <E> Builder<E> builder() {
-        return new DefaultBuilder<>();
+        return new SeqBuilder<>();
     }
 
     /**
@@ -719,8 +719,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#sorted(Comparator)}.
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return copy(Split.sorted(spliterator(),
-                Objects.requireNonNull(comparator)));
+        return copy(Split.sorted(spliterator(), requireNonNull(comparator)));
     }
 
     /**
@@ -762,7 +761,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#toArray(IntFunction)}.
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
-        return Split.toArray(spliterator(), generator);
+        return Split.toArray(spliterator(), requireNonNull(generator));
     }
 
     /**

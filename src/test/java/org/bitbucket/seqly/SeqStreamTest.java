@@ -161,11 +161,11 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testExpand() {
-        assertThat(Split.expand(Integer.MAX_VALUE / 4 * 3),
+    public void testNextLength() {
+        assertThat(SeqBuilder.nextLength(Integer.MAX_VALUE / 4 * 3),
                 equalTo(Integer.MAX_VALUE - 8));
         try {
-            Split.expand(Integer.MAX_VALUE - 4);
+            SeqBuilder.nextLength(Integer.MAX_VALUE - 4);
             fail("expected OutOfMemoryError");
         } catch (OutOfMemoryError expected) {
         }

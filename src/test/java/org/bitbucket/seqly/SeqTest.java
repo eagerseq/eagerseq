@@ -55,8 +55,7 @@ public class SeqTest {
     @Parameters(name = "{0}")
     public static Iterable<Object[]> parametersList() {
         return Seq.of(
-                parameters("default", TestSeq::new),
-                parameters("blah", DelegatingTestSeq::new),
+                parameters("blah", TestDelegatingSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
                 parameters("Seq#copy(E[])", Seq::copy),
                 parameters("Seq#view(E[])", Seq::view),
@@ -1009,44 +1008,18 @@ public class SeqTest {
         <E> Seq<E> create(E[] elements);
     }
 
-    private static class TestSeq<E> implements Seq<E> {
-
-        private final List<E> list;
-
-        @SafeVarargs
-        public TestSeq(E... elements) {
-            list = Arrays.asList(elements);
-        }
-
-        public Spliterator<E> spliterator() {
-            return list.spliterator();
-        }
-
-        public int hashCode() {
-            return Seq.view(list).hashCode();
-        }
-
-        public boolean equals(Object obj) {
-            return Seq.view(list).equals(obj);
-        }
-
-        public String toString() {
-            return Seq.view(list).toString();
-        }
-    }
-
-    private static class DelegatingTestSeq<E>
+    private static class TestDelegatingSeq<E>
             extends AbstractSeq<E> implements DelegatingSeq<E> {
 
-        private final List<E> list;
+        private final E[] elements;
 
         @SafeVarargs
-        public DelegatingTestSeq(E... elements) {
-            list = Arrays.asList(elements);
+        public TestDelegatingSeq(E... elements) {
+            this.elements = elements;
         }
 
         public Spliterator<E> spliterator() {
-            return list.spliterator();
+            return Arrays.spliterator(elements);
         }
     }
 }
