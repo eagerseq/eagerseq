@@ -1,6 +1,5 @@
 package org.bitbucket.seqly;
 
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -10,11 +9,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptySet;
@@ -24,9 +26,12 @@ import static java.util.Comparator.naturalOrder;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static org.bitbucket.seqly.Seq.toSeq;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.arrayContaining;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
@@ -38,7 +43,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.bitbucket.seqly.Seq.toSeq;
 
 @RunWith(Parameterized.class)
 public class SeqTest {
@@ -52,13 +56,8 @@ public class SeqTest {
     @Parameters(name = "{0}")
     public static Iterable<Object[]> parametersList() {
         return Seq.of(
-                parameters("default", TestSeq::new),
+                parameters("default", TestDelegatingSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
-                parameters("Seq#of() overloads", new Factory() {
-                    public <E> Seq<E> create(E[] es) {
-                        return es.length == 0 ? Seq.of() : Seq.of(es);
-                    }
-                }),
                 parameters("Seq#copy(E[])", Seq::copy),
                 parameters("Seq#view(E[])", Seq::view),
                 parameters("Seq#copy(Iterable<E>)", new Factory() {
@@ -68,7 +67,8 @@ public class SeqTest {
                 }),
                 parameters("Seq#view(Iterable<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.view(Arrays.asList(elements));
+                        // ::iterator makes iterable have non-SIZED spliterator
+                        return Seq.view(Arrays.asList(elements)::iterator);
                     }
                 }),
                 parameters("Seq#copy(Iterator<E>)", new Factory() {
@@ -85,19 +85,42 @@ public class SeqTest {
                     public <E> Seq<E> create(E[] elements) {
                         return Seq.copy(Arrays.stream(elements));
                     }
+                }),
+                parameters("SeqStream#of(E...)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.of(elements).collect();
+                    }
+                }),
+                parameters("SeqStream#view(Iterator<E>)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.view(Arrays.asList(elements)
+                                .iterator()).collect();
+                    }
+                }),
+                parameters("SeqStream#view(Spliterator<E>)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.view(Arrays.asList(elements)
+                                .spliterator()).collect();
+                    }
+                }),
+                parameters("SeqStream#view(Stream<E>)", new Factory() {
+                    public <E> Seq<E> create(E[] elements) {
+                        return SeqStream.view(Arrays.stream(elements))
+                                .collect();
+                    }
                 }));
     }
 
-    private static Object[] parameters(String name, Factory factory) {
-        return new Object[]{name, factory};
-    }
-
-    private static void assertThrows(Runnable action) {
+    public static void assertThrows(Runnable action) {
         try {
             action.run();
             fail("expected exception");
         } catch (RuntimeException ignored) {
         }
+    }
+
+    private static Object[] parameters(String name, Factory factory) {
+        return new Object[]{name, factory};
     }
 
     @Test
@@ -129,7 +152,7 @@ public class SeqTest {
     public void testOf() {
         assertThat(Seq.of(), empty());
         assertThat(Seq.of(0), contains(0));
-        assertThat(Seq.of(0, 1, 2), contains(0, 1, 2));
+        assertThat(Seq.of(0, 1, 2, null), contains(0, 1, 2, null));
         assertThat(Seq.of(0, 1, 2).getClass(), equalTo(ArraySeq.class));
         assertThrows(() -> Seq.of((Object[]) null));
     }
@@ -166,9 +189,11 @@ public class SeqTest {
         assertThat(builder.build(), empty());
         assertThat(builder.add(0).build(), contains(0));
         assertThat(builder.add(1).build(), contains(0, 1));
+        assertThat(builder.add(null).build(), contains(0, 1, null));
+        assertThat(builder.add(3).build(), contains(0, 1, null, 3));
         Seq<Integer> built = builder.build();
-        builder.add(2);
-        assertThat(built, contains(0, 1));
+        Arrays.asList(4, 5, 6, 7).forEach(builder::add);
+        assertThat(built, contains(0, 1, null, 3));
     }
 
     @Test
@@ -178,6 +203,8 @@ public class SeqTest {
                 Stream.of(0, 1, 2, null).collect(toSeq()),
                 contains(0, 1, 2, null));
         assertThat(Stream.of("").collect(toSeq()), contains(""));
+        assertThat(IntStream.range(0, 1000).boxed().parallel()
+                .collect(toSeq()).size(), equalTo(1000));
     }
 
     @Test
@@ -221,27 +248,37 @@ public class SeqTest {
 
     @Test
     public void testAsList() {
-        assertThat(seqOf(0, 1, 2).asList(), contains(0, 1, 2));
-        assertThat(seqOf(0, 1, 2).asList(), hasSize(3));
-        assertThat(seqOf(0, 1, 2).asList().get(1), equalTo(1));
-        assertThat(seqOf(0, 1, 2).asList(), not(equalTo(seqOf(0, 1, 2))));
-        assertThat(seqOf(0, 1, 2).asList(), equalTo(Arrays.asList(0, 1, 2)));
-        assertThat(seqOf(0, 1, 2).asList(), not(equalTo(Arrays.asList(2, 1, 0))));
+        assertThat(seqOf(0, 1, null).asList(), contains(0, 1, null));
+        assertThat(seqOf(0, 1, null).asList(), hasSize(3));
+        assertThat(seqOf(0, 1, null).asList().get(1), equalTo(1));
+        assertThat(seqOf(0, 1, null).asList(), not(equalTo(seqOf(0, 1, null))));
+        assertThat(seqOf(0, 1, null).asList(),
+                equalTo(Arrays.asList(0, 1, null)));
+        assertThat(seqOf(0, 1, null).asList(),
+                not(equalTo(Arrays.asList(null, 1, 0))));
+        assertThat(Seq.copy(seqOf(0, 1, null).asList().spliterator()),
+                contains(0, 1, null));
     }
 
     @Test
     public void testAsSet() {
-        assertThat(seqOf(0, 1, 2).asSet(), contains(0, 1, 2));
-        assertThat(seqOf(0, 1, 2).asSet(), hasSize(3));
-        assertThat(seqOf(0, 1, 2).asSet().contains(1), equalTo(true));
-        assertThat(seqOf(0, 1, 2).asSet(), not(equalTo(seqOf(0, 1, 2))));
-        assertThat(seqOf(0, 1, 2).asSet(), equalTo(Stream.of(0, 1, 2).collect(toSet())));
-        assertThat(seqOf(0, 1, 2).asSet(), equalTo(Stream.of(2, 1, 0).collect(toSet())));
-        assertThat(seqOf(0, 1, 2).asSet(), not(equalTo(Stream.of(0, 1).collect(toSet()))));
+        assertThat(seqOf(0, 1, null).asSet(), contains(0, 1, null));
+        assertThat(seqOf(0, 1, null).asSet(), hasSize(3));
+        assertThat(seqOf(0, 1, null).asSet().contains(1), equalTo(true));
+        assertThat(seqOf(0, 1, null).asSet(), not(equalTo(seqOf(0, 1, null))));
+        assertThat(seqOf(0, 1, null).asSet(),
+                equalTo(Stream.of(0, 1, null).collect(toSet())));
+        assertThat(seqOf(0, 1, null).asSet(),
+                equalTo(Stream.of(null, 1, 0).collect(toSet())));
+        assertThat(seqOf(0, 1, null).asSet(),
+                not(equalTo(Stream.of(0, 1).collect(toSet()))));
+        assertThat(Seq.copy(seqOf(0, 1, null).asSet().spliterator()),
+                contains(0, 1, null));
     }
 
     @Test
     public void testAsMap() {
+        assertThat(seqOf("zero").asMap().size(), equalTo(1));
         assertThat(
                 seqOf("zero").asMap(),
                 hasEntry("zero", "zero"));
@@ -251,6 +288,9 @@ public class SeqTest {
         assertThat(
                 seqOf("zero").asMap(s -> s.charAt(0), String::toUpperCase),
                 hasEntry('z', "ZERO"));
+        assertThat(
+                seqOf("zero", null).asMap(), allOf(hasEntry("zero", "zero"),
+                        hasEntry((Object) null, null)));
     }
 
     @Test
@@ -305,10 +345,10 @@ public class SeqTest {
     public void testReduce() {
         assertThat(seqOf().reduce((a, b) -> a), equalTo(Optional.empty()));
         assertThat(
-                seqOf(0, 1, 2).reduce((a, b) -> a + b),
+                seqOf(0, 1, 2).reduce(Integer::sum),
                 equalTo(Optional.of(3)));
         assertThat(seqOf().reduce(0, (a, b) -> a), equalTo(0));
-        assertThat(seqOf(0, 1, 2).reduce(0, (a, b) -> a + b), equalTo(3));
+        assertThat(seqOf(0, 1, 2).reduce(0, Integer::sum), equalTo(3));
         assertThat(
                 seqOf("zero", "one").reduce(0, (a, b) -> a + b.length()),
                 equalTo(7));
@@ -330,6 +370,11 @@ public class SeqTest {
                 contains(0, 1, 1, 1));
         assertThat(seqOf(0, 7).zip(seqOf(2, 3, 4), Math::min), contains(0, 3));
         assertThat(seqOf(0, 7, 2).zip(seqOf(3, 4), Math::min), contains(0, 4));
+        assertThat(
+                seqOf(0, 1, null, null).zip(seqOf(0, null, 2, null), (a, b) ->
+                        a == null & b == null ? "both" : a == null ? "a"
+                                : b == null ? "b" : "neither"),
+                contains("neither", "b", "a", "both"));
     }
 
     @Test
@@ -403,12 +448,71 @@ public class SeqTest {
     }
 
     @Test
+    public void testPermutations() {
+        assertThat(seqOf().permutations(), contains(seqOf()));
+        assertThat(seqOf(4).permutations(), contains(seqOf(4)));
+        assertThat(seqOf(4, 2).permutations(),
+                contains(seqOf(4, 2), seqOf(2, 4)));
+        assertThat(seqOf(0, 1, 2, 3, 4).permutations().size(), equalTo(120));
+        seqOf(0, 1, 2, 3, 4).permutations().forEach(p ->
+                assertThat(p, containsInAnyOrder(0, 1, 2, 3, 4)));
+        assertTrue(seqOf(0, 1, 2, 3, 4).permutations()
+                .zip(
+                        seqOf(0, 1, 2, 3, 4).permutations().skip(1),
+                        this::isLexicalOrder)
+                .allMatch(b -> b));
+        assertThat(seqOf(null, null).permutations(),
+                contains(seqOf(null, null), seqOf(null, null)));
+    }
+
+    @Test
+    public void testCombinations() {
+        assertThat(seqOf().combinations(0), contains(seqOf()));
+        assertThat(seqOf(4).combinations(0), contains(seqOf()));
+        assertThat(seqOf(4).combinations(1), contains(seqOf(4)));
+        assertThat(seqOf(4, 2).combinations(0), contains(seqOf()));
+        assertThat(seqOf(4, 2).combinations(1), contains(seqOf(4), seqOf(2)));
+        assertThat(seqOf(4, 2).combinations(2), contains(seqOf(4, 2)));
+        assertThrows(() -> seqOf(4, 2).combinations(-1));
+        assertThrows(() -> seqOf(4, 2).combinations(3));
+        assertThat(seqOf(0, 1, 2, 3, 4).combinations(2).size(), equalTo(10));
+        seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
+                assertThat(p, hasSize(3)));
+        assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4)
+                .zip(
+                        seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4).skip(1),
+                        this::isLexicalOrder)
+                .allMatch(b -> b));
+        assertThat(seqOf(null, null).combinations(1),
+                contains(seqOf((Object) null), seqOf((Object) null)));
+    }
+
+    @Test
+    public void testPowerSet() {
+        assertThat(seqOf().powerSet(), contains(seqOf()));
+        assertThat(seqOf(4).powerSet(), contains(seqOf(), seqOf(4)));
+        assertThat(seqOf(4, 2).powerSet(),
+                contains(seqOf(), seqOf(4), seqOf(2), seqOf(4, 2)));
+        assertThat(seqOf(0, 1, 2, 3, 4).powerSet().size(), equalTo(32));
+        seqOf(0, 1, 2, 3, 4).powerSet().forEach(p ->
+                assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(p)));
+        assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).powerSet()
+                .zip(
+                        seqOf(0, 1, 2, 3, 4, 5, 6).powerSet().skip(1),
+                        (s, t) -> s.size() < t.size() || isLexicalOrder(s, t))
+                .allMatch(b -> b));
+        assertThat(seqOf(null, null).powerSet(),
+                contains(seqOf(), seqOf((Object) null), seqOf((Object) null),
+                        seqOf(null, null)));
+    }
+
+    @Test
     public void testSlice() {
-        assertThat(seqOf(0, 1, 2, 3).slice(1, 3), contains(1, 2));
-        assertThat(seqOf(0, 1, 2, 3).slice(3, 1), empty());
-        assertThat(seqOf(0, 1, 2, 3).slice(1, 5), contains(1, 2, 3));
-        assertThrows(() -> seqOf(0, 1, 2, 3).slice(-1, 3));
-        assertThrows(() -> seqOf(0, 1, 2, 3).slice(1, -1));
+        assertThat(seqOf(0, 1, null, 3).slice(1, 3), contains(1, null));
+        assertThat(seqOf(0, 1, null, 3).slice(3, 1), empty());
+        assertThat(seqOf(0, 1, null, 3).slice(1, 5), contains(1, null, 3));
+        assertThrows(() -> seqOf(0, 1, null, 3).slice(-1, 3));
+        assertThrows(() -> seqOf(0, 1, null, 3).slice(1, -1));
         Integer[] array = {0, 1};
         Seq<Integer> slice = seqOf(array).slice(0, 2);
         array[0] = 4;
@@ -416,12 +520,12 @@ public class SeqTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testIndexesOfSlice() {
         Function<String, Seq<Integer>> toSeq =
                 s -> seqOf(s.chars().boxed().toArray(Integer[]::new));
         Seq.of(
-                Seq.of("abacabadac", "", Seq.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
+                Seq.of("abacabadac", "",
+                        Seq.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
                 Seq.of("abacabadac", "a", Seq.of(0, 2, 4, 6, 8)),
                 Seq.of("abacabadac", "aba", Seq.of(0, 4)),
                 Seq.of("abacabadac", "bac", Seq.of(1)),
@@ -438,6 +542,7 @@ public class SeqTest {
                 Seq.of("", "", Seq.of(0))).forEach(args -> {
             Seq<Integer> seq = toSeq.apply((String) args.get(0));
             Seq<Integer> slice = toSeq.apply((String) args.get(1));
+            @SuppressWarnings("unchecked")
             Seq<Integer> indexes = (Seq<Integer>) args.get(2);
             assertThat(seq.indexesOfSlice(slice),
                     equalTo(indexes));
@@ -455,7 +560,8 @@ public class SeqTest {
                             .map(i -> i == seq.size() - slice.size())
                             .orElse(false)));
         });
-        assertThat(seqOf(3, null, 4).indexesOfSlice(seqOf(null, 4)), equalTo(Seq.of(1)));
+        assertThat(seqOf(3, null, 4).indexesOfSlice(seqOf(null, 4)),
+                equalTo(Seq.of(1)));
     }
 
     @Test
@@ -486,6 +592,7 @@ public class SeqTest {
     @Test
     public void testGet() {
         assertThat(seqOf(0, 1, 2).get(2), equalTo(2));
+        assertThat(seqOf(0, null, 2).get(1), equalTo(null));
         assertThrows(() -> seqOf(0, 1, 2).get(-1));
         assertThrows(() -> seqOf(0, 1, 2).get(3));
     }
@@ -495,13 +602,8 @@ public class SeqTest {
         Seq<String> words = seqOf(
                 "the quick brown fox jumps over the lazy dog".split(" "));
         assertThat(words.indexOf("the"), equalTo(0));
-        assertThat(words.lastIndexOf("the"), equalTo(6));
-        assertThat(words.indexesOf("the"), contains(0, 6));
-        assertTrue(words.contains("the"));
         assertThat(words.indexOf("on"), equalTo(-1));
-        assertThat(words.lastIndexOf("on"), equalTo(-1));
-        assertThat(words.indexesOf("on"), empty());
-        assertFalse(words.contains("on"));
+        assertThat(seqOf(0, null, null, 3).indexOf(null), equalTo(1));
     }
 
     @Test
@@ -510,6 +612,7 @@ public class SeqTest {
                 "the quick brown fox jumps over the lazy dog".split(" "));
         assertThat(words.lastIndexOf("the"), equalTo(6));
         assertThat(words.lastIndexOf("on"), equalTo(-1));
+        assertThat(seqOf(0, null, null, 3).lastIndexOf(null), equalTo(2));
     }
 
     @Test
@@ -518,6 +621,7 @@ public class SeqTest {
                 "the quick brown fox jumps over the lazy dog".split(" "));
         assertThat(words.indexesOf("the"), contains(0, 6));
         assertThat(words.indexesOf("on"), empty());
+        assertThat(seqOf(0, null, null, 3).indexesOf(null), contains(1, 2));
     }
 
     @Test
@@ -537,19 +641,19 @@ public class SeqTest {
     @Test
     public void testReversed() {
         assertThat(seqOf().reversed(), empty());
-        assertThat(seqOf(0, 2, 1).reversed(), contains(1, 2, 0));
+        assertThat(seqOf(0, null, 1).reversed(), contains(1, null, 0));
     }
 
     @Test
     public void testRotated() {
-        Seq<Integer> nums = seqOf(0, 1, 2, 3, 4);
-        assertThat(nums.rotated(1), contains(4, 0, 1, 2, 3));
-        assertThat(nums.rotated(-2), contains(2, 3, 4, 0, 1));
+        Seq<Integer> nums = seqOf(0, 1, 2, null, 4);
+        assertThat(nums.rotated(1), contains(4, 0, 1, 2, null));
+        assertThat(nums.rotated(-2), contains(2, null, 4, 0, 1));
     }
 
     @Test
     public void testShuffled() {
-        Seq<Integer> nums = seqOf(0, 1, 2, 3, 4);
+        Seq<Integer> nums = seqOf(0, null, 2, 3, 4);
         List<Integer> copy = new ArrayList<>(nums);
         Collections.shuffle(copy, new Random(0));
         assertThat(
@@ -560,52 +664,65 @@ public class SeqTest {
     @Test
     public void testLimitLast() {
         assertThat(seqOf().limitLast(2), empty());
-        assertThat(seqOf(0, 1, 2).limitLast(0), empty());
-        assertThat(seqOf(0, 1, 2).limitLast(5), contains(0, 1, 2));
-        assertThat(seqOf(0, 1, 2, 3, 4).limitLast(2), contains(3, 4));
-        assertThat(seqOf(0, 1, 2, 3, 4, 5).limitLast(3), contains(3, 4, 5));
-        assertThrows(() -> seqOf(0, 1, 2).limitLast(-2));
+        assertThat(seqOf(0, null, 2).limitLast(0), empty());
+        assertThat(seqOf(0, null, 2).limitLast(3), contains(0, null, 2));
+        assertThat(seqOf(0, null, 2).limitLast(5), contains(0, null, 2));
+        assertThat(seqOf(0, null, 2, 3, 4).limitLast(2), contains(3, 4));
+        assertThat(seqOf(0, null, 2, 3, 4, 5).limitLast(3), contains(3, 4, 5));
+        assertThrows(() -> seqOf(0, null, 2).limitLast(-2));
     }
 
     @Test
     public void testSkipLast() {
         assertThat(seqOf().skipLast(2), empty());
-        assertThat(seqOf(0, 1, 2).skipLast(0), contains(0, 1, 2));
-        assertThat(seqOf(0, 1, 2).skipLast(5), empty());
-        assertThat(seqOf(0, 1, 2, 3, 4).skipLast(2), contains(0, 1, 2));
-        assertThat(seqOf(0, 1, 2, 3, 4, 5).skipLast(3), contains(0, 1, 2));
-        assertThrows(() -> seqOf(0, 1, 2).skipLast(-2));
+        assertThat(seqOf(0, null, 2).skipLast(0), contains(0, null, 2));
+        assertThat(seqOf(0, null, 2).skipLast(3), empty());
+        assertThat(seqOf(0, null, 2).skipLast(5), empty());
+        assertThat(seqOf(0, null, 2, 3, 4).skipLast(2), contains(0, null, 2));
+        assertThat(seqOf(0, null, 2, 3, 4, 5).skipLast(3),
+                contains(0, null, 2));
+        assertThrows(() -> seqOf(0, null, 2).skipLast(-2));
     }
 
     @Test
     public void testTakeWhile() {
         assertThat(seqOf().takeWhile(n -> false), empty());
         assertThat(seqOf().takeWhile(n -> true), empty());
-        Seq<Integer> numbers = seqOf(0, 1, 2, 1, 0);
+        Seq<Integer> numbers = seqOf(0, null, 2, 1, 0);
         assertThat(numbers.takeWhile(n -> false), empty());
-        assertThat(numbers.takeWhile(n -> true), contains(0, 1, 2, 1, 0));
-        assertThat(numbers.takeWhile(n -> n < 2), contains(0, 1));
+        assertThat(numbers.takeWhile(n -> true), contains(0, null, 2, 1, 0));
+        assertThat(numbers.takeWhile(n -> n == null || n < 2),
+                contains(0, null));
+        Spliterator<Integer> s = numbers.stream().takeWhile(
+                n -> n == null || n < 2).spliterator();
+        assertTrue(s.tryAdvance(e -> {}));
+        assertTrue(s.tryAdvance(e -> {}));
+        assertFalse(s.tryAdvance(e -> {}));
+        assertFalse(s.tryAdvance(e -> {})); // code coverage
     }
 
     @Test
     public void testDropWhile() {
         assertThat(seqOf().dropWhile(n -> false), empty());
         assertThat(seqOf().dropWhile(n -> true), empty());
-        Seq<Integer> numbers = seqOf(0, 1, 2, 1, 0);
-        assertThat(numbers.dropWhile(n -> false), contains(0, 1, 2, 1, 0));
+        Seq<Integer> numbers = seqOf(0, null, 2, 1, 0);
+        assertThat(numbers.dropWhile(n -> false), contains(0, null, 2, 1, 0));
         assertThat(numbers.dropWhile(n -> true), empty());
-        assertThat(numbers.dropWhile(n -> n < 2), contains(2, 1, 0));
+        assertThat(numbers.dropWhile(n -> n == null || n < 2),
+                contains(2, 1, 0));
     }
 
     @Test
     public void testFilter() {
         assertThat(seqOf(0, 1, 2, 3).filter(n -> n % 3 == 0), contains(0, 3));
+        assertThat(seqOf(0, null, 2).filter(Objects::nonNull), contains(0, 2));
     }
 
     @Test
     public void testMap() {
         assertThat(seqOf().map(identity()), empty());
         assertThat(seqOf(0, 1, 2).map(n -> n * 2), contains(0, 2, 4));
+        assertThat(seqOf(0, null).map(Objects::isNull), contains(false, true));
         assertThat(
                 seqOf("", null).map(s -> s == null ? "" : null),
                 contains(null, ""));
@@ -614,14 +731,19 @@ public class SeqTest {
     @Test
     public void testFlatMap() {
         assertThat(
-                seqOf(seqOf(0, 1, 2), seqOf(3, 4))
+                seqOf(seqOf(0, 1, 2), seqOf(null, 4))
                         .flatMap(identity()),
-                contains(0, 1, 2, 3, 4));
+                contains(0, 1, 2, null, 4));
+        assertThat(
+                seqOf(seqOf(0, 1, 2), null)
+                        .flatMap(identity()),
+                contains(0, 1, 2));
     }
 
     @Test
     public void testDistinct() {
-        assertThat(seqOf(1, 2, 2, 3, 3, 3).distinct(), contains(1, 2, 3));
+        assertThat(seqOf(3, 2, null, 2, 3, 1, 1).distinct(),
+                contains(3, 2, null, 1));
     }
 
     @Test
@@ -635,16 +757,16 @@ public class SeqTest {
 
     @Test
     public void testLimit() {
-        assertThat(seqOf(0, 1, 2).limit(2), contains(0, 1));
-        assertThat(seqOf(0, 1, 2).limit(5), contains(0, 1, 2));
-        assertThrows(() -> seqOf(0, 1, 2).limit(-2));
+        assertThat(seqOf(0, null, 2).limit(2), contains(0, null));
+        assertThat(seqOf(0, null, 2).limit(5), contains(0, null, 2));
+        assertThrows(() -> seqOf(0, null, 2).limit(-2));
     }
 
     @Test
     public void testSkip() {
-        assertThat(seqOf(0, 1, 2).skip(2), contains(2));
-        assertThat(seqOf(0, 1, 2).skip(5), empty());
-        assertThrows(() -> seqOf(0, 1, 2).skip(-2));
+        assertThat(seqOf(0, null, 2).skip(2), contains(2));
+        assertThat(seqOf(0, null, 2).skip(5), empty());
+        assertThrows(() -> seqOf(0, null, 2).skip(-2));
     }
 
     @Test
@@ -673,11 +795,15 @@ public class SeqTest {
         assertThat(seq.toArray(new Integer[0]), arrayContaining(0, 1, 2));
         assertThat(seq.toArray(new Integer[0]).getClass().getComponentType(),
                 equalTo(Integer.class));
+        assertThat(seq.toArray(new Integer[5]), arrayWithSize(5));
+        assertThat(seq.toArray(new Integer[5])[2], equalTo(2));
+        assertThat(seq.toArray(new Integer[5])[3], equalTo(null));
         Integer[] target = new Integer[seq.size()];
         assertThat(seq.toArray(target), arrayContaining(0, 1, 2));
         assertThat(seq.toArray(target), sameInstance(target));
         assertThat(seq.limit(1).toArray(target), arrayContaining(0, null, 2));
         assertThat(seq.limit(1).toArray(target), sameInstance(target));
+        assertThat(seqOf(null, 1).toArray(), arrayContaining(null, 1));
     }
 
     @Test
@@ -686,11 +812,12 @@ public class SeqTest {
                 this.<Integer>seqOf().min(naturalOrder()),
                 equalTo(Optional.empty()));
         assertThat(
-                seqOf(2, 3, 1).min(naturalOrder()),
+                seqOf(2, 3, 1, 4, 9, 7).min(naturalOrder()),
                 equalTo(Optional.of(1)));
         assertThat(
-                seqOf("the", "quick").min(comparing(String::length)),
-                equalTo(Optional.of("the")));
+                seqOf("quick", "brown", "fox", "jumped")
+                        .min(comparing(String::length)),
+                equalTo(Optional.of("fox")));
     }
 
     @Test
@@ -699,16 +826,17 @@ public class SeqTest {
                 this.<Integer>seqOf().max(naturalOrder()),
                 equalTo(Optional.empty()));
         assertThat(
-                seqOf(2, 3, 1).max(naturalOrder()),
-                equalTo(Optional.of(3)));
+                seqOf(2, 3, 1, 4, 9, 7).max(naturalOrder()),
+                equalTo(Optional.of(9)));
         assertThat(
-                seqOf("the", "quick").max(comparing(String::length)),
-                equalTo(Optional.of("quick")));
+                seqOf("quick", "brown", "fox", "jumped")
+                        .max(comparing(String::length)),
+                equalTo(Optional.of("jumped")));
     }
 
     @Test
     public void testCount() {
-        assertThat(seqOf(0, 1, 2).count(), equalTo(3L));
+        assertThat(seqOf(0, null, 2).count(), equalTo(3L));
     }
 
     @Test
@@ -766,7 +894,7 @@ public class SeqTest {
 
     @Test
     public void testIsEmpty() {
-        assertFalse(seqOf(1, 2, 3).isEmpty());
+        assertFalse(seqOf(1, null, 3).isEmpty());
         assertTrue(seqOf().isEmpty());
     }
 
@@ -776,6 +904,7 @@ public class SeqTest {
                 "the quick brown fox jumps over the lazy dog".split(" "));
         assertTrue(words.contains("the"));
         assertFalse(words.contains("on"));
+        assertTrue(seqOf(0, null, null, 3).contains(null));
     }
 
     @Test
@@ -828,13 +957,10 @@ public class SeqTest {
 
     @Test
     public void testSpliterator() {
-        Spliterator<String> spliterator = seqOf("the", "quick").spliterator();
-        assertTrue(spliterator.hasCharacteristics(Spliterator.SIZED));
-        assertTrue(spliterator.hasCharacteristics(Spliterator.SUBSIZED));
-        assertTrue(spliterator.tryAdvance(s -> assertThat(s, Matchers.equalTo("the"))));
-        assertTrue(spliterator.tryAdvance(s -> assertThat(s, Matchers.equalTo("quick"))));
-        assertFalse(spliterator.tryAdvance(s -> {
-        }));
+        Spliterator<String> spliterator = seqOf("the", "fox").spliterator();
+        assertTrue(spliterator.tryAdvance(s -> assertThat(s, equalTo("the"))));
+        assertTrue(spliterator.tryAdvance(s -> assertThat(s, equalTo("fox"))));
+        assertFalse(spliterator.tryAdvance(s -> {}));
     }
 
     @Test
@@ -844,12 +970,17 @@ public class SeqTest {
 
     @Test
     public void testParallelStream() {
-        seqOf(0, 1, 2).parallelStream().collect(toList());
+        assertThat(seqOf(0, 1).parallelStream().collect(), contains(0, 1));
     }
 
     @Test
     public void testIterator() {
-        assertTrue(true);
+        Iterator<String> iterator = seqOf("the", "fox").iterator();
+        assertTrue(iterator.hasNext());
+        assertThat(iterator.next(), equalTo("the"));
+        assertTrue(iterator.hasNext());
+        assertThat(iterator.next(), equalTo("fox"));
+        assertFalse(iterator.hasNext());
     }
 
     @Test
@@ -861,12 +992,17 @@ public class SeqTest {
                 seqOf(3, 7),
                 seqOf(7, 3),
                 seqOf("the", "quick", "brown"))) {
-            assertThat(seq.hashCode(), equalTo(new ArrayList<>(seq).hashCode()));
+            assertThat(seq.hashCode(),
+                    equalTo(new ArrayList<>(seq).hashCode()));
         }
     }
 
     @Test
     public void testEquals() {
+        Seq<Object> instance = seqOf();
+        assertTrue(instance.equals(instance));
+        assertFalse(seqOf().equals(null));
+        assertFalse(seqOf().equals(Arrays.asList()));
         assertTrue(seqOf().equals(seqOf()));
         assertFalse(seqOf().equals(seqOf(0)));
         assertFalse(seqOf(0).equals(seqOf()));
@@ -884,6 +1020,7 @@ public class SeqTest {
         assertThat(seqOf(0, 1).toString(), equalTo("[0, 1]"));
         assertThat(seqOf(true, false).toString("|", "<", ">"),
                 equalTo("<true|false>"));
+        assertThat(seqOf("fox", null).toString(), equalTo("[fox, null]"));
     }
 
     @SafeVarargs
@@ -891,33 +1028,28 @@ public class SeqTest {
         return factory.create(elements);
     }
 
+    private boolean isLexicalOrder(Seq<Integer> s, Seq<Integer> t) {
+        return s.zip(t, (i, j) -> i - j)
+                .filter(n -> n != 0).findFirst()
+                .map(n -> n < 0).orElse(true);
+    }
+
     private interface Factory {
         <E> Seq<E> create(E[] elements);
     }
 
-    private static class TestSeq<E> implements Seq<E> {
+    private static class TestDelegatingSeq<E>
+            extends AbstractSeq<E> implements DelegatingSeq<E> {
 
-        private final List<E> list;
+        private final E[] elements;
 
         @SafeVarargs
-        public TestSeq(E... elements) {
-            list = Arrays.asList(elements);
+        public TestDelegatingSeq(E... elements) {
+            this.elements = elements;
         }
 
         public Spliterator<E> spliterator() {
-            return list.spliterator();
-        }
-
-        public int hashCode() {
-            return Seq.view(list).hashCode();
-        }
-
-        public boolean equals(Object obj) {
-            return Seq.view(list).equals(obj);
-        }
-
-        public String toString() {
-            return Seq.view(list).toString();
+            return Arrays.spliterator(elements);
         }
     }
 }

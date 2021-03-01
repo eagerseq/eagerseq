@@ -10,7 +10,7 @@ public abstract class AbstractSeq<E> implements Seq<E> {
      * {@inheritDoc}
      */
     public int hashCode() {
-        return Util.listHash(spliterator());
+        return Split.listHash(spliterator());
     }
 
     /**
@@ -19,13 +19,14 @@ public abstract class AbstractSeq<E> implements Seq<E> {
     public boolean equals(Object object) {
         if (object == this) return true;
         if (!(object instanceof Seq)) return false;
-        return Util.listEquals(spliterator(), ((Seq<?>) object).spliterator());
+        Seq<?> that = (Seq<?>) object;
+        return Split.listEquals(spliterator(), that.spliterator());
     }
 
     /**
-     * Equivalent to {@code asList().toString()}.
+     * {@inheritDoc}
      */
     public String toString() {
-        return toString(", ", "[", "]");
+        return Split.toString(spliterator(), ", ", "[", "]");
     }
 }

@@ -24,6 +24,6 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
     }
 
     public Spliterator<E> spliterator() {
-        return Util.spliterator(array);
+        return Split.toSpliterator(array);
     }
 }
