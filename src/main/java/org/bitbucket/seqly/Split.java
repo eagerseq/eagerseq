@@ -577,7 +577,8 @@ final class Split {
     static <E, R> Spliterator<R> flatMap(
             Spliterator<E> spliterator,
             Function<? super E, ? extends Spliterator<R>> mapper) {
-        return flatten(map(spliterator, mapper));
+        return flatten(map(spliterator, mapper.andThen(
+                s -> s == null ? emptySpliterator() : s)));
     }
 
     static <E> Spliterator<E> distinct(
@@ -746,7 +747,7 @@ final class Split {
             CharSequence prefix,
             CharSequence suffix) {
         StringJoiner joiner = new StringJoiner(delimiter, prefix, suffix);
-        spliterator.forEachRemaining(e -> joiner.add(e.toString()));
+        spliterator.forEachRemaining(e -> joiner.add(String.valueOf(e)));
         return joiner.toString();
     }
 

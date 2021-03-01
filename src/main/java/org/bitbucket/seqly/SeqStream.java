@@ -3,7 +3,6 @@ package org.bitbucket.seqly;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
@@ -396,12 +395,12 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Stream equivalent of {@link Seq#flatMap(Function)}.
+     * {@inheritDoc}
      */
     default <R> SeqStream<R> flatMap(
             Function<? super E, ? extends Stream<? extends R>> mapper) {
-        return view(Split.flatMap(
-                spliterator(), mapper.andThen(Stream::spliterator)));
+        return view(Split.flatMap(spliterator(), mapper.andThen(stream ->
+                stream == null ? null : stream.spliterator())));
     }
 
     /**

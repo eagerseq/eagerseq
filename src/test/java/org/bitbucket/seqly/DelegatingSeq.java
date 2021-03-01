@@ -84,8 +84,8 @@ public interface DelegatingSeq<E> extends Seq<E> {
 
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
-        return stream().<R>flatMap(mapper.andThen(Split::toSeqStream))
-                .collect();
+        return stream().<R>flatMap(mapper.andThen(iterable ->
+                iterable == null ? null : toSeqStream(iterable))).collect();
     }
 
     default Seq<E> slice(int from, int to) {
