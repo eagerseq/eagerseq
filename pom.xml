@@ -25,16 +25,11 @@
         <developerConnection>scm:git:ssh://bitbucket.org:seqly/seqly.git</developerConnection>
         <url>https://bitbucket.org/seqly/seqly/src</url>
     </scm>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
+    <!--
+        No distributionManagement is needed: OSSRH (oss.sonatype.org) was shut
+        down in June 2025 and central-publishing-maven-plugin, configured
+        below, uploads to the Central Portal directly.
+    -->
     <properties>
         <maven.compiler.release>8</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -131,6 +126,22 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <!--
+                    Requires a Central Portal user token in settings.xml under
+                    server id "central". With autoPublish false, "mvn deploy"
+                    uploads and validates but does not release: the deployment
+                    must then be published (or dropped) from the Portal UI.
+                -->
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.11.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <autoPublish>false</autoPublish>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
