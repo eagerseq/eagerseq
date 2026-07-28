@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.bitbucket.seqly</groupId>
     <artifactId>seqly</artifactId>
-    <version>0.4.0</version>
+    <version>0.5.0</version>
     <name>Seqly</name>
     <description>A small collection library.</description>
     <url>https://bitbucket.org/seqly/seqly/</url>
@@ -35,7 +35,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Fixed timestamp for reproducible builds; update per release. -->
-        <project.build.outputTimestamp>2026-07-28T00:00:00Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-07-29T00:00:00Z</project.build.outputTimestamp>
     </properties>
     <dependencies>
         <dependency>
