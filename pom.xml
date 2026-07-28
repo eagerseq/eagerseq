@@ -114,6 +114,13 @@
                 </executions>
             </plugin>
             <plugin>
+                <!--
+                    Releases are signed with a GPG key that is deliberately
+                    kept outside this repository. If a build fails with
+                    "gpg: no default secret key" then the key is not present
+                    on this machine and must be imported before releasing;
+                    signing then prompts for its passphrase.
+                -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
                 <version>3.2.8</version>
