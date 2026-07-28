@@ -29,11 +29,11 @@ Compare with the `Stream` version:
 ```java
 List<Integer> lengths = words.stream()
         .map(String::length)
-        .collect(toList());
+        .toList();
 ```
 
 These are extremely common operations, and laziness is often not required.
-`Stream`s are extremely verbose
+`Stream`s are verbose
 for this case, hence `Seq`.
 
 ## Usage
@@ -98,7 +98,7 @@ Seq<Integer> lengths = words.stream()
         .filter(w -> w.contains("e"))
         .map(String::length)
         .reversed()
-        .collect();
+        .toSeq();
 ```
 
 All functional operations defined on `Seq` have the same
@@ -148,7 +148,7 @@ Additionally, `SeqStream.map`, etc internally create a
 `spliterator` but
 do not eagerly read it into an array and instead save the result, piping it
 into the next method, eg `filter`, or read it into an array only if
-explicitly requested to do so with `collect()`.
+explicitly requested to do so with `toSeq()`.
 
 ## Examples
 

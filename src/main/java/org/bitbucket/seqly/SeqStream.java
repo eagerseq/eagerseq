@@ -404,6 +404,14 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#mapMulti(BiConsumer)}.
+     */
+    default <R> SeqStream<R> mapMulti(
+            BiConsumer<? super E, ? super Consumer<R>> mapper) {
+        return view(Split.mapMulti(spliterator(), requireNonNull(mapper)));
+    }
+
+    /**
      * {@inheritDoc}
      */
     default IntStream flatMapToInt(
@@ -526,7 +534,7 @@ public interface SeqStream<E> extends Stream<E> {
     /**
      * Equivalent to {@code collect(Seq.toSeq())}.
      */
-    default Seq<E> collect() {
+    default Seq<E> toSeq() {
         return Seq.copy(spliterator());
     }
 

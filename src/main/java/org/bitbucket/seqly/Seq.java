@@ -41,11 +41,11 @@ import static java.util.function.Function.identity;
  * <pre>{@code
  *     List<Integer> lengths = words.stream()
  *             .map(String::length)
- *             .collect(toList());
+ *             .toList();
  * }</pre>
  *
  * <p>These are extremely common operations, and laziness is often not required.
- * {@code Stream}s are extremely verbose
+ * {@code Stream}s are verbose
  * for this case, hence {@code Seq}.
  *
  * <h2>Usage</h2>
@@ -110,7 +110,7 @@ import static java.util.function.Function.identity;
  *             .filter(w -> w.contains("e"))
  *             .map(String::length)
  *             .reversed()
- *             .collect();
+ *             .toSeq();
  * }</pre>
  *
  * <p>All functional operations defined on {@code Seq} have the same
@@ -160,7 +160,7 @@ import static java.util.function.Function.identity;
  * {@code spliterator} but
  * do not eagerly read it into an array and instead save the result, piping it
  * into the next method, eg {@code filter}, or read it into an array only if
- * explicitly requested to do so with {@code collect()}.
+ * explicitly requested to do so with {@code toSeq()}.
  *
  * <h2>Examples</h2>
  *
@@ -187,6 +187,13 @@ public interface Seq<E> extends Collection<E> {
     @SafeVarargs
     static <E> Seq<E> of(E... elements) {
         return new ArraySeq<>(requireNonNull(elements));
+    }
+
+    /**
+     * Returns a {@code Seq} containing the given element if not null or no elements otherwise.
+     */
+    static <E> Seq<E> ofNullable(E element) {
+        return element == null ? of() : of(element);
     }
 
     /**
@@ -543,6 +550,15 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
+     * Like {@link #flatMap(Function)} except that results are passed to a
+     * {@code Consumer} rather than returned.
+     */
+    default <R> Seq<R> mapMulti(
+            BiConsumer<? super E, ? super Consumer<R>> mapper) {
+        return copy(Split.mapMulti(spliterator(), requireNonNull(mapper)));
+    }
+
+    /**
      * Returns those consecutive elements whose indexes
      * are from the first argument (inclusive) to the second (exclusive).
      * Throws only if either argument is negative. Is not a view.
@@ -797,13 +813,6 @@ public interface Seq<E> extends Collection<E> {
             U identity,
             BiFunction<U, ? super E, U> accumulator) {
         return Split.reduce(spliterator(), identity, accumulator);
-    }
-
-    /**
-     * Returns a copy of this {@code Seq}.
-     */
-    default Seq<E> collect() {
-        return copy(spliterator());
     }
 
     /**

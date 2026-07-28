@@ -3,7 +3,11 @@ package org.bitbucket.seqly;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -12,6 +16,7 @@ import java.util.stream.Stream;
 import static org.bitbucket.seqly.SeqTest.assertThrows;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.sameInstance;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -25,14 +30,51 @@ public class SeqStreamTest {
         for (Method method : SeqStream.class.getMethods()) {
             if (Stream.class.isAssignableFrom(method.getReturnType())
                     && !method.isSynthetic()
-                    && !Seq.of("collect", "stream",
-                    "takeWhile", "dropWhile") // compiling with -release 8
-                    // where these methods don't exist on stream
-                    .contains(method.getName())) {
+                    && !Seq.of("takeWhile", "dropWhile", "mapMulti")
+                    // compiling with -release 8, so these are declared by
+                    // SeqStream without overriding the Stream method of the
+                    // same name, which is therefore also reported here
+                    .contains(method.getName())
+                    // Gatherer does not exist before Java 24, so gather
+                    // cannot be declared at all while targeting Java 8
+                    && !method.getName().equals("gather")) {
                 assertThat(method.getName(), method.getReturnType(),
                         equalTo(SeqStream.class));
             }
         }
+    }
+
+    /**
+     * Detects methods added to {@code Stream} by later Java versions that
+     * have not yet been considered for {@code Seq}. When this fails, either
+     * add the method to {@code Seq} or add it below with a reason.
+     */
+    @Test
+    public void testStreamMethodsAbsentFromSeqAreOnlyTheKnownExceptions() {
+        Set<String> declaredBySeq = new HashSet<>();
+        for (Method method : Seq.class.getDeclaredMethods()) {
+            declaredBySeq.add(method.getName());
+        }
+        Set<String> absent = new TreeSet<>();
+        for (Method method : Stream.class.getDeclaredMethods()) {
+            if (!method.isSynthetic()
+                    && !Modifier.isStatic(method.getModifiers())
+                    && !declaredBySeq.contains(method.getName())) {
+                absent.add(method.getName());
+            }
+        }
+        absent.removeAll(Arrays.asList(
+                // Seq is an object collection and defines no primitive
+                // stream methods at all, including mapToInt and flatMapToInt
+                "mapMultiToInt", "mapMultiToLong", "mapMultiToDouble",
+                "mapToInt", "mapToLong", "mapToDouble",
+                "flatMapToInt", "flatMapToLong", "flatMapToDouble",
+                // returns List, which a Seq deliberately is not
+                "toList",
+                // Gatherer does not exist before Java 24
+                "gather"));
+        assertThat("Stream methods absent from Seq without a stated reason",
+                absent, empty());
     }
 
     @Test
@@ -54,8 +96,8 @@ public class SeqStreamTest {
         assertTrue(
                 SeqStream.concat(streamOf(0, 1), streamOf(2, 3), streamOf(4, 5))
                         .listEquals(streamOf(0, 1, 2, 3, 4, 5)));
-        assertThrows(() -> SeqStream.concat(streamOf(), null).collect());
-        assertThrows(() -> SeqStream.concat(null, streamOf()).collect());
+        assertThrows(() -> SeqStream.concat(streamOf(), null).toSeq());
+        assertThrows(() -> SeqStream.concat(null, streamOf()).toSeq());
     }
 
     @Test
@@ -71,8 +113,8 @@ public class SeqStreamTest {
                 SeqStream.flatten(streamOf(streamOf(0, 1), streamOf(2, 3),
                         streamOf(4, 5)))
                         .listEquals(streamOf(0, 1, 2, 3, 4, 5)));
-        assertThrows(() -> SeqStream.flatten(streamOf(streamOf(), null)).collect());
-        assertThrows(() -> SeqStream.flatten(streamOf(null, streamOf())).collect());
+        assertThrows(() -> SeqStream.flatten(streamOf(streamOf(), null)).toSeq());
+        assertThrows(() -> SeqStream.flatten(streamOf(null, streamOf())).toSeq());
     }
 
     @Test

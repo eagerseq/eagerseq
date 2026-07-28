@@ -43,27 +43,27 @@ public interface DelegatingSeq<E> extends Seq<E> {
     default <F, R> Seq<R> zip(
             Iterable<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
-        return stream().<F, R>zip(toSeqStream(that), mapper).collect();
+        return stream().<F, R>zip(toSeqStream(that), mapper).toSeq();
     }
 
     default Seq<Integer> indexes() {
-        return stream().indexes().collect();
+        return stream().indexes().toSeq();
     }
 
     default Seq<E> intersection(Iterable<?> that) {
-        return stream().intersection(toSeqStream(that)).collect();
+        return stream().intersection(toSeqStream(that)).toSeq();
     }
 
     default Seq<E> difference(Iterable<?> that) {
-        return stream().difference(toSeqStream(that)).collect();
+        return stream().difference(toSeqStream(that)).toSeq();
     }
 
     default Seq<E> union(Iterable<? extends E> that) {
-        return stream().union(toSeqStream(that)).collect();
+        return stream().union(toSeqStream(that)).toSeq();
     }
 
     default Seq<E> sum(Iterable<? extends E> that) {
-        return stream().sum(toSeqStream(that)).collect();
+        return stream().sum(toSeqStream(that)).toSeq();
     }
 
     default boolean containsMultiset(Iterable<?> that) {
@@ -71,29 +71,29 @@ public interface DelegatingSeq<E> extends Seq<E> {
     }
 
     default Seq<? extends Seq<E>> permutations() {
-        return stream().permutations().map(SeqStream::collect).collect();
+        return stream().permutations().map(SeqStream::toSeq).toSeq();
     }
 
     default Seq<? extends Seq<E>> combinations(int size) {
-        return stream().combinations(size).map(SeqStream::collect).collect();
+        return stream().combinations(size).map(SeqStream::toSeq).toSeq();
     }
 
     default Seq<? extends Seq<E>> powerSet() {
-        return stream().powerSet().map(SeqStream::collect).collect();
+        return stream().powerSet().map(SeqStream::toSeq).toSeq();
     }
 
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
         return stream().<R>flatMap(mapper.andThen(iterable ->
-                iterable == null ? null : toSeqStream(iterable))).collect();
+                iterable == null ? null : toSeqStream(iterable))).toSeq();
     }
 
     default Seq<E> slice(int from, int to) {
-        return stream().slice(from, to).collect();
+        return stream().slice(from, to).toSeq();
     }
 
     default Seq<Integer> indexesOfSlice(Iterable<?> that) {
-        return stream().indexesOfSlice(toSeqStream(that)).collect();
+        return stream().indexesOfSlice(toSeqStream(that)).toSeq();
     }
 
     default int indexOfSlice(Iterable<?> that) {
@@ -129,63 +129,68 @@ public interface DelegatingSeq<E> extends Seq<E> {
     }
 
     default Seq<Integer> indexesOf(Object object) {
-        return stream().indexesOf(object).collect();
+        return stream().indexesOf(object).toSeq();
     }
 
     default Seq<E> reversed() {
-        return stream().reversed().collect();
+        return stream().reversed().toSeq();
     }
 
     default Seq<E> rotated(int size) {
-        return stream().rotated(size).collect();
+        return stream().rotated(size).toSeq();
     }
 
     default Seq<E> shuffled(Random random) {
-        return stream().shuffled(random).collect();
+        return stream().shuffled(random).toSeq();
     }
 
     default Seq<E> limitLast(long size) {
-        return stream().limitLast(size).collect();
+        return stream().limitLast(size).toSeq();
     }
 
     default Seq<E> skipLast(long size) {
-        return stream().skipLast(size).collect();
+        return stream().skipLast(size).toSeq();
     }
 
     default Seq<E> takeWhile(Predicate<? super E> predicate) {
-        return stream().takeWhile(predicate).collect();
+        return stream().takeWhile(predicate).toSeq();
     }
 
     default Seq<E> dropWhile(Predicate<? super E> predicate) {
-        return stream().dropWhile(predicate).collect();
+        return stream().dropWhile(predicate).toSeq();
     }
 
     default Seq<E> filter(Predicate<? super E> predicate) {
-        return stream().filter(predicate).collect();
+        return stream().filter(predicate).toSeq();
     }
 
     default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
-        return stream().<R>map(mapper).collect();
+        return stream().<R>map(mapper).toSeq();
+    }
+
+    default <R> Seq<R> mapMulti(
+            BiConsumer<? super E, ? super Consumer<R>> mapper) {
+        return stream().<R>mapMulti(mapper).toSeq();
     }
 
     default Seq<E> distinct() {
-        return stream().distinct().collect();
+        return stream().distinct().toSeq();
     }
 
     default Seq<E> sorted() {
-        return stream().sorted().collect();
+        return stream().sorted().toSeq();
     }
 
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return stream().sorted(comparator).collect();
+        return stream().sorted(comparator).toSeq();
     }
 
     default Seq<E> limit(long size) {
-        return stream().limit(size).collect();
+        return stream().limit(size).toSeq();
     }
 
     default Seq<E> skip(long size) {
-        return stream().skip(size).collect();
+        return stream().skip(size).toSeq();
     }
 
     default void forEach(Consumer<? super E> action) {
@@ -219,7 +224,7 @@ public interface DelegatingSeq<E> extends Seq<E> {
     }
 
     default Seq<E> collect() {
-        return stream().collect();
+        return stream().toSeq();
     }
 
     default <U> U collect(Supplier<U> supplier, BiConsumer<U, ? super E> accumulator) {
@@ -272,7 +277,7 @@ public interface DelegatingSeq<E> extends Seq<E> {
 
     default Seq<E> peek(Consumer<? super E> action) {
         // only delegate because this is for testing
-        return stream().peek(action).collect();
+        return stream().peek(action).toSeq();
     }
 
     default String toString(

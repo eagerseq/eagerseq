@@ -88,25 +88,25 @@ public class SeqTest {
                 }),
                 parameters("SeqStream#of(E...)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.of(elements).collect();
+                        return SeqStream.of(elements).toSeq();
                     }
                 }),
                 parameters("SeqStream#view(Iterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
                         return SeqStream.view(Arrays.asList(elements)
-                                .iterator()).collect();
+                                .iterator()).toSeq();
                     }
                 }),
                 parameters("SeqStream#view(Spliterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
                         return SeqStream.view(Arrays.asList(elements)
-                                .spliterator()).collect();
+                                .spliterator()).toSeq();
                     }
                 }),
                 parameters("SeqStream#view(Stream<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
                         return SeqStream.view(Arrays.stream(elements))
-                                .collect();
+                                .toSeq();
                     }
                 }));
     }
@@ -155,6 +155,14 @@ public class SeqTest {
         assertThat(Seq.of(0, 1, 2, null), contains(0, 1, 2, null));
         assertThat(Seq.of(0, 1, 2).getClass(), equalTo(ArraySeq.class));
         assertThrows(() -> Seq.of((Object[]) null));
+    }
+
+    @Test
+    public void testOfNullable() {
+        assertThat(Seq.ofNullable(0), contains(0));
+        assertThat(Seq.ofNullable(null), empty());
+        assertThat(Seq.ofNullable(0).getClass(), equalTo(ArraySeq.class));
+        assertThat(Seq.ofNullable(null).getClass(), equalTo(ArraySeq.class));
     }
 
     @Test
@@ -356,7 +364,6 @@ public class SeqTest {
 
     @Test
     public void testCollect() {
-        assertThat(seqOf(0, 1, 2).collect(), contains(0, 1, 2));
         assertThat(seqOf(0, 1, 2).collect(toList()), contains(0, 1, 2));
         assertThat(
                 seqOf(0, 1, 2).collect(ArrayList::new, ArrayList::add),
@@ -741,6 +748,26 @@ public class SeqTest {
     }
 
     @Test
+    public void testMapMulti() {
+        assertThat(
+                seqOf(0, 1, 2).<Integer>mapMulti((n, sink) -> {
+                    sink.accept(n);
+                    sink.accept(-n);
+                }),
+                contains(0, 0, 1, -1, 2, -2));
+        assertThat(
+                seqOf(0, 1, 2).<Integer>mapMulti((n, sink) -> {}),
+                empty());
+        assertThat(
+                seqOf(0, null).<Integer>mapMulti((n, sink) -> sink.accept(n)),
+                contains(0, null));
+        assertThat(
+                seqOf().<Integer>mapMulti((n, sink) -> sink.accept(0)),
+                empty());
+        assertThrows(() -> seqOf(0).mapMulti(null));
+    }
+
+    @Test
     public void testDistinct() {
         assertThat(seqOf(3, 2, null, 2, 3, 1, 1).distinct(),
                 contains(3, 2, null, 1));
@@ -878,10 +905,12 @@ public class SeqTest {
     @Test
     public void testPeek() {
         int[] total = new int[1];
-        seqOf(1, 2, 3)//.stream()
+        // eager, so each peek runs over every element before the next peek
+        // starts; lazily (ie stream().peek(..).peek(..).toSeq()) the peeks
+        // would interleave per element and the result would be 27
+        seqOf(1, 2, 3)
                 .peek(n -> total[0] += n)
-                .peek(n -> total[0] *= n)
-                .collect();
+                .peek(n -> total[0] *= n);
         assertThat(total[0], allOf(equalTo(36), not(equalTo(27))));
     }
 
@@ -965,12 +994,12 @@ public class SeqTest {
 
     @Test
     public void testStream() {
-        assertThat(seqOf(0, 1, 2).stream().collect(), contains(0, 1, 2));
+        assertThat(seqOf(0, 1, 2).stream().toSeq(), contains(0, 1, 2));
     }
 
     @Test
     public void testParallelStream() {
-        assertThat(seqOf(0, 1).parallelStream().collect(), contains(0, 1));
+        assertThat(seqOf(0, 1).parallelStream().toSeq(), contains(0, 1));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package org.bitbucket.seqly;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -579,6 +580,27 @@ final class Split {
             Function<? super E, ? extends Spliterator<R>> mapper) {
         return flatten(map(spliterator, mapper.andThen(
                 s -> s == null ? emptySpliterator() : s)));
+    }
+
+    static <E, R> Spliterator<R> mapMulti(
+            Spliterator<E> spliterator,
+            BiConsumer<? super E, ? super Consumer<R>> mapper) {
+        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
+            private ArrayList<R> buffer = new ArrayList<>();
+            private Consumer<R> sink = buffer::add;
+            private int index;
+            public boolean tryAdvance(Consumer<? super R> action) {
+                while (index == buffer.size()) {
+                    buffer.clear();
+                    index = 0;
+                    if (!spliterator.tryAdvance(e -> mapper.accept(e, sink))) {
+                        return false;
+                    }
+                }
+                action.accept(buffer.get(index++));
+                return true;
+            }
+        };
     }
 
     static <E> Spliterator<E> distinct(
