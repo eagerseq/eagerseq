@@ -6,7 +6,7 @@
     <version>0.5.0</version>
     <name>Seqly</name>
     <description>A small collection library.</description>
-    <url>https://bitbucket.org/seqly/seqly/</url>
+    <url>https://github.com/jancellor/seqly</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -21,9 +21,9 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://bitbucket.org/seqly/seqly.git</connection>
-        <developerConnection>scm:git:ssh://bitbucket.org:seqly/seqly.git</developerConnection>
-        <url>https://bitbucket.org/seqly/seqly/src</url>
+        <connection>scm:git:https://github.com/jancellor/seqly.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jancellor/seqly.git</developerConnection>
+        <url>https://github.com/jancellor/seqly</url>
     </scm>
     <!--
         No distributionManagement is needed: OSSRH (oss.sonatype.org) was shut
