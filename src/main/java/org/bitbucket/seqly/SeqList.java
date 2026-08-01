@@ -3,28 +3,30 @@ package org.bitbucket.seqly;
 import java.util.AbstractList;
 import java.util.Iterator;
 import java.util.Spliterator;
+import java.util.Spliterators;
 
 final class SeqList<E> extends AbstractList<E> {
 
-    private final Seq<E> seq;
+    private final E[] array;
 
-    SeqList(Seq<E> seq) {
-        this.seq = seq;
+    @SuppressWarnings("unchecked")
+    SeqList(Object[] array) {
+        this.array = (E[]) array;
     }
 
     public E get(int index) {
-        return seq.get(index);
+        return array[index];
     }
 
     public int size() {
-        return seq.size();
+        return array.length;
     }
 
     public Iterator<E> iterator() {
-        return seq.iterator();
+        return Spliterators.iterator(spliterator());
     }
 
     public Spliterator<E> spliterator() {
-        return seq.spliterator();
+        return Split.toSpliterator(array);
     }
 }

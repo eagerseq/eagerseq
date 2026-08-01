@@ -74,17 +74,15 @@ Seq.copy(Stream.of(11, 12, 13));
 Other methods convert to existing types.
 
 ```java
-seq.asList();
-seq.asSet();
-seq.asMap(Entity::getId);
+seq.toList();
+seq.toSet();
+seq.toMap(Entity::getId);
 seq.toArray();
 seq.toArray(new String[5]);
 seq.toArray(String[]::new);
 seq.findFirst();
 seq.findLast();
 seq.findOnly();
-seq.collect(toList());
-seq.collect(toSet());
 ```
 
 ## Streams
@@ -115,8 +113,8 @@ is never equal to a `List` and vice versa, as required by
 The methods `listEquals()`, `setEquals()` and
 `multisetEquals()` may be used for other definitions of equality
 and do not depend on the subtype of the given `Iterable`.
-The methods `asList()`,
-`asSet()` and `asMap()` may be useful for equality comparisons
+The methods `toList()`,
+`toSet()` and `toMap()` may be useful for equality comparisons
 in other cases.
 
 ## Immutability

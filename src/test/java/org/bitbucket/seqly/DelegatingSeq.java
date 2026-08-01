@@ -3,8 +3,11 @@ package org.bitbucket.seqly;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -27,6 +30,29 @@ import static org.bitbucket.seqly.Split.toSeqStream;
  * of the test coverage report for {@code SeqStream}.
  */
 public interface DelegatingSeq<E> extends Seq<E> {
+
+    default List<E> toList() {
+        return stream().toList();
+    }
+
+    default Set<E> toSet() {
+        return stream().toSet();
+    }
+
+    default Map<E, E> toMap() {
+        return stream().toMap();
+    }
+
+    default <K> Map<K, E> toMap(
+            Function<? super E, ? extends K> keyMapper) {
+        return stream().toMap(keyMapper);
+    }
+
+    default <K, V> Map<K, V> toMap(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper) {
+        return stream().toMap(keyMapper, valueMapper);
+    }
 
     default boolean listEquals(Iterable<?> that) {
         return stream().listEquals(toSeqStream(that));

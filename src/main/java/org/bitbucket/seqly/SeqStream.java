@@ -3,8 +3,11 @@ package org.bitbucket.seqly;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiConsumer;
@@ -34,7 +37,7 @@ import static org.bitbucket.seqly.Split.toStream;
  * lazy versions of most other {@link Seq} methods like
  * {@code slice}, {@code intersection} and {@code zip}. Intermediate operations
  * return {@code SeqStream} so they can be chained and a no-args
- * {@code collect()} method converts back to {@code Seq}.
+ * {@code toSeq()} method converts back to {@code Seq}.
  */
 public interface SeqStream<E> extends Stream<E> {
 
@@ -536,6 +539,45 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default Seq<E> toSeq() {
         return Seq.copy(spliterator());
+    }
+
+    /**
+     * See {@link Seq#toList()}.
+     */
+    default List<E> toList() {
+        return Split.toList(spliterator());
+    }
+
+    /**
+     * See {@link Seq#toSet()}.
+     */
+    default Set<E> toSet() {
+        return Split.toSet(spliterator());
+    }
+
+    /**
+     * Equivalent to {@link #toMap(Function, Function) toMap(e -> e, e -> e)}.
+     */
+    default Map<E, E> toMap() {
+        return Split.toMap(spliterator());
+    }
+
+    /**
+     * Equivalent to
+     * {@link #toMap(Function, Function) toMap(keyMapper, e -> e)}.
+     */
+    default <K> Map<K, E> toMap(
+            Function<? super E, ? extends K> keyMapper) {
+        return Split.toMap(spliterator(), keyMapper);
+    }
+
+    /**
+     * See {@link Seq#toMap(Function, Function)}.
+     */
+    default <K, V> Map<K, V> toMap(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper) {
+        return Split.toMap(spliterator(), keyMapper, valueMapper);
     }
 
     /**

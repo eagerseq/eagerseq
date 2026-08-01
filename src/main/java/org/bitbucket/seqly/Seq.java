@@ -86,17 +86,15 @@ import static java.util.function.Function.identity;
  * <p>Other methods convert to existing types.
  *
  * <pre>{@code
- *     seq.asList();
- *     seq.asSet();
- *     seq.asMap(Entity::getId);
+ *     seq.toList();
+ *     seq.toSet();
+ *     seq.toMap(Entity::getId);
  *     seq.toArray();
  *     seq.toArray(new String[5]);
  *     seq.toArray(String[]::new);
  *     seq.findFirst();
  *     seq.findLast();
  *     seq.findOnly();
- *     seq.collect(toList());
- *     seq.collect(toSet());
  * }</pre>
  *
  * <h2>Streams</h2>
@@ -127,8 +125,8 @@ import static java.util.function.Function.identity;
  * The methods {@code listEquals()}, {@code setEquals()} and
  * {@code multisetEquals()} may be used for other definitions of equality
  * and do not depend on the subtype of the given {@code Iterable}.
- * The methods {@code asList()},
- * {@code asSet()} and {@code asMap()} may be useful for equality comparisons
+ * The methods {@code toList()},
+ * {@code toSet()} and {@code toMap()} may be useful for equality comparisons
  * in other cases.
  *
  * <h2>Immutability</h2>
@@ -324,54 +322,50 @@ public interface Seq<E> extends Collection<E> {
     boolean equals(Object o);
 
     /**
-     * Equivalent to {@code asList().toString()}.
+     * Equivalent to {@code toList().toString()}.
      */
     String toString();
 
     /**
-     * Returns a view of this {@code Seq} as a {@link List} in constant time.
+     * Returns an unmodifiable list containing the elements of this sequence.
      */
-    default List<E> asList() {
-        return new SeqList<>(this);
+    default List<E> toList() {
+        return Split.toList(spliterator());
     }
 
     /**
-     * Returns a view of this {@code Seq} as a {@link Set} in constant time.
-     * Does not check whether duplicate elements will exist
-     * and therefore may return a {@code Set} that violates its contract.
+     * Returns an unmodifiable set containing the distinct elements of this
+     * sequence in encounter order.
      */
-    default Set<E> asSet() {
-        return new SeqSet<>(this);
+    default Set<E> toSet() {
+        return Split.toSet(spliterator());
     }
 
     /**
-     * Equivalent to {@link #asMap(Function, Function) asMap(e -> e, e -> e)}.
+     * Equivalent to {@link #toMap(Function, Function) toMap(e -> e, e -> e)}.
      */
-    default Map<E, E> asMap() {
-        return asMap(identity(), identity());
+    default Map<E, E> toMap() {
+        return Split.toMap(spliterator());
     }
 
     /**
      * Equivalent to
-     * {@link #asMap(Function, Function) asMap(keyMapper, e -> e)}.
+     * {@link #toMap(Function, Function) toMap(keyMapper, e -> e)}.
      */
-    default <K> Map<K, E> asMap(
+    default <K> Map<K, E> toMap(
             Function<? super E, ? extends K> keyMapper) {
-        return asMap(keyMapper, identity());
+        return Split.toMap(spliterator(), keyMapper);
     }
 
     /**
-     * Returns a view of this {@code Seq} as a {@link Map} in constant time.
-     * Does not check whether duplicate keys will exist
-     * and therefore may return a {@code Map} that violates its contract.
+     * Returns an unmodifiable map built from the mapped keys and values,
+     * throwing {@code IllegalStateException} if multiple elements map to the
+     * same key.
      */
-    @SuppressWarnings("unchecked")
-    default <K, V> Map<K, V> asMap(
+    default <K, V> Map<K, V> toMap(
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper) {
-        return new SeqMap<>(this,
-                (Function<Object, ? extends K>) requireNonNull(keyMapper),
-                (Function<Object, ? extends V>) requireNonNull(valueMapper));
+        return Split.toMap(spliterator(), keyMapper, valueMapper);
     }
 
     /**

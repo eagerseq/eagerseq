@@ -1,6 +1,7 @@
 package org.bitbucket.seqly;
 
 import java.lang.reflect.Array;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -8,7 +9,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -35,6 +38,7 @@ import java.util.stream.StreamSupport;
 import static java.util.Collections.reverseOrder;
 import static java.util.Spliterator.SIZED;
 import static java.util.Spliterators.emptySpliterator;
+import static java.util.function.Function.identity;
 
 final class Split {
 
@@ -97,6 +101,32 @@ final class Split {
         System.arraycopy(array, 0, ts, 0, array.length);
         if (array.length < ts.length) ts[array.length] = null;
         return ts;
+    }
+
+    static <E> List<E> toList(Spliterator<E> spliterator) {
+        return new SeqList<>(toArray(spliterator));
+    }
+
+    static <E> Set<E> toSet(Spliterator<E> spliterator) {
+        return new SeqSet<>(toArray(distinct(spliterator)));
+    }
+
+    static <E> Map<E, E> toMap(Spliterator<E> spliterator) {
+        return toMap(spliterator, identity(), identity());
+    }
+
+    static <E, K> Map<K, E> toMap(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends K> keyMapper) {
+        return toMap(spliterator, keyMapper, identity());
+    }
+
+    static <E, K, V> Map<K, V> toMap(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper) {
+        return new SeqMap<>(toArray(toEntries(
+                spliterator, keyMapper, valueMapper)));
     }
 
     static int toInt(long value) {
@@ -603,8 +633,7 @@ final class Split {
         };
     }
 
-    static <E> Spliterator<E> distinct(
-            Spliterator<E> spliterator) {
+    static <E> Spliterator<E> distinct(Spliterator<E> spliterator) {
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
             private Set<E> seen = new HashSet<>();
@@ -614,6 +643,29 @@ final class Split {
                         action.accept(next);
                         return true;
                     }
+                }
+                return false;
+            }
+        };
+    }
+
+    static <E, K, V> Spliterator<Entry<K, V>> toEntries(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper) {
+        return new AbstractSpliterator<Entry<K, V>>(Long.MAX_VALUE, 0) {
+            private E next;
+            private Set<K> seen = new HashSet<>();
+            public boolean tryAdvance(Consumer<? super Entry<K, V>> action) {
+                while (spliterator.tryAdvance(e -> next = e)) {
+                    K key = keyMapper.apply(next);
+                    if (seen.add(key)) {
+                        V value = valueMapper.apply(next);
+                        action.accept(new AbstractMap.SimpleImmutableEntry<>(
+                                key, value));
+                        return true;
+                    }
+                    throw new IllegalStateException();
                 }
                 return false;
             }

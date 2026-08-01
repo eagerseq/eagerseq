@@ -255,50 +255,59 @@ public class SeqTest {
     }
 
     @Test
-    public void testAsList() {
-        assertThat(seqOf(0, 1, null).asList(), contains(0, 1, null));
-        assertThat(seqOf(0, 1, null).asList(), hasSize(3));
-        assertThat(seqOf(0, 1, null).asList().get(1), equalTo(1));
-        assertThat(seqOf(0, 1, null).asList(), not(equalTo(seqOf(0, 1, null))));
-        assertThat(seqOf(0, 1, null).asList(),
+    public void testToList() {
+        assertThat(seqOf(0, 1, null).toList(), contains(0, 1, null));
+        assertThat(seqOf(0, 1, null).toList(), hasSize(3));
+        assertThat(seqOf(0, 1, null).toList().get(1), equalTo(1));
+        assertThat(seqOf(0, 1, null).toList(), not(equalTo(seqOf(0, 1, null))));
+        assertThat(seqOf(0, 1, null).toList(),
                 equalTo(Arrays.asList(0, 1, null)));
-        assertThat(seqOf(0, 1, null).asList(),
+        assertThat(seqOf(0, 1, null).toList(),
                 not(equalTo(Arrays.asList(null, 1, 0))));
-        assertThat(Seq.copy(seqOf(0, 1, null).asList().spliterator()),
+        assertThat(Seq.copy(seqOf(0, 1, null).toList().spliterator()),
                 contains(0, 1, null));
+        List<Integer> elements = new ArrayList<>(Arrays.asList(0, 1));
+        List<Integer> snapshot = Seq.view(elements).toList();
+        elements.add(2);
+        assertThat(snapshot, contains(0, 1));
+        assertThrows(() -> snapshot.add(2));
     }
 
     @Test
-    public void testAsSet() {
-        assertThat(seqOf(0, 1, null).asSet(), contains(0, 1, null));
-        assertThat(seqOf(0, 1, null).asSet(), hasSize(3));
-        assertThat(seqOf(0, 1, null).asSet().contains(1), equalTo(true));
-        assertThat(seqOf(0, 1, null).asSet(), not(equalTo(seqOf(0, 1, null))));
-        assertThat(seqOf(0, 1, null).asSet(),
+    public void testToSet() {
+        assertThat(seqOf(0, 1, null, 1).toSet(), contains(0, 1, null));
+        assertThat(seqOf(0, 1, null, 1).toSet(), hasSize(3));
+        assertThat(seqOf(0, 1, null).toSet().contains(1), equalTo(true));
+        assertThat(seqOf(0, 1, null).toSet(), not(equalTo(seqOf(0, 1, null))));
+        assertThat(seqOf(0, 1, null).toSet(),
                 equalTo(Stream.of(0, 1, null).collect(toSet())));
-        assertThat(seqOf(0, 1, null).asSet(),
+        assertThat(seqOf(0, 1, null).toSet(),
                 equalTo(Stream.of(null, 1, 0).collect(toSet())));
-        assertThat(seqOf(0, 1, null).asSet(),
+        assertThat(seqOf(0, 1, null).toSet(),
                 not(equalTo(Stream.of(0, 1).collect(toSet()))));
-        assertThat(Seq.copy(seqOf(0, 1, null).asSet().spliterator()),
+        assertThat(Seq.copy(seqOf(0, 1, null).toSet().spliterator()),
                 contains(0, 1, null));
+        assertThrows(() -> seqOf(0, 1).toSet().add(2));
     }
 
     @Test
-    public void testAsMap() {
-        assertThat(seqOf("zero").asMap().size(), equalTo(1));
+    public void testToMap() {
+        assertThat(seqOf("zero").toMap().size(), equalTo(1));
         assertThat(
-                seqOf("zero").asMap(),
+                seqOf("zero").toMap(),
                 hasEntry("zero", "zero"));
         assertThat(
-                seqOf("zero").asMap(s -> s.charAt(0)),
+                seqOf("zero").toMap(s -> s.charAt(0)),
                 hasEntry('z', "zero"));
         assertThat(
-                seqOf("zero").asMap(s -> s.charAt(0), String::toUpperCase),
+                seqOf("zero").toMap(s -> s.charAt(0), String::toUpperCase),
                 hasEntry('z', "ZERO"));
         assertThat(
-                seqOf("zero", null).asMap(), allOf(hasEntry("zero", "zero"),
+                seqOf("zero", null).toMap(), allOf(hasEntry("zero", "zero"),
                         hasEntry((Object) null, null)));
+        assertThrows(() ->
+                seqOf("zero", "zebra").toMap(s -> s.charAt(0)));
+        assertThrows(() -> seqOf("zero").toMap().put("one", "one"));
     }
 
     @Test
@@ -664,7 +673,7 @@ public class SeqTest {
         List<Integer> copy = new ArrayList<>(nums);
         Collections.shuffle(copy, new Random(0));
         assertThat(
-                nums.shuffled(new Random(0)).asList(),
+                nums.shuffled(new Random(0)).toList(),
                 equalTo(copy));
     }
 
