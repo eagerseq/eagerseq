@@ -137,23 +137,25 @@ final class Split {
         return intValue;
     }
 
-    static <E> Spliterator<E> reversed(Spliterator<E> spliterator) {
-        Object[] array = toArray(spliterator);
+    static <E> E[] reversed(Spliterator<E> spliterator) {
+        @SuppressWarnings("unchecked")
+        E[] array = (E[]) toArray(spliterator);
         Collections.reverse(Arrays.asList(array));
-        return toSpliterator(array);
+        return array;
     }
 
-    static <E> Spliterator<E> rotated(Spliterator<E> spliterator, int size) {
-        Object[] array = toArray(spliterator);
+    static <E> E[] rotated(Spliterator<E> spliterator, int size) {
+        @SuppressWarnings("unchecked")
+        E[] array = (E[]) toArray(spliterator);
         Collections.rotate(Arrays.asList(array), size);
-        return toSpliterator(array);
+        return array;
     }
 
-    static <E> Spliterator<E> shuffled(
-            Spliterator<E> spliterator, Random random) {
-        Object[] array = toArray(spliterator);
+    static <E> E[] shuffled(Spliterator<E> spliterator, Random random) {
+        @SuppressWarnings("unchecked")
+        E[] array = (E[]) toArray(spliterator);
         Collections.shuffle(Arrays.asList(array), random);
-        return toSpliterator(array);
+        return array;
     }
 
     static long count(Spliterator<?> spliterator) {
@@ -314,8 +316,7 @@ final class Split {
     }
 
     static Spliterator.OfInt range(int from, int to) {
-        return new AbstractIntSpliterator(
-                Math.max(0, (long) to - (long) from), SIZED) {
+        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
             private int index = from;
             public boolean tryAdvance(IntConsumer action) {
                 if (index < to) {
@@ -596,8 +597,7 @@ final class Split {
     static <E, R> Spliterator<R> map(
             Spliterator<E> spliterator,
             Function<? super E, ? extends R> mapper) {
-        return new AbstractSpliterator<R>(spliterator.estimateSize(),
-                spliterator.characteristics() & SIZED) {
+        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
             public boolean tryAdvance(Consumer<? super R> action) {
                 return spliterator.tryAdvance(e ->
                         action.accept(mapper.apply(e)));
@@ -672,14 +672,13 @@ final class Split {
         };
     }
 
-    static <E> Spliterator<E> sorted(
+    static <E> E[] sorted(
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
-        // make this method accept array if/when directly called by Seq
         @SuppressWarnings("unchecked")
         E[] array = (E[]) toArray(spliterator);
         Arrays.sort(array, comparator);
-        return toSpliterator(array);
+        return array;
     }
 
     static <E> Spliterator<E> limit(
@@ -804,8 +803,7 @@ final class Split {
     static <E> Spliterator<E> peek(
             Spliterator<E> spliterator,
             Consumer<? super E> peeker) {
-        return new AbstractSpliterator<E>(spliterator.estimateSize(),
-                spliterator.characteristics() & SIZED) {
+        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             public boolean tryAdvance(Consumer<? super E> action) {
                 return spliterator.tryAdvance(e -> {
                     peeker.accept(e);

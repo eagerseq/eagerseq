@@ -154,6 +154,10 @@ public class SeqTest {
         assertThat(Seq.of(0), contains(0));
         assertThat(Seq.of(0, 1, 2, null), contains(0, 1, 2, null));
         assertThat(Seq.of(0, 1, 2).getClass(), equalTo(ArraySeq.class));
+        Integer[] elements = {0, 1};
+        Seq<Integer> seq = Seq.of(elements);
+        elements[0] = 2;
+        assertThat(seq, contains(0, 1));
         assertThrows(() -> Seq.of((Object[]) null));
     }
 
@@ -176,6 +180,8 @@ public class SeqTest {
                 Seq.copy(collection.stream()))) {
             assertThat(seq, contains("", null, "."));
         }
+        assertThat(Seq.copy(Optional.of("")), contains(""));
+        assertThat(Seq.copy(Optional.empty()), empty());
     }
 
     @Test
@@ -186,8 +192,10 @@ public class SeqTest {
                 Seq.view(collection))) {
             assertThat(seq, contains("", null, "."));
         }
-        assertThat(Seq.view(Optional.of("")), contains(""));
-        assertThat(Seq.view(Optional.empty()), empty());
+        Integer[] elements = {0, 1};
+        Seq<Integer> seq = Seq.view(elements);
+        elements[0] = 2;
+        assertThat(seq, contains(2, 1));
     }
 
     @Test

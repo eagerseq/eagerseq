@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.function.Function.identity;
 
 /**
  * <p>{@code Seq} extends {@code Collection} and defines eager versions
@@ -77,7 +76,7 @@ import static java.util.function.Function.identity;
  *
  * <pre>{@code
  *     Seq.copy(new Integer[]{4, 5});
- *     Seq.view(Optional.of(6));
+ *     Seq.copy(Optional.of(6));
  *     Seq.view(List.of(7, 8));
  *     Seq.copy(List.of(9, 10).iterator());
  *     Seq.copy(Stream.of(11, 12, 13));
@@ -178,13 +177,25 @@ import static java.util.function.Function.identity;
 public interface Seq<E> extends Collection<E> {
 
     /**
+     * Returns an empty {@code Seq}.
+     */
+    static <E> Seq<E> of() {
+        return new ArraySeq<>(SeqBuilder.EMPTY);
+    }
+
+    /**
+     * Returns a {@code Seq} containing the given element.
+     */
+    static <E> Seq<E> of(E element) {
+        return new ArraySeq<>(new Object[]{element});
+    }
+
+    /**
      * Returns a {@code Seq} containing the given elements.
-     * Does not copy the argument, so subsequent mutations to the argument
-     * are reflected in the returned {@code Seq}.
      */
     @SafeVarargs
     static <E> Seq<E> of(E... elements) {
-        return new ArraySeq<>(requireNonNull(elements));
+        return new ArraySeq<>(Arrays.copyOf(elements, elements.length));
     }
 
     /**
@@ -232,7 +243,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns a {@code Seq} containing the value of the optional
      * if it is present, otherwise returns an empty {@code Seq}.
      */
-    static <E> Seq<E> view(Optional<? extends E> optional) {
+    static <E> Seq<E> copy(Optional<? extends E> optional) {
         return optional.isPresent() ? of(optional.get()) : of();
     }
 
@@ -658,7 +669,7 @@ public interface Seq<E> extends Collection<E> {
      * See {@link Collections#reverse(List)}.
      */
     default Seq<E> reversed() {
-        return copy(Split.reversed(spliterator()));
+        return view(Split.reversed(spliterator()));
     }
 
     /**
@@ -666,7 +677,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link Collections#rotate(List, int)}.
      */
     default Seq<E> rotated(int size) {
-        return copy(Split.rotated(spliterator(), size));
+        return view(Split.rotated(spliterator(), size));
     }
 
     /**
@@ -674,7 +685,7 @@ public interface Seq<E> extends Collection<E> {
      * See {@link Collections#shuffle(List)}.
      */
     default Seq<E> shuffled(Random random) {
-        return copy(Split.shuffled(spliterator(), random));
+        return view(Split.shuffled(spliterator(), random));
     }
 
     /**
@@ -732,14 +743,14 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {
-        return copy(Split.sorted(spliterator(), null));
+        return view(Split.sorted(spliterator(), null));
     }
 
     /**
      * Equivalent of {@link Stream#sorted(Comparator)}.
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return copy(Split.sorted(spliterator(), requireNonNull(comparator)));
+        return view(Split.sorted(spliterator(), requireNonNull(comparator)));
     }
 
     /**

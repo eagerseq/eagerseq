@@ -78,6 +78,25 @@ public class SeqStreamTest {
     }
 
     @Test
+    public void testOf() {
+        assertTrue(SeqStream.of().isEmpty());
+        assertTrue(SeqStream.of(0).listEquals(streamOf(0)));
+        assertTrue(SeqStream.of(0, 1, 2, null)
+                .listEquals(streamOf(0, 1, 2, null)));
+        Integer[] elements = {0, 1};
+        SeqStream<Integer> stream = SeqStream.of(elements);
+        elements[0] = 2;
+        assertTrue(stream.listEquals(streamOf(0, 1)));
+        assertThrows(() -> SeqStream.of((Object[]) null));
+    }
+
+    @Test
+    public void testOfNullable() {
+        assertTrue(SeqStream.ofNullable(0).listEquals(streamOf(0)));
+        assertTrue(SeqStream.ofNullable(null).isEmpty());
+    }
+
+    @Test
     public void testRange() {
         assertTrue(SeqStream.range(4, 7).listEquals(streamOf(4, 5, 6)));
         assertTrue(SeqStream.range(7, 4).isEmpty());

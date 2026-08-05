@@ -4,7 +4,8 @@ import java.util.function.IntFunction;
 
 final class SeqBuilder<E> implements Seq.Builder<E> {
 
-    private static final Object[] EMPTY = {};
+    static final Object[] EMPTY = {};
+
     private static final IntFunction<?> GENERATOR = Object[]::new;
     private static final int MAX_LENGTH = Integer.MAX_VALUE - 8;
     private static final int CONFINED_LENGTH = (MAX_LENGTH - 4) / 2 + 1;

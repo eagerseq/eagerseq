@@ -1,5 +1,6 @@
 package org.bitbucket.seqly;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -42,13 +43,36 @@ import static org.bitbucket.seqly.Split.toStream;
 public interface SeqStream<E> extends Stream<E> {
 
     /**
-     * Returns a {@code Seq} containing the given elements.
-     * Does not copy the argument, so subsequent mutations to the argument
-     * are reflected in the returned {@code Seq}.
+     * Returns an empty {@code SeqStream}.
+     */
+    static <E> SeqStream<E> of() {
+        return new SpliteratorSeqStream<>(
+                Split.toSpliterator(SeqBuilder.EMPTY));
+    }
+
+    /**
+     * Returns a {@code SeqStream} containing the given element.
+     */
+    static <E> SeqStream<E> of(E element) {
+        return new SpliteratorSeqStream<>(
+                Split.toSpliterator(new Object[]{element}));
+    }
+
+    /**
+     * Returns a {@code SeqStream} containing the given elements.
      */
     @SafeVarargs
     static <E> SeqStream<E> of(E... elements) {
-        return new SpliteratorSeqStream<>(Split.toSpliterator(elements));
+        return new SpliteratorSeqStream<>(
+                Split.toSpliterator(Arrays.copyOf(elements, elements.length)));
+    }
+
+    /**
+     * Returns a {@code SeqStream} containing the given element if not null
+     * or no elements otherwise.
+     */
+    static <E> SeqStream<E> ofNullable(E element) {
+        return element == null ? of() : of(element);
     }
 
     /**
@@ -280,21 +304,21 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#reversed()}.
      */
     default SeqStream<E> reversed() {
-        return view(Split.reversed(spliterator()));
+        return Split.toSeqStream(Split.reversed(spliterator()));
     }
 
     /**
      * Stream equivalent of {@link Seq#rotated(int)}.
      */
     default SeqStream<E> rotated(int size) {
-        return view(Split.rotated(spliterator(), size));
+        return Split.toSeqStream(Split.rotated(spliterator(), size));
     }
 
     /**
      * Stream equivalent of {@link Seq#shuffled(Random)}.
      */
     default SeqStream<E> shuffled(Random random) {
-        return view(Split.shuffled(spliterator(), random));
+        return Split.toSeqStream(Split.shuffled(spliterator(), random));
     }
 
     /**
@@ -449,14 +473,15 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {
-        return view(Split.sorted(spliterator(), null));
+        return Split.toSeqStream(Split.sorted(spliterator(), null));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
-        return view(Split.sorted(spliterator(), requireNonNull(comparator)));
+        return Split.toSeqStream(
+                Split.sorted(spliterator(), requireNonNull(comparator)));
     }
 
     /**
