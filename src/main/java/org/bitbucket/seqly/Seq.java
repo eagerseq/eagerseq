@@ -353,15 +353,14 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Equivalent to {@link #toMap(Function, Function) toMap(e -> e, e -> e)}.
+     * Equivalent to {@link #toMap(Function, Function, BinaryOperator) toMap(e -> e, e -> e, throws)}.
      */
     default Map<E, E> toMap() {
         return Split.toMap(spliterator());
     }
 
     /**
-     * Equivalent to
-     * {@link #toMap(Function, Function) toMap(keyMapper, e -> e)}.
+     * Equivalent to {@link #toMap(Function, Function, BinaryOperator) toMap(keyMapper, e -> e, throws)}.
      */
     default <K> Map<K, E> toMap(
             Function<? super E, ? extends K> keyMapper) {
@@ -369,14 +368,25 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Returns an unmodifiable map built from the mapped keys and values,
-     * throwing {@code IllegalStateException} if multiple elements map to the
-     * same key.
+     * Equivalent to {@link #toMap(Function, Function, BinaryOperator) toMap(keyMapper, valueMapper, throws)}.
      */
     default <K, V> Map<K, V> toMap(
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper) {
         return Split.toMap(spliterator(), keyMapper, valueMapper);
+    }
+
+    /**
+     * Returns an unmodifiable map built from the mapped keys and values,
+     * in encounter order, applying the given function to the existing and
+     * the new value whenever multiple elements map to the same key.
+     */
+    default <K, V> Map<K, V> toMap(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper,
+            BinaryOperator<V> mergeFunction) {
+        return Split.toMap(
+                spliterator(), keyMapper, valueMapper, mergeFunction);
     }
 
     /**

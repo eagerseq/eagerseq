@@ -25,11 +25,6 @@ the old coordinates.
 - **`findFirst()`/`findLast()`** — JDK 21 users reach for `getFirst()`/
   `getLast()`, which throw instead of returning `Optional`. Add throwing
   variants?
-- **`toList()`** — `Stream.toList()` (Java 16) is unmodifiable *and permits
-  nulls*; `List.copyOf()`/`Collectors.toUnmodifiableList()` reject them. Check
-  whether `SeqList` allows nulls, then say which contract we match. Same for
-  `toSet()`/`toMap()` — and note `toSet()` promises encounter order where
-  `Set.copyOf()` doesn't.
 
 ## Spliterator characteristics
 
@@ -60,10 +55,9 @@ intermediate operations.
   `IllegalStateException: stream has already been operated upon or closed`.
   Users get a `Stream` from `Seq.stream()` and will expect that guard. A
   consumed flag is enough.
-- **Exceptions carry no messages.** Duplicate key in `toMap` (the JDK names
-  the key and both values), `combinations` out of range, `Split.get`'s index,
-  and `SeqBuilder.nextLength` *throwing* `OutOfMemoryError`. These are the
-  library's main failure mode and messages are nearly free.
+- **Exceptions carry no messages.** `combinations` out of range, `Split.get`'s
+  index, and `SeqBuilder.nextLength` *throwing* `OutOfMemoryError`. These are
+  the library's main failure mode and messages are nearly free.
 - **Raw `Spliterator` returns** from `Split.limitLast`/`skipLast`: four
   unchecked warnings in `Seq`, and no element-type checking inside. One-word
   fix each.
@@ -77,16 +71,18 @@ intermediate operations.
   against a compliant `Seq`. Caller error, as with `List`/`Set` — but unlike
   them a single method reference reaches it by accident, so it is worth a
   javadoc sentence.
-- **`toMap()` throws on any duplicate element** (identity key mapper) where
-  `toSet()` de-dupes. Intended? Document either way.
 
 ## API gaps
 
 Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 
-- **Grouping** — no `groupBy`, no `toMap(key, value, merge)`, no multimap, so
+- **Grouping** — no `groupBy` and no multimap, so
   `collect(Collectors.groupingBy(...))` is the only route. At least as common
-  as `map`/`filter`. A `grouped` existed once (09a0281).
+  as `map`/`filter`. A `grouped` existed once (09a0281). Maybe
+  `Map<K, Seq<E>> groupBy(keyMapper)` plus a per-group
+  `Function<Seq<E>, D>` rather than a downstream `Collector`, since the groups
+  arrive rich. That rules out a `(keyMapper, valueMapper)` overload, which
+  erases the same.
 - **Numeric terminals** — summing means `seq.stream().mapToInt(...).sum()`.
   Want `sum(ToIntFunction)`, `average`, or `mapToInt` on `Seq` itself.
 - **`min()`/`max()` natural-order overloads**, as `sorted()` already has.

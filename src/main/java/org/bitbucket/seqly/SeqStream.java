@@ -581,15 +581,14 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Equivalent to {@link #toMap(Function, Function) toMap(e -> e, e -> e)}.
+     * See {@link Seq#toMap()}.
      */
     default Map<E, E> toMap() {
         return Split.toMap(spliterator());
     }
 
     /**
-     * Equivalent to
-     * {@link #toMap(Function, Function) toMap(keyMapper, e -> e)}.
+     * See {@link Seq#toMap(Function)}.
      */
     default <K> Map<K, E> toMap(
             Function<? super E, ? extends K> keyMapper) {
@@ -603,6 +602,17 @@ public interface SeqStream<E> extends Stream<E> {
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper) {
         return Split.toMap(spliterator(), keyMapper, valueMapper);
+    }
+
+    /**
+     * See {@link Seq#toMap(Function, Function, BinaryOperator)}.
+     */
+    default <K, V> Map<K, V> toMap(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper,
+            BinaryOperator<V> mergeFunction) {
+        return Split.toMap(
+                spliterator(), keyMapper, valueMapper, mergeFunction);
     }
 
     /**

@@ -1,7 +1,6 @@
 package org.bitbucket.seqly;
 
 import java.lang.reflect.Array;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -9,9 +8,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -104,29 +104,56 @@ final class Split {
     }
 
     static <E> List<E> toList(Spliterator<E> spliterator) {
-        return new SeqList<>(toArray(spliterator));
+        List<E> list = new ArrayList<>();
+        spliterator.forEachRemaining(list::add);
+        return Collections.unmodifiableList(list);
     }
 
     static <E> Set<E> toSet(Spliterator<E> spliterator) {
-        return new SeqSet<>(toArray(distinct(spliterator)));
+        Set<E> set = new LinkedHashSet<>();
+        spliterator.forEachRemaining(set::add);
+        return Collections.unmodifiableSet(set);
     }
 
     static <E> Map<E, E> toMap(Spliterator<E> spliterator) {
-        return toMap(spliterator, identity(), identity());
+        return toMap(spliterator, identity(), identity(), null);
     }
 
     static <E, K> Map<K, E> toMap(
             Spliterator<E> spliterator,
             Function<? super E, ? extends K> keyMapper) {
-        return toMap(spliterator, keyMapper, identity());
+        return toMap(spliterator, keyMapper, identity(), null);
     }
 
     static <E, K, V> Map<K, V> toMap(
             Spliterator<E> spliterator,
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper) {
-        return new SeqMap<>(toArray(toEntries(
-                spliterator, keyMapper, valueMapper)));
+        return toMap(spliterator, keyMapper, valueMapper, null);
+    }
+
+    static <E, K, V> Map<K, V> toMap(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E, ? extends V> valueMapper,
+            BinaryOperator<V> mergeFunction) {
+        Map<K, V> map = new LinkedHashMap<>();
+        spliterator.forEachRemaining(e -> {
+            K key = keyMapper.apply(e);
+            V value = valueMapper.apply(e);
+            if (map.containsKey(key)) {
+                V present = map.get(key);
+                if (mergeFunction == null) {
+                    throw new IllegalStateException(String.format(
+                            "duplicate key %s "
+                                    + "(attempted merging values %s and %s)",
+                            key, present, value));
+                }
+                value = mergeFunction.apply(present, value);
+            }
+            map.put(key, value);
+        });
+        return Collections.unmodifiableMap(map);
     }
 
     static int toInt(long value) {
@@ -643,29 +670,6 @@ final class Split {
                         action.accept(next);
                         return true;
                     }
-                }
-                return false;
-            }
-        };
-    }
-
-    static <E, K, V> Spliterator<Entry<K, V>> toEntries(
-            Spliterator<E> spliterator,
-            Function<? super E, ? extends K> keyMapper,
-            Function<? super E, ? extends V> valueMapper) {
-        return new AbstractSpliterator<Entry<K, V>>(Long.MAX_VALUE, 0) {
-            private E next;
-            private Set<K> seen = new HashSet<>();
-            public boolean tryAdvance(Consumer<? super Entry<K, V>> action) {
-                while (spliterator.tryAdvance(e -> next = e)) {
-                    K key = keyMapper.apply(next);
-                    if (seen.add(key)) {
-                        V value = valueMapper.apply(next);
-                        action.accept(new AbstractMap.SimpleImmutableEntry<>(
-                                key, value));
-                        return true;
-                    }
-                    throw new IllegalStateException();
                 }
                 return false;
             }

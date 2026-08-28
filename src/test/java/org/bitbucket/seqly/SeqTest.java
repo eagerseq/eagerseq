@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.RandomAccess;
 import java.util.Spliterator;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -267,6 +268,7 @@ public class SeqTest {
         assertThat(seqOf(0, 1, null).toList(), contains(0, 1, null));
         assertThat(seqOf(0, 1, null).toList(), hasSize(3));
         assertThat(seqOf(0, 1, null).toList().get(1), equalTo(1));
+        assertTrue(seqOf(0, 1, null).toList() instanceof RandomAccess);
         assertThat(seqOf(0, 1, null).toList(), not(equalTo(seqOf(0, 1, null))));
         assertThat(seqOf(0, 1, null).toList(),
                 equalTo(Arrays.asList(0, 1, null)));
@@ -316,6 +318,20 @@ public class SeqTest {
         assertThrows(() ->
                 seqOf("zero", "zebra").toMap(s -> s.charAt(0)));
         assertThrows(() -> seqOf("zero").toMap().put("one", "one"));
+        assertThat(
+                seqOf("zero", "zebra").toMap(
+                        s -> s.charAt(0), s -> s, (a, b) -> a + "/" + b),
+                hasEntry('z', "zero/zebra"));
+        assertThat(
+                seqOf("zero", null).toMap(
+                        s -> s, s -> s, (a, b) -> a),
+                allOf(hasEntry("zero", "zero"), hasEntry((Object) null, null)));
+        assertThat(
+                Seq.copy(seqOf("zero", "one", "zebra").toMap(
+                        s -> s.charAt(0), s -> s, (a, b) -> b).keySet()),
+                contains('z', 'o'));
+        assertThrows(() -> seqOf("zero")
+                .toMap(s -> s, s -> s, (a, b) -> a).put("one", "one"));
     }
 
     @Test
