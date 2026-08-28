@@ -7,6 +7,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Spliterator;
 import java.util.TreeSet;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -236,6 +237,55 @@ public class SeqStreamTest {
     public void testToInt() {
         assertThrows(() -> Split.toInt(Integer.MAX_VALUE + 1L));
         assertThrows(() -> Split.toInt(Integer.MIN_VALUE - 1L));
+    }
+
+    @Test
+    public void testTerminalOperationAfterTerminalOperation() {
+        SeqStream<Integer> stream = streamOf(0, 1, 2);
+        assertThat(stream.toSeq(), equalTo(Seq.of(0, 1, 2)));
+        assertConsumed(stream::toSeq);
+    }
+
+    @Test
+    public void testIntermediateOperationAfterTerminalOperation() {
+        SeqStream<Integer> stream = streamOf(0, 1, 2);
+        stream.count();
+        assertConsumed(() -> stream.filter(e -> true));
+    }
+
+    @Test
+    public void testTerminalOperationAfterIntermediateOperation() {
+        SeqStream<Integer> stream = streamOf(0, 1, 2);
+        SeqStream<Integer> filtered = stream.filter(e -> true);
+        assertConsumed(stream::toSeq);
+        assertThat(filtered.toSeq(), equalTo(Seq.of(0, 1, 2)));
+    }
+
+    @Test
+    public void testShortCircuitedStreamIsAlsoConsumed() {
+        SeqStream<Integer> stream = streamOf(0, 1, 2);
+        stream.findFirst();
+        assertConsumed(stream::toSeq);
+    }
+
+    @Test
+    public void testSeqIsReusableAfterItsStreamIsConsumed() {
+        Seq<Integer> seq = Seq.of(0, 1, 2);
+        assertThat(seq.stream().toSeq(), equalTo(seq));
+        assertThat(seq.stream().toSeq(), equalTo(seq));
+    }
+
+    @Test
+    public void testViewRejectsNullSpliterator() {
+        assertThrows(() -> SeqStream.view((Spliterator<Object>) null));
+    }
+
+    private static void assertConsumed(Runnable action) {
+        try {
+            action.run();
+            fail("expected IllegalStateException");
+        } catch (IllegalStateException expected) {
+        }
     }
 
     @SafeVarargs

@@ -16,6 +16,10 @@ Touches: pom coordinates + `Automatic-Module-Name`, package move, README,
 `ReadmeGenerator`. Verify namespace before first release; 0.5.0 stays up under
 the old coordinates.
 
+While breaking anyway, consider `Seq.copy` → `copyOf`, matching `List.copyOf`.
+Needs a matching decision for `view`: `viewOf` is clumsy, so perhaps both keep
+their current names, or `view` becomes something else.
+
 ## JDK contract clashes (release=8, so latent for now)
 
 - **`Seq.reversed()`** — `SequencedCollection.reversed()` (Java 21) is a *live
@@ -49,12 +53,6 @@ intermediate operations.
   else grow the buffer lazily. The `// consistency with limit()` comments
   explain why the `int` bound spread here; that argument dissolves once the
   buffer is sized from the data.
-- **A reused `SeqStream` silently returns wrong answers.**
-  `SpliteratorSeqStream` hands back the same spliterator every call, so a
-  second terminal operation yields `[]` where the JDK throws
-  `IllegalStateException: stream has already been operated upon or closed`.
-  Users get a `Stream` from `Seq.stream()` and will expect that guard. A
-  consumed flag is enough.
 - **Exceptions carry no messages.** `combinations` out of range, `Split.get`'s
   index, and `SeqBuilder.nextLength` *throwing* `OutOfMemoryError`. These are
   the library's main failure mode and messages are nearly free.
