@@ -28,6 +28,21 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
         return array[index];
     }
 
+    public E getFirst() {
+        if (array.length == 0) throw Split.emptySequence();
+        return array[0];
+    }
+
+    public E getLast() {
+        if (array.length == 0) throw Split.emptySequence();
+        return array[array.length - 1];
+    }
+
+    public E getSingle() {
+        if (array.length != 1) throw Split.notExactlyOne();
+        return array[0];
+    }
+
     public Spliterator<E> spliterator() {
         return Split.toSpliterator(array);
     }

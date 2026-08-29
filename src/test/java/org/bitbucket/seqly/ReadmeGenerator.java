@@ -1,13 +1,20 @@
 package org.bitbucket.seqly;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.regex.Pattern;
 
 import static java.util.regex.Pattern.MULTILINE;
 
 public class ReadmeGenerator {
+
+    /** The source file whose class comment README.md is derived from. */
+    static final Path SOURCE =
+            Paths.get("src/main/java/org/bitbucket/seqly/Seq.java");
+    static final Path README = Paths.get("README.md");
 
     private static String prefix = "## Maven\n"
             + "\n"
@@ -29,8 +36,13 @@ public class ReadmeGenerator {
             + "\n";
 
     public static void main(String[] args) throws IOException {
-        String lines = SeqStream.view(Files.lines(
-                Paths.get("src/main/java/org/bitbucket/seqly/Seq.java")))
+        Files.write(README, generate().getBytes(StandardCharsets.UTF_8));
+        System.out.println("Generated " + README);
+    }
+
+    /** Returns the full README text, ending with a newline. */
+    public static String generate() throws IOException {
+        String lines = SeqStream.view(Files.lines(SOURCE))
                 .takeWhile(line -> !line.startsWith(" */"))
                 .dropWhile(line -> !line.startsWith(" * "))
                 .toString("\n", "", "");
@@ -52,7 +64,6 @@ public class ReadmeGenerator {
                 .matcher(lines).replaceAll("```java");
         lines = Pattern.compile("}</pre>")
                 .matcher(lines).replaceAll("```");
-        lines = prefix + lines;
-        System.out.println(lines);
+        return prefix + lines + "\n";
     }
 }

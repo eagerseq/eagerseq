@@ -85,6 +85,7 @@ import static java.util.Objects.requireNonNull;
  * <p>Other methods convert to existing types.
  *
  * <pre>{@code
+ *     seq.toOptional();
  *     seq.toList();
  *     seq.toSet();
  *     seq.toMap(Entity::getId);
@@ -93,7 +94,7 @@ import static java.util.Objects.requireNonNull;
  *     seq.toArray(String[]::new);
  *     seq.findFirst();
  *     seq.findLast();
- *     seq.findOnly();
+ *     seq.findSingle();
  * }</pre>
  *
  * <h2>Streams</h2>
@@ -339,6 +340,18 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent to {@code toList().toString()}.
      */
     String toString();
+
+    /**
+     * Returns an empty {@code Optional} if this {@code Seq} is empty,
+     * an {@code Optional} containing its only element if it is not null,
+     * throws {@code IllegalStateException} if it has multiple elements,
+     * or throws {@code NullPointerException} if its only element is null.
+     * See also
+     * {@link #findFirst()}, {@link #findLast()} and {@link #findSingle()}.
+     */
+    default Optional<E> toOptional() {
+        return Split.toOptional(spliterator());
+    }
 
     /**
      * Returns an unmodifiable list containing the elements of this sequence.
@@ -681,7 +694,14 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns a new {@code Seq} with elements reversed.
      * See {@link Collections#reverse(List)}.
+     *
+     * <p>The result is a snapshot, unlike
+     * {@code SequencedCollection.reversed()} (Java 21), which is a live view.
      */
+    // No type can implement both Seq and a SequencedCollection:
+    // the return types are unrelated. If Seq ever extends SequencedCollection,
+    // Seq<E> reversed() is a legal covariant override, and snapshot versus view
+    // becomes a decision then; ArraySeq could flip indexes over the array.
     default Seq<E> reversed() {
         return view(Split.reversed(spliterator()));
     }
@@ -898,36 +918,55 @@ public interface Seq<E> extends Collection<E> {
      * Returns an {@code Optional} containing the first element of
      * this {@code Seq} if this {@code Seq} is not empty,
      * otherwise returns an empty {@code Optional}.
+     * See also {@link #toOptional()}.
      */
     default Optional<E> findFirst() {
         return Split.findFirst(spliterator());
     }
 
     /**
-     * Returns an {@code Optional} containing any element of
-     * this {@code Seq} if this {@code Seq} is not empty,
-     * otherwise returns an empty {@code Optional}.
-     */
-    default Optional<E> findAny() {
-        return Split.findFirst(spliterator());
-    }
-
-    /**
-     * Returns an {@code Optional} containing the only element of
+     * Returns an {@code Optional} containing the single element of
      * this {@code Seq} if this {@code Seq} contains exactly one element,
      * otherwise returns an empty {@code Optional}.
+     * See also {@link #toOptional()}.
      */
-    default Optional<E> findOnly() {
-        return Split.findOnly(spliterator());
+    default Optional<E> findSingle() {
+        return Split.findSingle(spliterator());
     }
 
     /**
      * Returns an {@code Optional} containing the last element of
      * this {@code Seq} if this {@code Seq} is not empty,
      * otherwise returns an empty {@code Optional}.
+     * See also {@link #toOptional()}.
      */
     default Optional<E> findLast() {
         return Split.findLast(spliterator());
+    }
+
+    /**
+     * Returns the first element of this {@code Seq} if this {@code Seq} is
+     * not empty, otherwise throws {@code NoSuchElementException}.
+     */
+    default E getFirst() {
+        return Split.getFirst(spliterator());
+    }
+
+    /**
+     * Returns the last element of this {@code Seq} if this {@code Seq} is
+     * not empty, otherwise throws {@code NoSuchElementException}.
+     */
+    default E getLast() {
+        return Split.getLast(spliterator());
+    }
+
+    /**
+     * Returns the single element of this {@code Seq} if this {@code Seq}
+     * contains exactly one element,
+     * otherwise throws {@code NoSuchElementException}.
+     */
+    default E getSingle() {
+        return Split.getSingle(spliterator());
     }
 
     /**

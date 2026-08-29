@@ -70,10 +70,12 @@ public class SeqStreamTest {
                 "mapMultiToInt", "mapMultiToLong", "mapMultiToDouble",
                 "mapToInt", "mapToLong", "mapToDouble",
                 "flatMapToInt", "flatMapToLong", "flatMapToDouble",
-                // returns List, which a Seq deliberately is not
-                "toList",
                 // Gatherer does not exist before Java 24
-                "gather"));
+                "gather",
+                // exists only to let a parallel pipeline ignore encounter
+                // order; a Seq is eager and sequential, so it would be a
+                // synonym for findFirst promising less
+                "findAny"));
         assertThat("Stream methods absent from Seq without a stated reason",
                 absent, empty());
     }

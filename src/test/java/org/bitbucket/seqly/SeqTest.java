@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -37,8 +38,8 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.isIn;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -659,10 +660,58 @@ public class SeqTest {
     }
 
     @Test
-    public void testFindOnly() {
-        assertThat(seqOf().findOnly(), equalTo(Optional.empty()));
-        assertThat(seqOf(0).findOnly(), equalTo(Optional.of(0)));
-        assertThat(seqOf(0, 1).findOnly(), equalTo(Optional.empty()));
+    public void testFindSingle() {
+        assertThat(seqOf().findSingle(), equalTo(Optional.empty()));
+        assertThat(seqOf(0).findSingle(), equalTo(Optional.of(0)));
+        assertThat(seqOf(0, 1).findSingle(), equalTo(Optional.empty()));
+    }
+
+    @Test
+    public void testToOptional() {
+        assertThat(seqOf().toOptional(), equalTo(Optional.empty()));
+        assertThat(seqOf(0).toOptional(), equalTo(Optional.of(0)));
+        // unlike findSingle, does not silently discard the extra elements,
+        // and throws as toMap does for a duplicate key rather than
+        // NoSuchElementException, there being no missing element
+        assertThrows(IllegalStateException.class,
+                "expected at most one element (found 0 and 1)",
+                () -> seqOf(0, 1).toOptional());
+        assertThrows(IllegalStateException.class,
+                () -> seqOf(0, 1, 2).toOptional());
+    }
+
+    @Test
+    public void testGetFirst() {
+        assertThat(seqOf(0).getFirst(), equalTo(0));
+        assertThat(seqOf(0, 1).getFirst(), equalTo(0));
+        // null is returned, where findFirst cannot represent it
+        assertThat(seqOf(null, 1).getFirst(), nullValue());
+        // NoSuchElementException, where get(0) throws IndexOutOfBounds
+        assertThrows(NoSuchElementException.class, "sequence is empty",
+                () -> seqOf().getFirst());
+        assertThrows(IndexOutOfBoundsException.class, () -> seqOf().get(0));
+    }
+
+    @Test
+    public void testGetLast() {
+        assertThat(seqOf(0).getLast(), equalTo(0));
+        assertThat(seqOf(0, 1).getLast(), equalTo(1));
+        assertThat(seqOf(0, null).getLast(), nullValue());
+        assertThrows(NoSuchElementException.class, "sequence is empty",
+                () -> seqOf().getLast());
+    }
+
+    @Test
+    public void testGetSingle() {
+        assertThat(seqOf(0).getSingle(), equalTo(0));
+        assertThat(seqOf(new Integer[]{null}).getSingle(), nullValue());
+        // the throwing partner of findSingle, so empty and more than one
+        // fail alike, unlike toOptional which distinguishes them
+        String message = "sequence does not contain exactly one element";
+        assertThrows(NoSuchElementException.class, message,
+                () -> seqOf().getSingle());
+        assertThrows(NoSuchElementException.class, message,
+                () -> seqOf(0, 1).getSingle());
     }
 
     @Test
@@ -941,14 +990,6 @@ public class SeqTest {
         assertThat(seqOf().findFirst(), equalTo(Optional.empty()));
         assertThat(seqOf(0).findFirst(), equalTo(Optional.of(0)));
         assertThat(seqOf(0, 1).findFirst(), equalTo(Optional.of(0)));
-    }
-
-    @Test
-    public void testFindAny() {
-        assertThat(seqOf().findAny(), equalTo(Optional.empty()));
-        assertThat(seqOf(0).findAny(), equalTo(Optional.of(0)));
-        assertThat(seqOf(0, 1).findAny(),
-                isIn(seqOf(Optional.of(0), Optional.of(1))));
     }
 
     @Test

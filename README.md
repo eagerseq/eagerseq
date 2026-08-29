@@ -74,6 +74,7 @@ Seq.copy(Stream.of(11, 12, 13));
 Other methods convert to existing types.
 
 ```java
+seq.toOptional();
 seq.toList();
 seq.toSet();
 seq.toMap(Entity::getId);
@@ -82,7 +83,7 @@ seq.toArray(new String[5]);
 seq.toArray(String[]::new);
 seq.findFirst();
 seq.findLast();
-seq.findOnly();
+seq.findSingle();
 ```
 
 ## Streams

@@ -23,22 +23,20 @@ question under "Contract and robustness" first — if the factories go, or
 narrow to `Collection`, this is just `copy` → `copyOf` and there is nothing to
 pair the name with.
 
-## JDK contract clashes (release=8, so latent for now)
+## JDK contract clashes
 
-- **`Seq.reversed()`** — `SequencedCollection.reversed()` (Java 21) is a *live
-  view*; ours is a snapshot. Would compile as a covariant override and
-  silently break the contract if we ever target 21. Tension with 88b6330
-  (views → immutable conversions). Decide: rename, document, or conform.
-- **`findFirst()`/`findLast()`** — JDK 21 users reach for `getFirst()`/
-  `getLast()`, which throw instead of returning `Optional`. Add throwing
-  variants?
+`Seq.reversed()` versus `SequencedCollection.reversed()` is settled: ours stays
+a snapshot, documented on the method. Options weighed and rejected were
+renaming to `toReversed`, dropping `reversed`, returning a live view, and
+forcing immutability on `Seq` to collapse the difference.
 
-Neither fires today: `Seq extends Collection`, not `SequencedCollection`, so
-there is no clash to compile or run into until `release` is bumped or `Seq`
-extends `List`. But the floor has a clock on it — javac on 25 already warns
-that `source`/`target` 8 is "obsolete and will be removed in a future
-release", so choosing when to raise it is the decision that makes both of the
-above live.
+`getFirst()`/`getLast()` are now present, so JDK 21 users find the names they
+reach for. They clash with nothing: `SequencedCollection` declares them
+returning `E`, as ours do.
+
+Still open: **when to raise `release=8`**, which is what makes the `reversed`
+semantics live. javac on 25 already warns that `source`/`target` 8 is
+"obsolete and will be removed in a future release".
 
 ## Spliterator characteristics
 
@@ -119,18 +117,19 @@ from the data instead.
   and immutable by design. Whether a message is the right answer is undecided:
   the exception type is arguably self-explanatory, and seven near-identical
   strings are their own kind of noise. The javadoc already says it.
-- **`Box` is used only in the eager helpers, not in the spliterators.** The
-  eager statics (`get`, `reduce`, `find*` and neighbours) take a local
-  `Box<E>` and reuse its single `assign` consumer. Every anonymous
-  `AbstractSpliterator` instead declares a `private E next` field and writes
-  `spliterator.tryAdvance(e -> next = e)` — about a dozen sites, including
-  `indexesOf`, `limitLast`, `skipLast`, `limit`, `skip`, `filter` and
-  `zip`. That lambda captures `this`, so it is a fresh allocation on every
-  `tryAdvance`, i.e. once per element on the hot path, where `Box.assign` is
-  allocated once. Escape analysis often erases it, but not reliably. Swapping
-  the field for a `Box<E>` field (or just caching the consumer next to the
-  existing field) removes the difference and makes one pattern serve both
-  halves of the file. Non-exhaustive list; grep `e -> next = e` for the rest.
+- **A dozen spliterators still allocate a lambda per element.** `Box` now
+  implements `Consumer`, but the anonymous `AbstractSpliterator`s keep a
+  `private E next` field and write `spliterator.tryAdvance(e -> next = e)`,
+  which captures `this` and so allocates once per element on the hot path
+  (grep `e -> next = e`, 11 sites in `Split`). A `Box<E>` field, or just
+  caching the consumer beside the existing one, would remove that and make one
+  pattern serve the whole file. Worth measuring before changing anything:
+  escape analysis often erases the allocation.
+- **Serialization is unconsidered.** No `Seq` implementation is
+  `Serializable`, and nothing says whether that is deliberate. Decide, and if
+  it stays out, say so. Jackson is the other half: check what
+  `ObjectMapper.writeValueAsString(seq)` does today (probably fine — `Seq` is a
+  `Collection`) and whether reading one back needs a module.
 
 ## Settled: index and count conventions
 
@@ -229,5 +228,9 @@ neither remaining one is patched locally.
   against the same JDK 8 API, so the rows carrying new information are 8 and
   11, not the new ones. Unchased: test compilation warns that `SeqTest` uses
   a deprecated API, with no detail without `-Xlint:deprecation`.
+- **GPG signing is unconditional**, so `mvn verify` needs the private key
+  (`pom.xml:125`). The `verify` phase is correct; being outside a profile is
+  not, and it blocks the CI matrix above. Move `maven-gpg-plugin` into a
+  `release` profile, as Sonatype's guide does.
 - **`SeqStream.indexOfSlice` javadoc links to `Seq#indexesOfSlice`** — the
   singular `Seq#indexOfSlice` is meant.

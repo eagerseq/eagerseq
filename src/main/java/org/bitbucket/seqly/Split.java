@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -227,35 +228,68 @@ final class Split {
         return set0.equals(set1);
     }
 
-    static <E> Optional<E> findFirst(
-            Spliterator<E> spliterator) {
-        Box<E> next = new Box<>();
-        return spliterator.tryAdvance(next.assign)
-                ? Optional.of(next.value) : Optional.empty();
+    static <E> Optional<E> findFirst(Spliterator<E> spliterator) {
+        return Box.asOptional(firstBox(spliterator));
     }
 
-    static <E> Optional<E> findOnly(
-            Spliterator<E> spliterator) {
-        Box<E> next = new Box<>();
-        return spliterator.tryAdvance(next.assign)
-                && !spliterator.tryAdvance(e -> {})
-                ? Optional.of(next.value) : Optional.empty();
+    static <E> Optional<E> findLast(Spliterator<E> spliterator) {
+        return Box.asOptional(lastBox(spliterator));
     }
 
-    static <E> Optional<E> findLast(
-            Spliterator<E> spliterator) {
+    static <E> Optional<E> findSingle(Spliterator<E> spliterator) {
+        return Box.asOptional(singleBox(spliterator));
+    }
+
+    static <E> E getFirst(Spliterator<E> spliterator) {
+        return Box.orThrow(firstBox(spliterator), Split::emptySequence);
+    }
+
+    static <E> E getLast(Spliterator<E> spliterator) {
+        return Box.orThrow(lastBox(spliterator), Split::emptySequence);
+    }
+
+    static <E> E getSingle(Spliterator<E> spliterator) {
+        return Box.orThrow(singleBox(spliterator), Split::notExactlyOne);
+    }
+
+    static <E> Optional<E> toOptional(Spliterator<E> spliterator) {
+        Box<E> next = new Box<>();
+        if (!spliterator.tryAdvance(next)) return Optional.empty();
+        E first = next.value;
+        if (spliterator.tryAdvance(next)) {
+            throw new IllegalStateException(String.format(
+                    "expected at most one element (found %s and %s)",
+                    first, next.value));
+        }
+        return Optional.of(first);
+    }
+
+    private static <E> Box<E> firstBox(Spliterator<E> spliterator) {
+        Box<E> next = new Box<>();
+        return spliterator.tryAdvance(next) ? next : null;
+    }
+
+    private static <E> Box<E> lastBox(Spliterator<E> spliterator) {
         Box<E> next = new Box<>();
         boolean set = false;
         while (true) {
             Spliterator<E> prefix = spliterator.trySplit();
-            if (spliterator.tryAdvance(next.assign)) {
+            if (spliterator.tryAdvance(next)) {
                 set = true;
             } else if (prefix != null) {
                 spliterator = prefix;
             } else {
-                return set ? Optional.of(next.value) : Optional.empty();
+                return set ? next : null;
             }
         }
+    }
+
+    // Unlike toOptional, an empty source and one with more than one element
+    // are both absent, so that findSingle and getSingle agree on both.
+    private static <E> Box<E> singleBox(Spliterator<E> spliterator) {
+        Box<E> next = new Box<>();
+        return spliterator.tryAdvance(next)
+                && !spliterator.tryAdvance(e -> {}) ? next : null;
     }
 
     static <E> Spliterator<E> flatten(
@@ -279,7 +313,7 @@ final class Split {
         requireNonNegativeIndex("index", index);
         Box<E> next = new Box<>();
         long length = 0;
-        while (spliterator.tryAdvance(next.assign)) {
+        while (spliterator.tryAdvance(next)) {
             if (length++ == index) return next.value;
         }
         throw indexOutOfBounds("index", index, length);
@@ -739,7 +773,7 @@ final class Split {
             R identity,
             BiFunction<R, ? super E, R> accumulator) {
         Box<E> next = new Box<>();
-        while (spliterator.tryAdvance(next.assign)) {
+        while (spliterator.tryAdvance(next)) {
             identity = accumulator.apply(identity, next.value);
         }
         return identity;
@@ -749,7 +783,7 @@ final class Split {
             Spliterator<E> spliterator,
             BinaryOperator<E> accumulator) {
         Box<E> next = new Box<>();
-        if (!spliterator.tryAdvance(next.assign)) return Optional.empty();
+        if (!spliterator.tryAdvance(next)) return Optional.empty();
         return Optional.of(reduce(spliterator, next.value, accumulator));
     }
 
@@ -774,9 +808,9 @@ final class Split {
             Comparator<? super E> comparator) {
         E min;
         Box<E> next = new Box<>();
-        if (spliterator.tryAdvance(next.assign)) min = next.value;
+        if (spliterator.tryAdvance(next)) min = next.value;
         else return Optional.empty();
-        while (spliterator.tryAdvance(next.assign)) {
+        while (spliterator.tryAdvance(next)) {
             if (comparator.compare(next.value, min) < 0) min = next.value;
         }
         return Optional.of(min);
@@ -792,7 +826,7 @@ final class Split {
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
         Box<E> next = new Box<>();
-        while (spliterator.tryAdvance(next.assign)) {
+        while (spliterator.tryAdvance(next)) {
             if (predicate.test(next.value)) return false;
         }
         return true;
@@ -851,6 +885,15 @@ final class Split {
             String name, int index, long length) {
         return new IndexOutOfBoundsException(
                 name + " " + index + " out of bounds for length " + length);
+    }
+
+    static NoSuchElementException emptySequence() {
+        return new NoSuchElementException("sequence is empty");
+    }
+
+    static NoSuchElementException notExactlyOne() {
+        return new NoSuchElementException(
+                "sequence does not contain exactly one element");
     }
 
     private static Spliterator.OfInt matchLengths(
@@ -951,8 +994,21 @@ final class Split {
         return false;
     }
 
-    private static class Box<E> {
+    private static class Box<E> implements Consumer<E> {
         E value;
-        Consumer<E> assign = e -> value = e;
+
+        public void accept(E e) {
+            value = e;
+        }
+
+        static <E> Optional<E> asOptional(Box<E> box) {
+            return box == null ? Optional.empty() : Optional.of(box.value);
+        }
+
+        static <E> E orThrow(
+                Box<E> box, Supplier<? extends RuntimeException> exception) {
+            if (box == null) throw exception.get();
+            return box.value;
+        }
     }
 }

@@ -31,6 +31,10 @@ import static org.bitbucket.seqly.Split.toSeqStream;
  */
 public interface DelegatingSeq<E> extends Seq<E> {
 
+    default Optional<E> toOptional() {
+        return stream().toOptional();
+    }
+
     default List<E> toList() {
         return stream().toList();
     }
@@ -296,12 +300,20 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().findFirst();
     }
 
-    default Optional<E> findAny() {
-        return stream().findAny();
+    default Optional<E> findSingle() {
+        return stream().findSingle();
     }
 
-    default Optional<E> findOnly() {
-        return stream().findOnly();
+    default E getFirst() {
+        return stream().getFirst();
+    }
+
+    default E getLast() {
+        return stream().getLast();
+    }
+
+    default E getSingle() {
+        return stream().getSingle();
     }
 
     default Optional<E> findLast() {

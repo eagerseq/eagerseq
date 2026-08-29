@@ -568,6 +568,13 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * See {@link Seq#toOptional()}.
+     */
+    default Optional<E> toOptional() {
+        return Split.toOptional(spliterator());
+    }
+
+    /**
      * See {@link Seq#toList()}.
      */
     default List<E> toList() {
@@ -699,10 +706,10 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Stream equivalent of {@link Seq#findOnly()}.
+     * Stream equivalent of {@link Seq#findSingle()}.
      */
-    default Optional<E> findOnly() {
-        return Split.findOnly(spliterator());
+    default Optional<E> findSingle() {
+        return Split.findSingle(spliterator());
     }
 
     /**
@@ -710,6 +717,27 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default Optional<E> findLast() {
         return Split.findLast(spliterator());
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#getFirst()}.
+     */
+    default E getFirst() {
+        return Split.getFirst(spliterator());
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#getLast()}.
+     */
+    default E getLast() {
+        return Split.getLast(spliterator());
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#getSingle()}.
+     */
+    default E getSingle() {
+        return Split.getSingle(spliterator());
     }
 
     /**
