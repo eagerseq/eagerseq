@@ -33,6 +33,13 @@ pair the name with.
   `getLast()`, which throw instead of returning `Optional`. Add throwing
   variants?
 
+Neither fires today: `Seq extends Collection`, not `SequencedCollection`, so
+there is no clash to compile or run into until `release` is bumped or `Seq`
+extends `List`. But the floor has a clock on it — javac on 25 already warns
+that `source`/`target` 8 is "obsolete and will be removed in a future
+release", so choosing when to raise it is the decision that makes both of the
+above live.
+
 ## Spliterator characteristics
 
 Thoroughly check `Spliterator` behavior and reported characteristics across the
@@ -181,16 +188,25 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 
 ## Test depth
 
-Two gaps that apply to the whole library, not to any one method, which is why
-neither is patched locally.
+Gaps that apply to the whole library, not to any one method, which is why
+neither remaining one is patched locally.
 
-- **Nothing is cross-checked exhaustively.** Every case is hand-picked, so
-  boundaries are covered only where someone thought of them. Rewriting
-  `limitLast` found a bug at a queue growth step that all six existing cases
-  missed. The index arithmetic in `slice`, `rotated`, `indexesOfSlice`,
-  `combinations`, `powerSet` and the set operations is the same shape of risk.
-  A single test comparing each against a naive reference over all small
-  lengths and arguments would cover more than any amount of case-picking.
+- **Cross-checking is now exhaustive for the index arithmetic.**
+  `SeqReferenceTest` compares every method that does index arithmetic, plus
+  the multiplicity-sensitive comparisons (`listEquals`, `multisetEquals`,
+  `setEquals`), against a naive `java.util`-only reference, over every
+  sequence of `a`/`b`/`null` up to length 5 (length 4 where a test sweeps
+  input pairs) and every argument from `-2` to `length + 2`, across all 13
+  factories. 2.1s. The `DelegatingSeq` factory routes through `SeqStream`,
+  so every one of those methods is checked in its `SeqStream` implementation
+  too, not only its `Seq` one. Verified to catch a real bug: swapping `slice` to
+  `limit(skip(...))` fails at `[a, a], 1, 1`.
+  Not covered there, and still hand-picked in `SeqTest`: the predicate and
+  mapping operations (`filter`, `map`, `takeWhile`, `dropWhile`, `distinct`,
+  `sorted`), which carry no index arithmetic, and `shuffled`. `reversed` and
+  `rotated` are checked, but both they and the reference delegate to
+  `Collections`, so those two prove only the array round-trip.
+
 - **No test uses an infinite source.** `testGet` covers only finite ones, so
   neither `Split.get`'s hang on a negative index nor `ArraySeq.get` bypassing
   `Split.get` entirely was visible to it. `SeqStream` operations should be
@@ -206,5 +222,12 @@ neither is patched locally.
   guards real: `testStreamMethodsAbsentFromSeqAreOnlyTheKnownExceptions`
   catches `Stream` methods added by later JDKs only if it runs, and JaCoCo
   reports coverage but gates nothing.
+  Low urgency: `mvn verify` on 25 passes clean today (1553 tests, both
+  reflection guards green — `gather` is already exempt), and development
+  happens on 25, so the matrix is a ratchet against future JDKs rather than a
+  hunt for present failures. `release=8` also means every row compiles
+  against the same JDK 8 API, so the rows carrying new information are 8 and
+  11, not the new ones. Unchased: test compilation warns that `SeqTest` uses
+  a deprecated API, with no detail without `-Xlint:deprecation`.
 - **`SeqStream.indexOfSlice` javadoc links to `Seq#indexesOfSlice`** — the
   singular `Seq#indexOfSlice` is meant.
