@@ -228,9 +228,5 @@ neither remaining one is patched locally.
   against the same JDK 8 API, so the rows carrying new information are 8 and
   11, not the new ones. Unchased: test compilation warns that `SeqTest` uses
   a deprecated API, with no detail without `-Xlint:deprecation`.
-- **GPG signing is unconditional**, so `mvn verify` needs the private key
-  (`pom.xml:125`). The `verify` phase is correct; being outside a profile is
-  not, and it blocks the CI matrix above. Move `maven-gpg-plugin` into a
-  `release` profile, as Sonatype's guide does.
 - **`SeqStream.indexOfSlice` javadoc links to `Seq#indexesOfSlice`** — the
   singular `Seq#indexOfSlice` is meant.

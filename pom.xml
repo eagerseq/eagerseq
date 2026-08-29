@@ -114,43 +114,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <!--
-                    Releases are signed with a GPG key that is deliberately
-                    kept outside this repository. If a build fails with
-                    "gpg: no default secret key" then the key is not present
-                    on this machine and must be imported before releasing;
-                    signing then prompts for its passphrase.
-                -->
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.2.8</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!--
-                    Requires a Central Portal user token in settings.xml under
-                    server id "central". With autoPublish false, "mvn deploy"
-                    uploads and validates but does not release: the deployment
-                    must then be published (or dropped) from the Portal UI.
-                -->
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.11.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>false</autoPublish>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.15</version>
@@ -171,4 +134,50 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <!--
+                            Releases are signed with a GPG key that is deliberately
+                            kept outside this repository. If a build fails with
+                            "gpg: no default secret key" then the key is not present
+                            on this machine and must be imported before releasing;
+                            signing then prompts for its passphrase.
+                        -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!--
+                            Requires a Central Portal user token in settings.xml under
+                            server id "central". With autoPublish false, "mvn deploy"
+                            uploads and validates but does not release: the deployment
+                            must then be published (or dropped) from the Portal UI.
+                        -->
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
