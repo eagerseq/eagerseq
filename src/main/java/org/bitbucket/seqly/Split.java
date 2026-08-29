@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Collections.reverseOrder;
-import static java.util.Spliterator.SIZED;
 import static java.util.Spliterators.emptySpliterator;
 import static java.util.function.Function.identity;
 
@@ -156,12 +155,11 @@ final class Split {
         return Collections.unmodifiableMap(map);
     }
 
-    static int toInt(long value) {
-        int intValue = (int) value;
-        if (intValue != value) {
-            throw new RuntimeException("index overflowed int");
+    static void checkSize(long size) {
+        if (size < 0) {
+            throw new IllegalArgumentException(
+                    "size must not be negative but was " + size);
         }
-        return intValue;
     }
 
     static <E> E[] reversed(Spliterator<E> spliterator) {
@@ -186,16 +184,14 @@ final class Split {
     }
 
     static long count(Spliterator<?> spliterator) {
-        if ((spliterator.characteristics() & SIZED) != 0) {
-            return spliterator.estimateSize();
-        }
         long[] count = new long[1];
         spliterator.forEachRemaining(e -> count[0]++);
         return count[0];
     }
 
     static int size(Spliterator<?> spliterator) {
-        return toInt(count(spliterator));
+        // clamps like Collection.size() documents, rather than throws
+        return (int) Math.min(count(spliterator), Integer.MAX_VALUE);
     }
 
     static boolean isEmpty(Spliterator<?> spliterator) {
@@ -356,72 +352,79 @@ final class Split {
     }
 
     static Spliterator.OfInt indexes(Spliterator<?> spliterator) {
-        return range(0, toInt(count(spliterator)));
+        return range(0, Math.toIntExact(count(spliterator)));
     }
 
-    static <E> Spliterator limitLast(
-            Spliterator<E> spliterator, long sizeLong) {
-        int size = toInt(sizeLong); // consistency with limit()
+    static <E> Spliterator<E> limitLast(
+            Spliterator<E> spliterator, long size) {
+        checkSize(size);
         if (size == 0) return emptySpliterator();
-        if (size < 0) throw new IllegalArgumentException();
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
             private int used;
             private int index;
             private boolean skipped;
-            @SuppressWarnings("unchecked")
-            private E[] queue = (E[]) new Object[size];
+            private E[] queue;
             public boolean tryAdvance(Consumer<? super E> action) {
                 if (!skipped) {
                     skipped = true;
-                    while (spliterator.tryAdvance(e -> next = e)) {
-                        queue[index] = next;
-                        index++;
-                        index %= size;
-                        if (used < size) used++;
+                    // fill by appending, so that the queue is sized from the
+                    // data and not from size, and only then overwrite in
+                    // place, by which point its length is settled
+                    SeqBuilder<E> builder = new SeqBuilder<>();
+                    while (used < size
+                            && spliterator.tryAdvance(builder::add)) {
+                        used++;
                     }
-                    if (used < size) index = 0;
+                    queue = builder.trim();
+                    // used reaches size only if the fill loop filled the
+                    // queue rather than exhausting the source
+                    if (used == size) {
+                        while (spliterator.tryAdvance(e -> next = e)) {
+                            queue[index] = next;
+                            index++;
+                            index %= queue.length;
+                        }
+                    }
                 }
                 if (used == 0) return false;
                 used--;
                 E e = queue[index];
                 index++;
-                index %= size;
+                index %= queue.length;
                 action.accept(e);
                 return true;
             }
         };
     }
 
-    static <E> Spliterator skipLast(
-            Spliterator<E> spliterator, long sizeLong) {
-        int size = toInt(sizeLong); // consistency with skip()
+    static <E> Spliterator<E> skipLast(
+            Spliterator<E> spliterator, long size) {
+        checkSize(size);
         if (size == 0) return spliterator;
-        if (size < 0) throw new IllegalArgumentException();
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
             private int used;
             private int index;
             private boolean skipped;
-            @SuppressWarnings("unchecked")
-            private E[] queue = (E[]) new Object[size];
+            private E[] queue;
             public boolean tryAdvance(Consumer<? super E> action) {
                 if (!skipped) {
                     skipped = true;
-                    while (spliterator.tryAdvance(e -> next = e)) {
-                        queue[index] = next;
-                        index++;
-                        index %= size;
+                    // as limitLast, the queue is sized from the data
+                    SeqBuilder<E> builder = new SeqBuilder<>();
+                    while (used < size
+                            && spliterator.tryAdvance(builder::add)) {
                         used++;
-                        if (used == size) break;
                     }
+                    queue = builder.trim();
                 }
                 if (used < size) return false;
                 if (!spliterator.tryAdvance(e -> next = e)) return false;
                 E e = queue[index];
                 queue[index] = next;
                 index++;
-                index %= size;
+                index %= queue.length;
                 action.accept(e);
                 return true;
             }
@@ -686,12 +689,11 @@ final class Split {
     }
 
     static <E> Spliterator<E> limit(
-            Spliterator<E> spliterator, long sizeLong) {
-        int size = toInt(sizeLong);
-        if (size < 0) throw new IllegalArgumentException();
+            Spliterator<E> spliterator, long size) {
+        checkSize(size);
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
-            private int index;
+            private long index;
             public boolean tryAdvance(Consumer<? super E> action) {
                 if (index >= size) return false;
                 if (spliterator.tryAdvance(e -> next = e)) {
@@ -705,12 +707,11 @@ final class Split {
     }
 
     static <E> Spliterator<E> skip(
-            Spliterator<E> spliterator, long sizeLong) {
-        int size = toInt(sizeLong);
-        if (size < 0) throw new IllegalArgumentException();
+            Spliterator<E> spliterator, long size) {
+        checkSize(size);
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
-            private int index;
+            private long index;
             public boolean tryAdvance(Consumer<? super E> action) {
                 while (spliterator.tryAdvance(e -> next = e)) {
                     if (index++ >= size) {

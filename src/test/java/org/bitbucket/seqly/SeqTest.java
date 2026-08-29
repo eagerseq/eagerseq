@@ -120,6 +120,16 @@ public class SeqTest {
         }
     }
 
+    public static void assertThrows(
+            Class<? extends RuntimeException> expected, Runnable action) {
+        try {
+            action.run();
+            fail("expected " + expected.getSimpleName());
+        } catch (RuntimeException e) {
+            if (!expected.isInstance(e)) throw e;
+        }
+    }
+
     private static Object[] parameters(String name, Factory factory) {
         return new Object[]{name, factory};
     }
@@ -709,7 +719,19 @@ public class SeqTest {
         assertThat(seqOf(0, null, 2).limitLast(5), contains(0, null, 2));
         assertThat(seqOf(0, null, 2, 3, 4).limitLast(2), contains(3, 4));
         assertThat(seqOf(0, null, 2, 3, 4, 5).limitLast(3), contains(3, 4, 5));
-        assertThrows(() -> seqOf(0, null, 2).limitLast(-2));
+        assertThrows(IllegalArgumentException.class,
+                () -> seqOf(0, null, 2).limitLast(-2));
+        // the queue is sized from the data, not from the argument
+        assertThat(seqOf(0, null, 2).limitLast(200_000_000),
+                contains(0, null, 2));
+        assertThat(seqOf(0, null, 2).limitLast(Long.MAX_VALUE),
+                contains(0, null, 2));
+        // more elements than the queue holds at first, but fewer than size,
+        // so it must still be growing rather than overwriting
+        assertThat(seqOf(0, 1, 2, 3, 4, 5).limitLast(1000),
+                contains(0, 1, 2, 3, 4, 5));
+        assertThat(seqOf(0, 1, 2, 3, 4, 5).limitLast(5),
+                contains(1, 2, 3, 4, 5));
     }
 
     @Test
@@ -721,7 +743,11 @@ public class SeqTest {
         assertThat(seqOf(0, null, 2, 3, 4).skipLast(2), contains(0, null, 2));
         assertThat(seqOf(0, null, 2, 3, 4, 5).skipLast(3),
                 contains(0, null, 2));
-        assertThrows(() -> seqOf(0, null, 2).skipLast(-2));
+        assertThrows(IllegalArgumentException.class,
+                () -> seqOf(0, null, 2).skipLast(-2));
+        assertThat(seqOf(0, null, 2).skipLast(200_000_000), empty());
+        assertThat(seqOf(0, null, 2).skipLast(Long.MAX_VALUE), empty());
+        assertThat(seqOf(0, 1, 2, 3, 4, 5).skipLast(5), contains(0));
     }
 
     @Test
@@ -819,14 +845,20 @@ public class SeqTest {
     public void testLimit() {
         assertThat(seqOf(0, null, 2).limit(2), contains(0, null));
         assertThat(seqOf(0, null, 2).limit(5), contains(0, null, 2));
-        assertThrows(() -> seqOf(0, null, 2).limit(-2));
+        assertThrows(IllegalArgumentException.class,
+                () -> seqOf(0, null, 2).limit(-2));
+        // Stream.limit accepts any non-negative long, so Seq must too
+        assertThat(seqOf(0, null, 2).limit(Long.MAX_VALUE),
+                contains(0, null, 2));
     }
 
     @Test
     public void testSkip() {
         assertThat(seqOf(0, null, 2).skip(2), contains(2));
         assertThat(seqOf(0, null, 2).skip(5), empty());
-        assertThrows(() -> seqOf(0, null, 2).skip(-2));
+        assertThrows(IllegalArgumentException.class,
+                () -> seqOf(0, null, 2).skip(-2));
+        assertThat(seqOf(0, null, 2).skip(Long.MAX_VALUE), empty());
     }
 
     @Test

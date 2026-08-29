@@ -323,6 +323,7 @@ public interface SeqStream<E> extends Stream<E> {
 
     /**
      * Stream equivalent of {@link Seq#size()}.
+     * Consider {@link #count()}.
      */
     default int size() {
         return Split.size(spliterator());

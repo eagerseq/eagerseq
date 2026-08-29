@@ -234,6 +234,9 @@ public interface Seq<E> extends Collection<E> {
      * are reflected in the returned {@code Seq}.
      * Unlike most {@code Seq} instances, the returned instance will not
      * support constant-time {@link #size()} or {@link #get(int)}.
+     *
+     * <p>The argument must support repeated iteration,
+     * otherwise {@link #copy(Iterable)} should be used.
      */
     static <E> Seq<E> view(Iterable<? extends E> iterable) {
         return new IterableSeq<>(requireNonNull(iterable));
@@ -1070,7 +1073,7 @@ public interface Seq<E> extends Collection<E> {
         /**
          * Adds all elements and returns {@code this}.
          */
-        default Builder<E> addAll(Iterable<E> iterable) {
+        default Builder<E> addAll(Iterable<? extends E> iterable) {
             iterable.forEach(this::add);
             return this;
         }

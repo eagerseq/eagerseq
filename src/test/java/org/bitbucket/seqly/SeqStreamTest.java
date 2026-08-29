@@ -78,6 +78,38 @@ public class SeqStreamTest {
                 absent, empty());
     }
 
+    /**
+     * Detects methods added to {@code Seq} that have no {@code SeqStream}
+     * equivalent. When this fails, either add the method to
+     * {@code SeqStream} or add it below with a reason.
+     */
+    @Test
+    public void testSeqMethodsAbsentFromSeqStreamAreOnlyTheKnownExceptions() {
+        Set<String> declaredBySeqStream = new HashSet<>();
+        for (Method method : SeqStream.class.getMethods()) {
+            declaredBySeqStream.add(method.getName());
+        }
+        Set<String> absent = new TreeSet<>();
+        for (Method method : Seq.class.getMethods()) {
+            if (!method.isSynthetic()
+                    && !Modifier.isStatic(method.getModifiers())
+                    && !declaredBySeqStream.contains(method.getName())) {
+                absent.add(method.getName());
+            }
+        }
+        absent.removeAll(Arrays.asList(
+                // Collection mutators, which Seq inherits only to throw
+                "add", "addAll", "clear", "remove", "removeAll", "removeIf",
+                "retainAll",
+                // a SeqStream is consumed by any traversal, so it cannot
+                // define equality by its elements
+                "equals", "hashCode",
+                // a SeqStream is already a stream
+                "stream", "parallelStream"));
+        assertThat("Seq methods absent from SeqStream without a stated reason",
+                absent, empty());
+    }
+
     @Test
     public void testOf() {
         assertTrue(SeqStream.of().isEmpty());
@@ -234,9 +266,16 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testToInt() {
-        assertThrows(() -> Split.toInt(Integer.MAX_VALUE + 1L));
-        assertThrows(() -> Split.toInt(Integer.MIN_VALUE - 1L));
+    public void testCheckSize() {
+        Split.checkSize(0);
+        Split.checkSize(Long.MAX_VALUE);
+        try {
+            Split.checkSize(-1);
+            fail("expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+            assertThat(expected.getMessage(),
+                    equalTo("size must not be negative but was -1"));
+        }
     }
 
     @Test
