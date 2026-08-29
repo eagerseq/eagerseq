@@ -38,26 +38,24 @@ Still open: **when to raise `release=8`**, which is what makes the `reversed`
 semantics live. javac on 25 already warns that `source`/`target` 8 is
 "obsolete and will be removed in a future release".
 
-## Spliterator characteristics
+## Settled: spliterator characteristics
 
-Thoroughly check `Spliterator` behavior and reported characteristics across the
-entire library, including every sequence/view/stream implementation and their
-intermediate operations.
+Every `Seq` has a stable encounter order and its spliterator reports `ORDERED`.
+The `view(Iterable)` factory checks the characteristic up front and documents
+the still-unenforceable repeated-iteration requirement. Array-backed results
+also receive `SIZED | SUBSIZED` from the JDK array spliterator.
 
-`Split.count` no longer shortcuts to `estimateSize()` on a `SIZED` source, so
-`count()` and `size()` always traverse. `ArraySeq` overrides `size` and
-`isEmpty` directly, and `isEmpty` goes through a single `tryAdvance`
-everywhere, so `count()` is linear everywhere by design and the only
-unintended regression is `size()` on `view(Iterable)`, which was constant
-time over an `ArrayList` and is now linear. Reconsider restoring it
-here, together with the decision about which characteristics we report: the
-policy worth weighing is to be conservative in what we report and liberal in
-what we consume, since every bug so far has come from claiming a
-characteristic we could not honour rather than from trusting one. The one
-case that argues the other way is consuming `SIZED` to *size a buffer*, where
-a source's wrong `SIZED` becomes silently dropped elements rather than merely
-a wrong count. Nothing does that now: `limitLast`/`skipLast` size their queue
-from the data instead.
+`SeqStream` may be unordered. Ordinary intermediate operations preserve the
+source's `ORDERED` flag; `zip` and `union` require both sources to be ordered;
+index-producing, combinatorial and materializing operations establish order;
+and `unordered()` removes it. Custom lazy spliterators report no size, sorted,
+distinct, non-null, immutable or concurrent characteristics. Their shared
+bases also enforce the `tryAdvance(null)` contract.
+
+Characteristics are not consumed for correctness. `count()` and the default
+`size()` traverse, and buffers grow from the data, so a source that falsely
+reports `SIZED` cannot change a result or silently drop elements. `ArraySeq`
+keeps its direct constant-time `size()` and `isEmpty()` implementations.
 
 ## Contract and robustness
 
@@ -70,14 +68,14 @@ from the data instead.
   `E` are unrelated. Cost: `Consumer.andThen` joins the surface returning
   `Consumer<E>`, not `Builder<E>`.
 - **Consider dropping the `view` factories altogether**, or failing that,
-  narrowing `view(Iterable)` to `view(Collection)`. Both hand out a `Seq` that
-  its own `Collection` contract cannot honour. `view(Iterable)` accepts a
-  one-shot source, which is legal — `Iterable` promises only that it can be
-  the target of a for-each — and the resulting `Seq` then survives exactly one
-  method call, since `size`, `equals`, `hashCode` and `toString` each traverse
-  afresh. Documented for now, but the precondition is unenforceable: nothing
-  can ask an `Iterable` whether it is re-traversable, so the failure arrives
-  late, from inside the argument, naming something the caller never mentioned.
+  narrowing `view(Iterable)` to `view(Collection)`. `Seq` now requires stable
+  encounter order and the factory rejects a spliterator that does not report
+  `ORDERED`, which catches ordinary one-shot iterables such as
+  `stream::iterator` immediately. Repeated iteration remains an unenforceable
+  precondition: a custom one-shot iterable can report `ORDERED`, pass the
+  construction check, then fail on first use because the check obtained its
+  only spliterator. `Collection` would express the reusable-source half of the
+  contract in the type, with the same runtime order check excluding `HashSet`.
   `view(E[])` is re-traversable but *mutable*, making it the one `Seq` whose
   `hashCode` can change under a `HashMap`, which sits badly with 88b6330
   having replaced the collection views with immutable conversions.
@@ -85,8 +83,7 @@ from the data instead.
   exactly (`Iterables.transform` returns `Iterable`, `Collections2.transform`
   returns `Collection`), and every `Iterable`-to-`Collection` conversion it
   offers is a copy. `copy(Iterable)` already covers the one-shot case, and the
-  library copies at every other step anyway, so the lost zero-copy path is a
-  re-traversable non-`Collection` such as `Path`.
+  library copies at every other step anyway.
 - **Document `AbstractSeq` as the extension point.** `Seq`'s only abstract
   method is `spliterator()`, so `Seq<E> s = list::spliterator` compiles and
   gets identity `equals`/`hashCode`/`toString`, making equality asymmetric

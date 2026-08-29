@@ -37,7 +37,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Collections.reverseOrder;
-import static java.util.Spliterators.emptySpliterator;
+import static java.util.Objects.requireNonNull;
+import static java.util.Spliterator.ORDERED;
 import static java.util.function.Function.identity;
 
 final class Split {
@@ -50,7 +51,7 @@ final class Split {
     }
 
     static <E> SeqStream<E> toSeqStream(Object[] array) {
-        return new SpliteratorSeqStream<>(Spliterators.spliterator(array, 0));
+        return new SpliteratorSeqStream<>(toSpliterator(array));
     }
 
     static <E> Stream<E> toStream(SeqStream<E> stream) {
@@ -64,7 +65,20 @@ final class Split {
     }
 
     static <E> Spliterator<E> toSpliterator(Object[] array) {
-        return Spliterators.spliterator(array, 0);
+        return Spliterators.spliterator(array, ORDERED);
+    }
+
+    private static int ordered(Spliterator<?> spliterator) {
+        return spliterator.characteristics() & ORDERED;
+    }
+
+    private static int ordered(
+            Spliterator<?> first, Spliterator<?> second) {
+        return ordered(first) & ordered(second);
+    }
+
+    private static <E> Spliterator<E> emptySpliterator(int characteristics) {
+        return Spliterators.spliterator(SeqBuilder.EMPTY, characteristics);
     }
 
     static Object[] toArray(Iterable<?> iterable) {
@@ -294,9 +308,9 @@ final class Split {
 
     static <E> Spliterator<E> flatten(
             Spliterator<Spliterator<E>> spliterators) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            private Spliterator<E> current = emptySpliterator();
-            public boolean tryAdvance(Consumer<? super E> action) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterators)) {
+            private Spliterator<E> current = emptySpliterator(ORDERED);
+            boolean advance(Consumer<? super E> action) {
                 while (true) {
                     if (current.tryAdvance(action)) return true;
                     if (spliterators.tryAdvance(s -> current = s)) continue;
@@ -321,10 +335,10 @@ final class Split {
 
     static <E> Spliterator.OfInt indexesOf(
             Spliterator<E> spliterator, Object object) {
-        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new UnknownSizeIntSpliterator(ORDERED) {
             private int index;
             private E next;
-            public boolean tryAdvance(IntConsumer action) {
+            boolean advance(IntConsumer action) {
                 while (spliterator.tryAdvance(e -> next = e)) {
                     if (Objects.equals(object, next)) {
                         action.accept(index++);
@@ -356,10 +370,10 @@ final class Split {
             Spliterator<E> spl0,
             Spliterator<? extends F> spl1,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
-        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<R>(ordered(spl0, spl1)) {
             private E e0;
             private F e1;
-            public boolean tryAdvance(Consumer<? super R> action) {
+            boolean advance(Consumer<? super R> action) {
                 boolean has0 = spl0.tryAdvance(e -> this.e0 = e);
                 boolean has1 = spl1.tryAdvance(e -> this.e1 = e);
                 if (!has0 | !has1) return false;
@@ -370,9 +384,9 @@ final class Split {
     }
 
     static Spliterator.OfInt range(int from, int to) {
-        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new UnknownSizeIntSpliterator(ORDERED) {
             private int index = from;
-            public boolean tryAdvance(IntConsumer action) {
+            boolean advance(IntConsumer action) {
                 if (index < to) {
                     action.accept(index++);
                     return true;
@@ -390,14 +404,14 @@ final class Split {
     static <E> Spliterator<E> limitLast(
             Spliterator<E> spliterator, long size) {
         requireNonNegativeArgument("size", size);
-        if (size == 0) return emptySpliterator();
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        if (size == 0) return emptySpliterator(ordered(spliterator));
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private int used;
             private int index;
             private boolean skipped;
             private E[] queue;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 if (!skipped) {
                     skipped = true;
                     // fill by appending, so that the queue is sized from the
@@ -434,13 +448,13 @@ final class Split {
             Spliterator<E> spliterator, long size) {
         requireNonNegativeArgument("size", size);
         if (size == 0) return spliterator;
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private int used;
             private int index;
             private boolean skipped;
             private E[] queue;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 if (!skipped) {
                     skipped = true;
                     // as limitLast, the queue is sized from the data
@@ -466,10 +480,10 @@ final class Split {
     static <E> Spliterator<E> takeWhile(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private boolean found;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 if (!found) {
                     if (spliterator.tryAdvance(e -> next = e)) {
                         if (!predicate.test(next)) {
@@ -488,10 +502,10 @@ final class Split {
     static <E> Spliterator<E> dropWhile(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private boolean found;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 if (!found) {
                     while (spliterator.tryAdvance(e -> next = e)) {
                         if (!predicate.test(next)) {
@@ -510,25 +524,28 @@ final class Split {
     static <E> Spliterator<E> intersection(
             Spliterator<E> first,
             Spliterator<?> second) {
-        return multisetOperation(first, second, false, false);
+        return multisetOperation(
+                first, second, false, false, ordered(first));
     }
 
     static <E> Spliterator<E> difference(
             Spliterator<E> first,
             Spliterator<?> second) {
-        return multisetOperation(first, second, true, false);
+        return multisetOperation(
+                first, second, true, false, ordered(first));
     }
 
     static <E> Spliterator<E> union(
             Spliterator<E> first,
             Spliterator<? extends E> second) {
-        return multisetOperation(second, first, true, true);
+        return multisetOperation(
+                second, first, true, true, ordered(first, second));
     }
 
     static boolean containsMultiset(
             Spliterator<?> first,
             Spliterator<?> second) {
-        return !multisetOperation(second, first, true, false)
+        return !multisetOperation(second, first, true, false, 0)
                 .tryAdvance(e -> {});
     }
 
@@ -578,9 +595,9 @@ final class Split {
     }
 
     static <E> Spliterator<E[]> permutations(Object[] array) {
-        return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E[]>(ORDERED) {
             private int[] index = IntStream.range(0, array.length).toArray();
-            public boolean tryAdvance(Consumer<? super E[]> action) {
+            boolean advance(Consumer<? super E[]> action) {
                 if (index == null) return false;
                 @SuppressWarnings("unchecked")
                 E[] r = (E[]) Arrays.stream(index)
@@ -614,9 +631,9 @@ final class Split {
                     "size " + size + " was greater than length "
                             + array.length);
         }
-        return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E[]>(ORDERED) {
             private int[] index = IntStream.range(0, size).toArray();
-            public boolean tryAdvance(Consumer<? super E[]> action) {
+            boolean advance(Consumer<? super E[]> action) {
                 if (index == null) return false;
                 @SuppressWarnings("unchecked")
                 E[] r = (E[]) Arrays.stream(index)
@@ -645,9 +662,9 @@ final class Split {
     static <E> Spliterator<E> filter(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 while (spliterator.tryAdvance(e -> next = e)) {
                     if (predicate.test(next)) {
                         action.accept(next);
@@ -662,8 +679,8 @@ final class Split {
     static <E, R> Spliterator<R> map(
             Spliterator<E> spliterator,
             Function<? super E, ? extends R> mapper) {
-        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
-            public boolean tryAdvance(Consumer<? super R> action) {
+        return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
+            boolean advance(Consumer<? super R> action) {
                 return spliterator.tryAdvance(e ->
                         action.accept(mapper.apply(e)));
             }
@@ -674,17 +691,17 @@ final class Split {
             Spliterator<E> spliterator,
             Function<? super E, ? extends Spliterator<R>> mapper) {
         return flatten(map(spliterator, mapper.andThen(
-                s -> s == null ? emptySpliterator() : s)));
+                s -> s == null ? emptySpliterator(ORDERED) : s)));
     }
 
     static <E, R> Spliterator<R> mapMulti(
             Spliterator<E> spliterator,
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
-        return new AbstractSpliterator<R>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
             private ArrayList<R> buffer = new ArrayList<>();
             private Consumer<R> sink = buffer::add;
             private int index;
-            public boolean tryAdvance(Consumer<? super R> action) {
+            boolean advance(Consumer<? super R> action) {
                 while (index == buffer.size()) {
                     buffer.clear();
                     index = 0;
@@ -699,10 +716,10 @@ final class Split {
     }
 
     static <E> Spliterator<E> distinct(Spliterator<E> spliterator) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private Set<E> seen = new HashSet<>();
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 while (spliterator.tryAdvance(e -> next = e)) {
                     if (seen.add(next)) {
                         action.accept(next);
@@ -726,10 +743,10 @@ final class Split {
     static <E> Spliterator<E> limit(
             Spliterator<E> spliterator, long size) {
         requireNonNegativeArgument("size", size);
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private long index;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 if (index >= size) return false;
                 if (spliterator.tryAdvance(e -> next = e)) {
                     index++;
@@ -744,10 +761,10 @@ final class Split {
     static <E> Spliterator<E> skip(
             Spliterator<E> spliterator, long size) {
         requireNonNegativeArgument("size", size);
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private E next;
             private long index;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 while (spliterator.tryAdvance(e -> next = e)) {
                     if (index++ >= size) {
                         action.accept(next);
@@ -847,12 +864,20 @@ final class Split {
     static <E> Spliterator<E> peek(
             Spliterator<E> spliterator,
             Consumer<? super E> peeker) {
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
-            public boolean tryAdvance(Consumer<? super E> action) {
+        return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
+            boolean advance(Consumer<? super E> action) {
                 return spliterator.tryAdvance(e -> {
                     peeker.accept(e);
                     action.accept(e);
                 });
+            }
+        };
+    }
+
+    static <E> Spliterator<E> unordered(Spliterator<E> spliterator) {
+        return new UnknownSizeSpliterator<E>(0) {
+            boolean advance(Consumer<? super E> action) {
+                return spliterator.tryAdvance(action);
             }
         };
     }
@@ -898,11 +923,11 @@ final class Split {
 
     private static Spliterator.OfInt matchLengths(
             Spliterator<?> spliterator, Object[] slice, int[] jumps, int from) {
-        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new UnknownSizeIntSpliterator(ORDERED) {
             private int j = from;
             private Object next;
             private boolean started;
-            public boolean tryAdvance(IntConsumer action) {
+            boolean advance(IntConsumer action) {
                 if (!started) {
                     started = true;
                     action.accept(j);
@@ -921,10 +946,10 @@ final class Split {
 
     private static Spliterator.OfInt toMatchIndexes(
             Spliterator.OfInt lengths, int sliceLength) {
-        return new AbstractIntSpliterator(Long.MAX_VALUE, 0) {
+        return new UnknownSizeIntSpliterator(ORDERED) {
             private int index;
             private int length;
-            public boolean tryAdvance(IntConsumer action) {
+            boolean advance(IntConsumer action) {
                 while (lengths.tryAdvance((IntConsumer) e -> length = e)) {
                     if (length == sliceLength) {
                         action.accept(index++ - sliceLength);
@@ -946,12 +971,12 @@ final class Split {
     private static <E> Spliterator<E> multisetOperation(
             Spliterator<? extends E> first,
             Spliterator<?> second,
-            boolean difference, boolean union) {
+            boolean difference, boolean union, int characteristics) {
         Map<Object, Long> multiset = new HashMap<>();
-        return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
+        return new UnknownSizeSpliterator<E>(characteristics) {
             private E next;
             private boolean concatenated;
-            public boolean tryAdvance(Consumer<? super E> action) {
+            boolean advance(Consumer<? super E> action) {
                 if (!concatenated) {
                     while (second.tryAdvance(e -> next = (E) e)) {
                         multisetAdd(multiset, next);
@@ -992,6 +1017,36 @@ final class Split {
             return true;
         }
         return false;
+    }
+
+    private abstract static class UnknownSizeSpliterator<E>
+            extends AbstractSpliterator<E> {
+
+        @SuppressWarnings("MagicConstant")
+        UnknownSizeSpliterator(int characteristics) {
+            super(Long.MAX_VALUE, characteristics & ~(SIZED | SUBSIZED));
+        }
+
+        public final boolean tryAdvance(Consumer<? super E> action) {
+            return advance(requireNonNull(action));
+        }
+
+        abstract boolean advance(Consumer<? super E> action);
+    }
+
+    private abstract static class UnknownSizeIntSpliterator
+            extends AbstractIntSpliterator {
+
+        @SuppressWarnings("MagicConstant")
+        UnknownSizeIntSpliterator(int characteristics) {
+            super(Long.MAX_VALUE, characteristics & ~(SIZED | SUBSIZED));
+        }
+
+        public final boolean tryAdvance(IntConsumer action) {
+            return advance(requireNonNull(action));
+        }
+
+        abstract boolean advance(IntConsumer action);
     }
 
     private static class Box<E> implements Consumer<E> {

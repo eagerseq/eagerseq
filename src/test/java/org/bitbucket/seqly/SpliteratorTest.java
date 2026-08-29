@@ -1,0 +1,208 @@
+package org.bitbucket.seqly;
+
+import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.TreeSet;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import static java.util.Spliterator.ORDERED;
+import static java.util.Spliterator.SIZED;
+import static java.util.Spliterator.SUBSIZED;
+import static org.bitbucket.seqly.SeqTest.assertThrows;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+public class SpliteratorTest {
+
+    @Test
+    public void testArrayBackedSeqIsOrderedAndSized() {
+        Spliterator<Integer> spliterator = Seq.of(0, 1).spliterator();
+        assertTrue(spliterator.hasCharacteristics(ORDERED | SIZED | SUBSIZED));
+    }
+
+    @Test
+    public void testIterableViewRequiresOrder() {
+        assertThrows(IllegalArgumentException.class,
+                "iterable spliterator was not ORDERED",
+                () -> Seq.view(new HashSet<>(Arrays.asList(0, 1))));
+        Stream<Integer> stream = Stream.of(0, 1);
+        assertThrows(IllegalArgumentException.class,
+                "iterable spliterator was not ORDERED",
+                () -> Seq.view((Iterable<Integer>) stream::iterator));
+        assertThat(Seq.view(Arrays.asList(0, 1)), contains(0, 1));
+    }
+
+    @Test
+    public void testOneSourceOperationsPropagateOrder() {
+        for (Supplier<Spliterator<?>> operation : oneSourceOperations(true)) {
+            assertOnlyOrdered(operation.get());
+        }
+        for (Supplier<Spliterator<?>> operation : oneSourceOperations(false)) {
+            assertFalse(operation.get().hasCharacteristics(ORDERED));
+        }
+    }
+
+    @Test
+    public void testFlatMapUsesOuterOrder() {
+        Spliterator<Integer> spliterator = Split.flatMap(
+                ordered(0, 1), ignored -> unordered(2, 3));
+        assertOnlyOrdered(spliterator);
+    }
+
+    @Test
+    public void testEmptyLimitLastUsesSourceOrder() {
+        assertTrue(Split.limitLast(ordered(0), 0)
+                .hasCharacteristics(ORDERED));
+        assertFalse(Split.limitLast(unordered(0), 0)
+                .hasCharacteristics(ORDERED));
+    }
+
+    @Test
+    public void testTwoSourceOperationsRequireBothSourcesToBeOrdered() {
+        assertOnlyOrdered(Split.zip(
+                ordered(0), ordered(1), Integer::sum));
+        assertFalse(Split.zip(
+                ordered(0), unordered(1), Integer::sum)
+                .hasCharacteristics(ORDERED));
+
+        assertOnlyOrdered(Split.union(ordered(0), ordered(1)));
+        assertFalse(Split.union(ordered(0), unordered(1))
+                .hasCharacteristics(ORDERED));
+    }
+
+    @Test
+    public void testOperationsThatEstablishOrder() {
+        assertOnlyOrdered(Split.range(0, 2));
+        assertOnlyOrdered(Split.indexesOf(unordered(0, 0), 0));
+        assertOnlyOrdered(Split.indexesOfSlice(
+                unordered(0, 0), unordered(0)));
+        assertOnlyOrdered(Split.permutations(new Object[]{0, 1}));
+        assertOnlyOrdered(Split.combinations(new Object[]{0, 1}, 1));
+        assertOnlyOrdered(Split.powerSet(new Object[]{0, 1}));
+
+        Spliterator<Integer> sorted = SeqStream.view(unordered(1, 0))
+                .sorted().spliterator();
+        assertTrue(sorted.hasCharacteristics(ORDERED | SIZED | SUBSIZED));
+    }
+
+    @Test
+    public void testUnorderedRemainsUnorderedThroughOrdinaryOperations() {
+        Spliterator<Integer> spliterator = SeqStream.of(0, 1)
+                .unordered()
+                .map(n -> n + 1)
+                .filter(n -> n > 0)
+                .spliterator();
+        assertFalse(spliterator.hasCharacteristics(ORDERED));
+
+        Spliterator<Integer> sortedSource = new TreeSet<>(
+                Arrays.asList(0, 1)).spliterator();
+        Spliterator<Integer> unordered = SeqStream.view(sortedSource)
+                .unordered().spliterator();
+        assertFalse(unordered.hasCharacteristics(
+                Spliterator.ORDERED | Spliterator.SORTED));
+    }
+
+    @Test
+    public void testNullActionIsRejectedWhenEmptyOrExhausted() {
+        Spliterator<Integer> empty = Split.filter(ordered(), n -> true);
+        assertThrows(NullPointerException.class,
+                () -> empty.tryAdvance((Consumer<Integer>) null));
+        assertThrows(NullPointerException.class,
+                () -> empty.forEachRemaining(null));
+
+        Spliterator<Integer> exhausted = Split.map(ordered(0), n -> n);
+        assertTrue(exhausted.tryAdvance(n -> {}));
+        assertThrows(NullPointerException.class,
+                () -> exhausted.tryAdvance((Consumer<Integer>) null));
+
+        Spliterator.OfInt emptyInts = Split.range(0, 0);
+        assertThrows(NullPointerException.class,
+                () -> emptyInts.tryAdvance((IntConsumer) null));
+    }
+
+    @Test
+    public void testOrderedSplitIsAPrefix() {
+        Integer[] elements = IntStream.range(0, 2000).boxed()
+                .toArray(Integer[]::new);
+        Spliterator<Integer> remainder = Split.map(
+                Arrays.spliterator(elements), n -> n);
+        Spliterator<Integer> prefix = remainder.trySplit();
+        if (prefix == null) fail("expected a prefix");
+
+        List<Integer> actual = new ArrayList<>();
+        prefix.forEachRemaining(actual::add);
+        assertThat(actual.size(), equalTo(1024));
+        remainder.forEachRemaining(actual::add);
+        assertThat(actual, contains(elements));
+    }
+
+    @Test
+    public void testReportedSizeIsNotTrustedForResults() {
+        assertThat(Split.count(lyingSized()), equalTo(3L));
+        assertThat(Seq.copy(lyingSized()), contains(0, 1, 2));
+    }
+
+    private static Spliterator<Integer> lyingSized() {
+        return new Spliterators.AbstractSpliterator<Integer>(
+                1, SIZED) {
+            private int next;
+            public boolean tryAdvance(Consumer<? super Integer> action) {
+                if (next == 3) return false;
+                action.accept(next++);
+                return true;
+            }
+        };
+    }
+
+    private static Iterable<Supplier<Spliterator<?>>> oneSourceOperations(
+            boolean ordered) {
+        Supplier<Spliterator<Integer>> source = ordered
+                ? () -> ordered(0, 1, 1)
+                : () -> unordered(0, 1, 1);
+        return Arrays.asList(
+                () -> Split.filter(source.get(), n -> true),
+                () -> Split.map(source.get(), n -> n),
+                () -> Split.mapMulti(source.get(), (n, sink) -> sink.accept(n)),
+                () -> Split.distinct(source.get()),
+                () -> Split.peek(source.get(), n -> {}),
+                () -> Split.takeWhile(source.get(), n -> true),
+                () -> Split.dropWhile(source.get(), n -> false),
+                () -> Split.limit(source.get(), 1),
+                () -> Split.skip(source.get(), 1),
+                () -> Split.slice(source.get(), 0, 1),
+                () -> Split.limitLast(source.get(), 1),
+                () -> Split.skipLast(source.get(), 1),
+                () -> Split.intersection(source.get(), ordered(0)),
+                () -> Split.difference(source.get(), ordered(2)),
+                () -> Split.flatten(Split.map(
+                        source.get(), SpliteratorTest::ordered)));
+    }
+
+    @SafeVarargs
+    private static <E> Spliterator<E> ordered(E... elements) {
+        return Spliterators.spliterator(elements, ORDERED);
+    }
+
+    @SafeVarargs
+    private static <E> Spliterator<E> unordered(E... elements) {
+        return Spliterators.spliterator(elements, 0);
+    }
+
+    private static void assertOnlyOrdered(Spliterator<?> spliterator) {
+        assertThat(spliterator.characteristics(), equalTo(ORDERED));
+    }
+}

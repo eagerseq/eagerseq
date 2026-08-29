@@ -236,7 +236,8 @@ public interface Seq<E> extends Collection<E> {
      * Unlike most {@code Seq} instances, the returned instance will not
      * support constant-time {@link #size()} or {@link #get(int)}.
      *
-     * <p>The argument must support repeated iteration,
+     * <p>The argument must support repeated iteration with the same encounter
+     * order, and its spliterator must report {@link Spliterator#ORDERED},
      * otherwise {@link #copy(Iterable)} should be used.
      */
     static <E> Seq<E> view(Iterable<? extends E> iterable) {
@@ -320,7 +321,10 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Returns a {@code Spliterator} over the elements of this {@code Seq}.
+     * Returns a {@code Spliterator} that reports {@link Spliterator#ORDERED}
+     * and has a stable encounter order. This order defines
+     * {@link #equals(Object)}, {@link #hashCode()} and other order-sensitive
+     * operations, and must not change in the absence of mutation.
      */
     Spliterator<E> spliterator();
 

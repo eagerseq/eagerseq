@@ -1077,6 +1077,7 @@ public class SeqTest {
     @Test
     public void testSpliterator() {
         Spliterator<String> spliterator = seqOf("the", "fox").spliterator();
+        assertTrue(spliterator.hasCharacteristics(Spliterator.ORDERED));
         assertTrue(spliterator.tryAdvance(s -> assertThat(s, equalTo("the"))));
         assertTrue(spliterator.tryAdvance(s -> assertThat(s, equalTo("fox"))));
         assertFalse(spliterator.tryAdvance(s -> {}));

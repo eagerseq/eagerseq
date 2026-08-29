@@ -1,7 +1,11 @@
 package org.bitbucket.seqly;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Spliterator;
+import java.util.Spliterators;
+
+import static java.util.Spliterator.ORDERED;
 
 /**
  * Creates a {@code Seq} from an array, once for each way the library offers
@@ -23,10 +27,17 @@ interface Factory {
                         return Seq.copy(Arrays.asList(elements));
                     }
                 }),
-                parameters("Seq#view(Iterable<E>)", new Factory() {
+                parameters("Seq#view(Iterable<E>) [non-SIZED]", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        // ::iterator makes iterable have non-SIZED spliterator
-                        return Seq.view(Arrays.asList(elements)::iterator);
+                        return Seq.view(new Iterable<E>() {
+                            public Iterator<E> iterator() {
+                                return Arrays.asList(elements).iterator();
+                            }
+                            public Spliterator<E> spliterator() {
+                                return Spliterators.spliteratorUnknownSize(
+                                        iterator(), ORDERED);
+                            }
+                        });
                     }
                 }),
                 parameters("Seq#copy(Iterator<E>)", new Factory() {

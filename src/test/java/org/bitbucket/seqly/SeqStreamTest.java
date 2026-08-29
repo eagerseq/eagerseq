@@ -206,8 +206,10 @@ public class SeqStreamTest {
 
     @Test
     public void testUnordered() {
-        SeqStream<Integer> stream = streamOf(0);
-        assertThat(stream.unordered(), sameInstance(stream));
+        Spliterator<Integer> spliterator = streamOf(0)
+                .unordered().spliterator();
+        assertFalse(spliterator.hasCharacteristics(Spliterator.ORDERED));
+        assertTrue(spliterator.tryAdvance(n -> assertThat(n, equalTo(0))));
     }
 
     @Test

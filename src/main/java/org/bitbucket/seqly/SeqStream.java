@@ -785,10 +785,10 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Returns {@code this}.
+     * Returns an equivalent unordered {@code SeqStream}.
      */
     default SeqStream<E> unordered() {
-        return this;
+        return view(Split.unordered(spliterator()));
     }
 
     /**
