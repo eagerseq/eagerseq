@@ -158,7 +158,7 @@ final class Split {
     static void checkSize(long size) {
         if (size < 0) {
             throw new IllegalArgumentException(
-                    "size must not be negative but was " + size);
+                    "size " + size + " was negative");
         }
     }
 
@@ -281,11 +281,17 @@ final class Split {
 
     static <E> E get(
             Spliterator<E> spliterator, int index) {
-        if (index < 0) throw new IndexOutOfBoundsException();
+        if (index < 0) {
+            throw new IndexOutOfBoundsException(
+                    "index " + index + " out of bounds");
+        }
         Box<E> next = new Box<>();
-        if (skip(spliterator, index)
-                .tryAdvance(next.assign)) return next.value;
-        throw new IndexOutOfBoundsException();
+        long length = 0;
+        while (spliterator.tryAdvance(next.assign)) {
+            if (length++ == index) return next.value;
+        }
+        throw new IndexOutOfBoundsException(
+                "index " + index + " out of bounds for length " + length);
     }
 
     static <E> Spliterator.OfInt indexesOf(
@@ -576,8 +582,11 @@ final class Split {
     }
 
     static <E> Spliterator<E[]> combinations(Object[] array, int size) {
-        if (size < 0 | size > array.length) {
-            throw new IllegalArgumentException();
+        checkSize(size);
+        if (size > array.length) {
+            throw new IllegalArgumentException(
+                    "size " + size + " was greater than length "
+                            + array.length);
         }
         return new AbstractSpliterator<E[]>(Long.MAX_VALUE, 0) {
             private int[] index = IntStream.range(0, size).toArray();

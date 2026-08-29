@@ -130,6 +130,19 @@ public class SeqTest {
         }
     }
 
+    public static void assertThrows(
+            Class<? extends RuntimeException> expected,
+            String message,
+            Runnable action) {
+        try {
+            action.run();
+            fail("expected " + expected.getSimpleName());
+        } catch (RuntimeException e) {
+            if (!expected.isInstance(e)) throw e;
+            assertThat(e.getMessage(), equalTo(message));
+        }
+    }
+
     private static Object[] parameters(String name, Factory factory) {
         return new Object[]{name, factory};
     }
@@ -523,8 +536,12 @@ public class SeqTest {
         assertThat(seqOf(4, 2).combinations(0), contains(seqOf()));
         assertThat(seqOf(4, 2).combinations(1), contains(seqOf(4), seqOf(2)));
         assertThat(seqOf(4, 2).combinations(2), contains(seqOf(4, 2)));
-        assertThrows(() -> seqOf(4, 2).combinations(-1));
-        assertThrows(() -> seqOf(4, 2).combinations(3));
+        assertThrows(IllegalArgumentException.class,
+                "size -1 was negative",
+                () -> seqOf(4, 2).combinations(-1));
+        assertThrows(IllegalArgumentException.class,
+                "size 3 was greater than length 2",
+                () -> seqOf(4, 2).combinations(3));
         assertThat(seqOf(0, 1, 2, 3, 4).combinations(2).size(), equalTo(10));
         seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
                 assertThat(p, hasSize(3)));
@@ -643,8 +660,10 @@ public class SeqTest {
     public void testGet() {
         assertThat(seqOf(0, 1, 2).get(2), equalTo(2));
         assertThat(seqOf(0, null, 2).get(1), equalTo(null));
-        assertThrows(() -> seqOf(0, 1, 2).get(-1));
-        assertThrows(() -> seqOf(0, 1, 2).get(3));
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> seqOf(0, 1, 2).get(-1));
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> seqOf(0, 1, 2).get(3));
     }
 
     @Test

@@ -64,11 +64,6 @@ from the data instead.
   at `Split.toArray(Spliterator, IntFunction)` stays, since its `A` and
   `E` are unrelated. Cost: `Consumer.andThen` joins the surface returning
   `Consumer<E>`, not `Builder<E>`.
-- **Exceptions carry no messages.** `combinations` out of range, `Split.get`'s
-  index, and `SeqBuilder.nextLength` *throwing* `OutOfMemoryError`. These are
-  the library's main failure mode and messages are nearly free. The negative
-  `size` arguments now name the offending value, via `Split.checkSize`, which
-  is the shape the rest should follow.
 - **Consider dropping the `view` factories altogether**, or failing that,
   narrowing `view(Iterable)` to `view(Collection)`. Both hand out a `Seq` that
   its own `Collection` contract cannot honour. `view(Iterable)` accepts a
@@ -93,6 +88,33 @@ from the data instead.
   against a compliant `Seq`. Caller error, as with `List`/`Set` — but unlike
   them a single method reference reaches it by accident, so it is worth a
   javadoc sentence.
+- **`combinations(int size)` takes a size but `permutations()` does not.**
+  Consider a `permutations(int size)` overload, i.e. k-permutations.
+- **`slice`'s indexing errors probably need updating.** Its exception type and
+  messages do not line up with `List.subList` or with `Seq.get`, and a negative
+  `from` and a negative `to` are indistinguishable. Audit the other
+  index-taking methods at the same time.
+- **The unsupported operations throw bare `UnsupportedOperationException`.**
+  The seven inherited `Collection` mutators on `Seq` (`add`, `remove`,
+  `addAll`, `removeAll`, `removeIf`, `retainAll`, `clear`) plus
+  `SeqStream.onClose`, all message-less. Unlike the other failures the
+  mutators are reached through a `Collection`- or `List`-typed reference,
+  where the stack trace names `add` but nothing says the receiver is a `Seq`
+  and immutable by design. Whether a message is the right answer is undecided:
+  the exception type is arguably self-explanatory, and seven near-identical
+  strings are their own kind of noise. The javadoc already says it.
+- **`Box` is used only in the eager helpers, not in the spliterators.** The
+  eager statics (`get`, `reduce`, `find*` and neighbours) take a local
+  `Box<E>` and reuse its single `assign` consumer. Every anonymous
+  `AbstractSpliterator` instead declares a `private E next` field and writes
+  `spliterator.tryAdvance(e -> next = e)` — about a dozen sites, including
+  `indexesOf`, `limitLast`, `skipLast`, `limit`, `skip`, `filter` and
+  `zip`. That lambda captures `this`, so it is a fresh allocation on every
+  `tryAdvance`, i.e. once per element on the hot path, where `Box.assign` is
+  allocated once. Escape analysis often erases it, but not reliably. Swapping
+  the field for a `Box<E>` field (or just caching the consumer next to the
+  existing field) removes the difference and makes one pattern serve both
+  halves of the file. Non-exhaustive list; grep `e -> next = e` for the rest.
 
 ## API gaps
 
@@ -110,6 +132,9 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 - **`min()`/`max()` natural-order overloads**, as `sorted()` already has.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
 - **Factories** — `rangeClosed`, `repeat(e, n)`, bounded `iterate`.
+- **Positional copy-modify** — `updated(i, e)` and friends, the immutable
+  answer to the `List` mutators `Seq` inherits only to throw, currently
+  spelled `slice`/`sum`; Scala has `updated`/`patch`, but undecided.
 
 ## Test depth
 
@@ -123,6 +148,10 @@ neither is patched locally.
   `combinations`, `powerSet` and the set operations is the same shape of risk.
   A single test comparing each against a naive reference over all small
   lengths and arguments would cover more than any amount of case-picking.
+- **No test uses an infinite source.** `testGet` covers only finite ones, so
+  neither `Split.get`'s hang on a negative index nor `ArraySeq.get` bypassing
+  `Split.get` entirely was visible to it. `SeqStream` operations should be
+  exercised against `Stream.iterate`, under `@Test(timeout = ...)`.
 - **Laziness is never asserted.** `SeqStream`'s intermediate operations are
   lazy by design and no test says so for any of them. Nothing would catch an
   operation that drained its source on construction, or drained it twice, as

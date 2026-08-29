@@ -254,6 +254,12 @@ public class SeqStreamTest {
                 streamOf(0, 1, 2).flatMapToDouble(DoubleStream::of).toArray(), 1e-12);
     }
 
+    @Test(timeout = 5000)
+    public void testGetRejectsNegativeIndexWithoutTraversing() {
+        assertThrows(IndexOutOfBoundsException.class, () ->
+                SeqStream.view(Stream.iterate(0, i -> i + 1)).get(-1));
+    }
+
     @Test
     public void testNextLength() {
         assertThat(SeqBuilder.nextLength(Integer.MAX_VALUE / 4 * 3),
@@ -262,6 +268,8 @@ public class SeqStreamTest {
             SeqBuilder.nextLength(Integer.MAX_VALUE - 4);
             fail("expected OutOfMemoryError");
         } catch (OutOfMemoryError expected) {
+            assertThat(expected.getMessage(),
+                    equalTo("Seq size exceeds the maximum array length"));
         }
     }
 
@@ -274,7 +282,7 @@ public class SeqStreamTest {
             fail("expected IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage(),
-                    equalTo("size must not be negative but was -1"));
+                    equalTo("size -1 was negative"));
         }
     }
 

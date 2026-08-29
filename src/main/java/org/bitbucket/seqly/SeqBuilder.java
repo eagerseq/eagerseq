@@ -28,7 +28,8 @@ final class SeqBuilder<E> implements Seq.Builder<E> {
     static int nextLength(int length) {
         if (length < CONFINED_LENGTH) return length * 2 + 4;
         if (length < MAX_LENGTH) return MAX_LENGTH;
-        throw new OutOfMemoryError();
+        throw new OutOfMemoryError(
+                "Seq size exceeds the maximum array length");
     }
 
     static <A> A[] arrayCopy(
