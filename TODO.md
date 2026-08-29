@@ -89,11 +89,20 @@ from the data instead.
   them a single method reference reaches it by accident, so it is worth a
   javadoc sentence.
 - **`combinations(int size)` takes a size but `permutations()` does not.**
-  Consider a `permutations(int size)` overload, i.e. k-permutations.
-- **`slice`'s indexing errors probably need updating.** Its exception type and
-  messages do not line up with `List.subList` or with `Seq.get`, and a negative
-  `from` and a negative `to` are indistinguishable. Audit the other
-  index-taking methods at the same time.
+  Consider a `permutations(int size)` overload, i.e. k-permutations. If it
+  lands, rename the parameter to `k` in both — the shared domain term, where
+  `combinationSize`/`permutationSize` would stutter against the method names.
+  Either way the hand-written range message reads better as `cannot choose 3
+  from 2 elements` than as `size 3 was greater than length 2`, which reaches
+  for *length* only because the parameter took the word *size*.
+- **`combinations` is the one count that throws rather than clamps** when the
+  argument exceeds the data, where `limit`, `skip`, `limitLast` and `skipLast`
+  all return what is present. Guava's `Sets.combinations` throws too, so this
+  is defensible, but it should be a decision rather than an accident.
+- **Three overflow policies for one concept.** `count()` returns `long`,
+  `size()` clamps to `Integer.MAX_VALUE` per the `Collection` javadoc, and
+  `indexes()` throws from `Math.toIntExact`. Each is individually justified;
+  worth stating in one place rather than discovering one at a time.
 - **The unsupported operations throw bare `UnsupportedOperationException`.**
   The seven inherited `Collection` mutators on `Seq` (`add`, `remove`,
   `addAll`, `removeAll`, `removeIf`, `retainAll`, `clear`) plus
@@ -115,6 +124,40 @@ from the data instead.
   the field for a `Box<E>` field (or just caching the consumer next to the
   existing field) removes the difference and makes one pattern serve both
   halves of the file. Non-exhaustive list; grep `e -> next = e` for the rest.
+
+## Settled: index and count conventions
+
+Decided while fixing `slice`, and worth applying to anything new that takes a
+number (`chunked`, `windowed`, `rangeClosed`, `repeat(e, n)`, a `permutations`
+overload).
+
+- **`int` unless the JDK forces `long`.** `count`, `limit` and `skip` are
+  forced by `Stream`; `limitLast`/`skipLast` match them in case the JDK ever
+  adds them. Everything else is `int`, since `Seq` is a `Collection` and
+  cannot exceed `Integer.MAX_VALUE` anyway. `slice` was briefly widened and
+  reverted: `indexOfSlice` returns the `int` that `slice` consumes
+  (`a.slice(i, i + b.size())`), and that pairing cannot move because
+  `indexOf` returning `int` is `List` parity.
+- **Indexes throw `IndexOutOfBoundsException`, counts throw
+  `IllegalArgumentException`**, and `limit`/`skip` are counts because `Stream`
+  says so. Same seam as the width rule, so one fact about the JDK boundary
+  predicts both. `Split.requireNonNegativeIndex` and
+  `requireNonNegativeArgument` are the two entry points.
+- **Clamp at the top, throw at the bottom.** Not the arbitrary mix it looks
+  like: the lower bound is knowable at the call, the upper bound is not
+  knowable until the source is exhausted, so the ends differ in what the
+  operation can check when. A strict upper bound would have to be checked
+  lazily on `SeqStream`, which makes it conditional on the downstream
+  terminal — `slice(2, 10).findFirst()` would succeed where
+  `slice(2, 10).toList()` throws. Scala's lazy `slice` clamps; Kotlin's strict
+  `slice` exists only on sized types, with clamping `take`/`drop` on
+  `Sequence`. Lazy and strict is the combination nobody ships. (Those two
+  precedents are from memory and unverified.)
+
+What clamping costs, for the record: `indexesOfSlice(slice(from, to))` still
+always finds a match, but it is not necessarily at `from` — the invariant is
+"the result is a genuine slice of this `Seq`", not "the slice at `from`",
+which is where it is weaker than `get`.
 
 ## API gaps
 

@@ -169,8 +169,8 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().reversed().toSeq();
     }
 
-    default Seq<E> rotated(int size) {
-        return stream().rotated(size).toSeq();
+    default Seq<E> rotated(int distance) {
+        return stream().rotated(distance).toSeq();
     }
 
     default Seq<E> shuffled(Random random) {

@@ -310,8 +310,8 @@ public interface SeqStream<E> extends Stream<E> {
     /**
      * Stream equivalent of {@link Seq#rotated(int)}.
      */
-    default SeqStream<E> rotated(int size) {
-        return Split.toSeqStream(Split.rotated(spliterator(), size));
+    default SeqStream<E> rotated(int distance) {
+        return Split.toSeqStream(Split.rotated(spliterator(), distance));
     }
 
     /**

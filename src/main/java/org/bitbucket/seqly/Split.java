@@ -155,13 +155,6 @@ final class Split {
         return Collections.unmodifiableMap(map);
     }
 
-    static void checkSize(long size) {
-        if (size < 0) {
-            throw new IllegalArgumentException(
-                    "size " + size + " was negative");
-        }
-    }
-
     static <E> E[] reversed(Spliterator<E> spliterator) {
         @SuppressWarnings("unchecked")
         E[] array = (E[]) toArray(spliterator);
@@ -169,10 +162,10 @@ final class Split {
         return array;
     }
 
-    static <E> E[] rotated(Spliterator<E> spliterator, int size) {
+    static <E> E[] rotated(Spliterator<E> spliterator, int distance) {
         @SuppressWarnings("unchecked")
         E[] array = (E[]) toArray(spliterator);
-        Collections.rotate(Arrays.asList(array), size);
+        Collections.rotate(Arrays.asList(array), distance);
         return array;
     }
 
@@ -281,17 +274,15 @@ final class Split {
 
     static <E> E get(
             Spliterator<E> spliterator, int index) {
-        if (index < 0) {
-            throw new IndexOutOfBoundsException(
-                    "index " + index + " out of bounds");
-        }
+        // checked before traversing, since a negative index has no length to
+        // report and the source may not be finite
+        requireNonNegativeIndex("index", index);
         Box<E> next = new Box<>();
         long length = 0;
         while (spliterator.tryAdvance(next.assign)) {
             if (length++ == index) return next.value;
         }
-        throw new IndexOutOfBoundsException(
-                "index " + index + " out of bounds for length " + length);
+        throw indexOutOfBounds("index", index, length);
     }
 
     static <E> Spliterator.OfInt indexesOf(
@@ -358,12 +349,13 @@ final class Split {
     }
 
     static Spliterator.OfInt indexes(Spliterator<?> spliterator) {
+        // throwing is acceptable in this rare case of overflow
         return range(0, Math.toIntExact(count(spliterator)));
     }
 
     static <E> Spliterator<E> limitLast(
             Spliterator<E> spliterator, long size) {
-        checkSize(size);
+        requireNonNegativeArgument("size", size);
         if (size == 0) return emptySpliterator();
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
@@ -406,7 +398,7 @@ final class Split {
 
     static <E> Spliterator<E> skipLast(
             Spliterator<E> spliterator, long size) {
-        checkSize(size);
+        requireNonNegativeArgument("size", size);
         if (size == 0) return spliterator;
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
@@ -582,7 +574,7 @@ final class Split {
     }
 
     static <E> Spliterator<E[]> combinations(Object[] array, int size) {
-        checkSize(size);
+        requireNonNegativeArgument("size", size);
         if (size > array.length) {
             throw new IllegalArgumentException(
                     "size " + size + " was greater than length "
@@ -699,7 +691,7 @@ final class Split {
 
     static <E> Spliterator<E> limit(
             Spliterator<E> spliterator, long size) {
-        checkSize(size);
+        requireNonNegativeArgument("size", size);
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
             private long index;
@@ -717,7 +709,7 @@ final class Split {
 
     static <E> Spliterator<E> skip(
             Spliterator<E> spliterator, long size) {
-        checkSize(size);
+        requireNonNegativeArgument("size", size);
         return new AbstractSpliterator<E>(Long.MAX_VALUE, 0) {
             private E next;
             private long index;
@@ -734,7 +726,11 @@ final class Split {
     }
 
     static <E> Spliterator<E> slice(
-            Spliterator<E> spliterator, long from, long to) {
+            Spliterator<E> spliterator, int from, int to) {
+        // as indexes, and here rather than in limit and skip so that from is
+        // reported before to; an index beyond the end still clamps
+        requireNonNegativeIndex("from", from);
+        requireNonNegativeIndex("to", to);
         return skip(limit(spliterator, to), from);
     }
 
@@ -835,6 +831,26 @@ final class Split {
         StringJoiner joiner = new StringJoiner(delimiter, prefix, suffix);
         spliterator.forEachRemaining(e -> joiner.add(String.valueOf(e)));
         return joiner.toString();
+    }
+
+    static void requireNonNegativeArgument(String name, long value) {
+        if (value < 0) {
+            throw new IllegalArgumentException(
+                    name + " " + value + " was negative");
+        }
+    }
+
+    static void requireNonNegativeIndex(String name, int value) {
+        if (value < 0) {
+            throw new IndexOutOfBoundsException(
+                    name + " " + value + " was negative");
+        }
+    }
+
+    static IndexOutOfBoundsException indexOutOfBounds(
+            String name, int index, long length) {
+        return new IndexOutOfBoundsException(
+                name + " " + index + " out of bounds for length " + length);
     }
 
     private static Spliterator.OfInt matchLengths(

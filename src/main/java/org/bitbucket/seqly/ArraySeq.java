@@ -20,6 +20,11 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
     }
 
     public E get(int index) {
+        // explicit checks for exception symmetry with Split.get
+        Split.requireNonNegativeIndex("index", index);
+        if (index >= array.length) {
+            throw Split.indexOutOfBounds("index", index, array.length);
+        }
         return array[index];
     }
 

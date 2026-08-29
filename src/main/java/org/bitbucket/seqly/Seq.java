@@ -579,7 +579,9 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns those consecutive elements whose indexes
      * are from the first argument (inclusive) to the second (exclusive).
-     * Throws only if either argument is negative. Is not a view.
+     * Throws only if either argument is negative.
+     * Returns the same elements as {@code limit(to).skip(from)} otherwise.
+     * Is not a view.
      */
     default Seq<E> slice(int from, int to) {
         return copy(Split.slice(spliterator(), from, to));
@@ -646,9 +648,8 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Return the element at the given index, or throws
-     * {@code IndexOutOfBoundsException}
-     * if the index is not between zero and the size of this {@code Seq}.
+     * Return the element at the given index if within bounds,
+     * or throws {@code IndexOutOfBoundsException} otherwise.
      */
     default E get(int index) {
         return Split.get(spliterator(), index);
@@ -689,8 +690,8 @@ public interface Seq<E> extends Collection<E> {
      * Returns a new {@code Seq} with elements rotated according to
      * {@link Collections#rotate(List, int)}.
      */
-    default Seq<E> rotated(int size) {
-        return view(Split.rotated(spliterator(), size));
+    default Seq<E> rotated(int distance) {
+        return view(Split.rotated(spliterator(), distance));
     }
 
     /**

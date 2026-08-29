@@ -578,8 +578,23 @@ public class SeqTest {
         assertThat(seqOf(0, 1, null, 3).slice(1, 3), contains(1, null));
         assertThat(seqOf(0, 1, null, 3).slice(3, 1), empty());
         assertThat(seqOf(0, 1, null, 3).slice(1, 5), contains(1, null, 3));
-        assertThrows(() -> seqOf(0, 1, null, 3).slice(-1, 3));
-        assertThrows(() -> seqOf(0, 1, null, 3).slice(1, -1));
+        assertThat(seqOf(0, 1, null, 3).slice(5, 9), empty());
+        // an index past the end clamps, as limit and skip do, so only a
+        // negative index is out of bounds, and from is reported before to
+        assertThrows(IndexOutOfBoundsException.class,
+                "from -1 was negative",
+                () -> seqOf(0, 1, null, 3).slice(-1, 3));
+        assertThrows(IndexOutOfBoundsException.class,
+                "to -1 was negative",
+                () -> seqOf(0, 1, null, 3).slice(1, -1));
+        assertThrows(IndexOutOfBoundsException.class,
+                "from -1 was negative",
+                () -> seqOf(0, 1, null, 3).slice(-1, -2));
+        assertThat(seqOf(0, 1, null, 3).slice(0, Integer.MAX_VALUE),
+                contains(0, 1, null, 3));
+        assertThat(seqOf(0, 1, null, 3)
+                        .slice(Integer.MAX_VALUE, Integer.MAX_VALUE),
+                empty());
         Integer[] array = {0, 1};
         Seq<Integer> slice = seqOf(array).slice(0, 2);
         array[0] = 4;
@@ -660,10 +675,17 @@ public class SeqTest {
     public void testGet() {
         assertThat(seqOf(0, 1, 2).get(2), equalTo(2));
         assertThat(seqOf(0, null, 2).get(1), equalTo(null));
+        // every implementation reports the same way, including ArraySeq,
+        // which would otherwise let the array throw its own exception
         assertThrows(IndexOutOfBoundsException.class,
+                "index -1 was negative",
                 () -> seqOf(0, 1, 2).get(-1));
         assertThrows(IndexOutOfBoundsException.class,
+                "index 3 out of bounds for length 3",
                 () -> seqOf(0, 1, 2).get(3));
+        assertThrows(IndexOutOfBoundsException.class,
+                "index 0 out of bounds for length 0",
+                () -> seqOf().get(0));
     }
 
     @Test

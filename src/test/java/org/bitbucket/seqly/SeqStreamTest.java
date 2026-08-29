@@ -274,15 +274,41 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testCheckSize() {
-        Split.checkSize(0);
-        Split.checkSize(Long.MAX_VALUE);
+    public void testRequireNonNegativeArgument() {
+        Split.requireNonNegativeArgument("size", 0);
+        Split.requireNonNegativeArgument("size", Long.MAX_VALUE);
         try {
-            Split.checkSize(-1);
+            Split.requireNonNegativeArgument("size", -1);
             fail("expected IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage(),
                     equalTo("size -1 was negative"));
+        }
+        try {
+            Split.requireNonNegativeArgument("size", Long.MIN_VALUE);
+            fail("expected IllegalArgumentException");
+        } catch (IllegalArgumentException expected) {
+            assertThat(expected.getMessage(),
+                    equalTo("size -9223372036854775808 was negative"));
+        }
+    }
+
+    @Test
+    public void testRequireNonNegativeIndex() {
+        Split.requireNonNegativeIndex("from", 0);
+        Split.requireNonNegativeIndex("from", Integer.MAX_VALUE);
+        try {
+            Split.requireNonNegativeIndex("from", -1);
+            fail("expected IndexOutOfBoundsException");
+        } catch (IndexOutOfBoundsException expected) {
+            assertThat(expected.getMessage(), equalTo("from -1 was negative"));
+        }
+        try {
+            Split.requireNonNegativeIndex("from", Integer.MIN_VALUE);
+            fail("expected IndexOutOfBoundsException");
+        } catch (IndexOutOfBoundsException expected) {
+            assertThat(expected.getMessage(),
+                    equalTo("from -2147483648 was negative"));
         }
     }
 
