@@ -101,8 +101,9 @@ does not delegate `count()`: `Collection.size()` clamps above
   is defensible, but it should be a decision rather than an accident.
 - **Three overflow policies for one concept.** `count()` returns `long`,
   `size()` clamps to `Integer.MAX_VALUE` per the `Collection` javadoc, and
-  `indexes()` throws from `Math.toIntExact`. Each is individually justified;
-  worth stating in one place rather than discovering one at a time.
+  `indexes()` throws when an index cannot be represented as an `int`. Each is
+  individually justified; worth stating in one place rather than discovering
+  one at a time.
 - **The unsupported operations throw bare `UnsupportedOperationException`.**
   The seven inherited `Collection` mutators on `Seq` (`add`, `remove`,
   `addAll`, `removeAll`, `removeIf`, `retainAll`, `clear`) plus
@@ -175,14 +176,15 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
   Want `sum(ToIntFunction)`, `average`, or `mapToInt` on `Seq` itself.
 - **`min()`/`max()` natural-order overloads**, as `sorted()` already has.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
-- **Factories** — consider `SeqStream.builder()`, `repeat(e, n)`, both JDK
-  `iterate` forms, `generate`, `rangeClosed`, and `long` versions of `range`
+- **Factories** — consider `SeqStream.builder()`, `repeat(e, n)`, the bounded
+  JDK `iterate` form, `generate`, `rangeClosed`, and `long` versions of `range`
   and `rangeClosed`. Value-producing factories should generally be symmetrical
   between `Seq` and `SeqStream`, unless their semantics give a specific reason
   not to be. Which potentially non-terminating factories belong on eager `Seq`
   is TBD; so is a bounded `generate(supplier, n)`. The `copyOf`/`viewOf`
   conversion factories need not be symmetrical because ownership and one-pass
-  sources differ between the two types.
+  sources differ between the two types. Unbounded `iterate` exists only on
+  `SeqStream`, since eager `Seq` cannot contain its result.
 - **Positional copy-modify** — `updated(i, e)` and friends, the immutable
   answer to the `List` mutators `Seq` inherits only to throw, currently
   spelled `slice`/`sum`; Scala has `updated`/`patch`, but undecided.
@@ -208,14 +210,11 @@ neither remaining one is patched locally.
   `rotated` are checked, but both they and the reference delegate to
   `Collections`, so those two prove only the array round-trip.
 
-- **No test uses an infinite source.** `testGet` covers only finite ones, so
-  neither `Split.get`'s hang on a negative index nor `ArraySeq.get` bypassing
-  `Split.get` entirely was visible to it. `SeqStream` operations should be
-  exercised against `Stream.iterate`, under `@Test(timeout = ...)`.
-- **Laziness is never asserted.** `SeqStream`'s intermediate operations are
-  lazy by design and no test says so for any of them. Nothing would catch an
-  operation that drained its source on construction, or drained it twice, as
-  long as the elements came out right. `peek` with a counter is enough.
+- **Infinite-source and laziness coverage is in place.** `SeqStreamTest` uses
+  `SeqStream.iterate` under `@Test(timeout = ...)` for prompt validation,
+  finite-prefix intermediate operations and short-circuiting terminals. A
+  `peek` counter verifies that a representative intermediate pipeline consumes
+  nothing on construction and only the required source elements on traversal.
 
 ## Docs and build
 

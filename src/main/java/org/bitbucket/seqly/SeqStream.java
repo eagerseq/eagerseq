@@ -22,6 +22,7 @@ import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collector;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -103,6 +104,16 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static SeqStream<Integer> range(int from, int to) {
         return viewOf(Split.range(from, to));
+    }
+
+    /**
+     * Returns an infinite ordered {@code SeqStream} produced by repeatedly
+     * applying {@code operator} to {@code seed}. The first element is
+     * {@code seed}, the second is {@code operator.apply(seed)}, and so on.
+     */
+    static <E> SeqStream<E> iterate(
+            E seed, UnaryOperator<E> operator) {
+        return viewOf(Split.iterate(seed, operator));
     }
 
     /**

@@ -138,6 +138,27 @@ public class SeqStreamTest {
         assertTrue(SeqStream.range(-12, -10).listEquals(streamOf(-12, -11)));
     }
 
+    @Test(timeout = 5000)
+    public void testIterate() {
+        Spliterator<Integer> spliterator =
+                SeqStream.iterate(0, n -> n + 1).spliterator();
+        assertTrue(spliterator.hasCharacteristics(Spliterator.ORDERED));
+        assertFalse(spliterator.hasCharacteristics(Spliterator.SIZED));
+
+        int[] applications = new int[1];
+        assertThat(SeqStream.iterate(1, n -> {
+                    applications[0]++;
+                    return n * 2;
+                }).limit(4).toSeq(),
+                equalTo(Seq.of(1, 2, 4, 8)));
+        assertThat(applications[0], equalTo(3));
+
+        assertThat(SeqStream.iterate(null, ignored -> "next")
+                        .limit(3).toSeq(),
+                equalTo(Seq.of(null, "next", "next")));
+        assertThrows(() -> SeqStream.iterate(0, null));
+    }
+
     @Test
     public void testConcat() {
         assertTrue(SeqStream.concat().isEmpty());
@@ -261,7 +282,57 @@ public class SeqStreamTest {
     @Test(timeout = 5000)
     public void testGetRejectsNegativeIndexWithoutTraversing() {
         assertThrows(IndexOutOfBoundsException.class, () ->
-                SeqStream.viewOf(Stream.iterate(0, i -> i + 1)).get(-1));
+                SeqStream.iterate(0, i -> i + 1).get(-1));
+    }
+
+    @Test(timeout = 5000)
+    public void testInfiniteSourceSupportsFinitePrefixOperations() {
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                        .slice(3, 6).toSeq(),
+                equalTo(Seq.of(3, 4, 5)));
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                        .indexes().limit(4).toSeq(),
+                equalTo(Seq.of(0, 1, 2, 3)));
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                        .skipLast(2).limit(3).toSeq(),
+                equalTo(Seq.of(0, 1, 2)));
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                        .takeWhile(i -> i < 3).toSeq(),
+                equalTo(Seq.of(0, 1, 2)));
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                        .dropWhile(i -> i < 3).limit(3).toSeq(),
+                equalTo(Seq.of(3, 4, 5)));
+    }
+
+    @Test(timeout = 5000)
+    public void testInfiniteSourceSupportsShortCircuitingTerminals() {
+        assertThat(SeqStream.iterate(0, i -> i + 1).get(5), equalTo(5));
+        assertThat(SeqStream.iterate(0, i -> i + 1).indexOf(5), equalTo(5));
+        assertTrue(SeqStream.iterate(0, i -> i + 1).contains(5));
+        assertTrue(SeqStream.iterate(0, i -> i + 1).anyMatch(i -> i == 5));
+        assertFalse(SeqStream.iterate(0, i -> i + 1).allMatch(i -> i < 5));
+        assertFalse(SeqStream.iterate(0, i -> i + 1).noneMatch(i -> i == 5));
+        assertTrue(SeqStream.iterate(0, i -> i + 1)
+                .startsWith(streamOf(0, 1, 2)));
+        assertTrue(SeqStream.iterate(0, i -> i + 1)
+                .containsSlice(streamOf(4, 5, 6)));
+    }
+
+    @Test(timeout = 5000)
+    public void testIntermediateOperationsAreLazy() {
+        int[] traversed = new int[1];
+        SeqStream<Integer> result = SeqStream.iterate(0, i -> i + 1)
+                .peek(i -> traversed[0]++)
+                .filter(i -> i % 2 == 0)
+                .map(i -> i + 1)
+                .flatMap(i -> SeqStream.of(i, i))
+                .distinct()
+                .skip(1)
+                .limit(3);
+
+        assertThat(traversed[0], equalTo(0));
+        assertThat(result.toSeq(), equalTo(Seq.of(3, 5, 7)));
+        assertThat(traversed[0], equalTo(7));
     }
 
     @Test

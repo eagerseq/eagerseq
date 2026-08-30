@@ -31,6 +31,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collector;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -394,9 +395,31 @@ final class Split {
         };
     }
 
+    static <E> Spliterator<E> iterate(
+            E seed, UnaryOperator<E> operator) {
+        requireNonNull(operator);
+        return new UnknownSizeSpliterator<E>(ORDERED) {
+            private E next = seed;
+            private boolean started;
+            boolean advance(Consumer<? super E> action) {
+                if (started) next = operator.apply(next);
+                else started = true;
+                action.accept(next);
+                return true;
+            }
+        };
+    }
+
     static Spliterator.OfInt indexes(Spliterator<?> spliterator) {
-        // throwing is acceptable in this rare case of overflow
-        return range(0, Math.toIntExact(count(spliterator)));
+        return new UnknownSizeIntSpliterator(ORDERED) {
+            private long index;
+            boolean advance(IntConsumer action) {
+                if (!spliterator.tryAdvance(e -> {})) return false;
+                // throwing is acceptable in this rare case of overflow
+                action.accept(Math.toIntExact(index++));
+                return true;
+            }
+        };
     }
 
     static <E> Spliterator<E> limitLast(
