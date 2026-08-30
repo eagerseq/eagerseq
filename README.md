@@ -113,6 +113,8 @@ such that two `Seq`s are equal only if they have the same elements
 in the same order. This is like `List`, though a `Seq`
 is never equal to a `List` and vice versa, as required by
 `List.equals()`.
+Custom implementations should extend `AbstractSeq` rather than
+implement `Seq` directly, so they inherit these value semantics.
 The methods `listEquals()`, `setEquals()` and
 `multisetEquals()` may be used for other definitions of equality
 and do not depend on the subtype of the given `Iterable`.

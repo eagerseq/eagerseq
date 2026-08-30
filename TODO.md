@@ -88,12 +88,6 @@ does not delegate `count()`: `Collection.size()` clamps above
   at `Split.toArray(Spliterator, IntFunction)` stays, since its `A` and
   `E` are unrelated. Cost: `Consumer.andThen` joins the surface returning
   `Consumer<E>`, not `Builder<E>`.
-- **Document `AbstractSeq` as the extension point.** `Seq`'s only abstract
-  method is `spliterator()`, so `Seq<E> s = list::spliterator` compiles and
-  gets identity `equals`/`hashCode`/`toString`, making equality asymmetric
-  against a compliant `Seq`. Caller error, as with `List`/`Set` — but unlike
-  them a single method reference reaches it by accident, so it is worth a
-  javadoc sentence.
 - **`combinations(int size)` takes a size but `permutations()` does not.**
   Consider a `permutations(int size)` overload, i.e. k-permutations. If it
   lands, rename the parameter to `k` in both — the shared domain term, where
@@ -233,16 +227,7 @@ neither remaining one is patched locally.
   some of the API gaps above filled before it can be emphasized honestly.
   Move installation instructions toward the end, after the overview and API
   motivation.
-- **No CI.** A GitHub Actions matrix (8/11/17/21/25) would make the existing
-  guards real: `testStreamMethodsAbsentFromSeqAreOnlyTheKnownExceptions`
-  catches `Stream` methods added by later JDKs only if it runs, and JaCoCo
-  reports coverage but gates nothing.
-  Low urgency: `mvn verify` on 25 passes clean today (1553 tests, both
-  reflection guards green — `gather` is already exempt), and development
-  happens on 25, so the matrix is a ratchet against future JDKs rather than a
-  hunt for present failures. `release=8` also means every row compiles
-  against the same JDK 8 API, so the rows carrying new information are 8 and
-  11, not the new ones. Unchased: test compilation warns that `SeqTest` uses
-  a deprecated API, with no detail without `-Xlint:deprecation`.
-- **`SeqStream.indexOfSlice` javadoc links to `Seq#indexesOfSlice`** — the
-  singular `Seq#indexOfSlice` is meant.
+- **JaCoCo reports coverage but gates nothing.** Decide whether a coverage
+  threshold would catch useful regressions or merely create maintenance work.
+- **Test compilation warns about a deprecated API**, with no detail without
+  `-Xlint:deprecation`.

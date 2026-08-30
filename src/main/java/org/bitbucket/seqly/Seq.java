@@ -124,6 +124,8 @@ import static java.util.Objects.requireNonNull;
  * in the same order. This is like {@code List}, though a {@code Seq}
  * is never equal to a {@code List} and vice versa, as required by
  * {@code List.equals()}.
+ * Custom implementations should extend {@link AbstractSeq} rather than
+ * implement {@code Seq} directly, so they inherit these value semantics.
  * The methods {@code listEquals()}, {@code setEquals()} and
  * {@code multisetEquals()} may be used for other definitions of equality
  * and do not depend on the subtype of the given {@code Iterable}.
