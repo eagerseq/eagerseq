@@ -67,19 +67,21 @@ import static java.util.Objects.requireNonNull;
  * factory methods and returned by {@code map}, {@code filter}, etc)
  * support constant-time indexing ({@code get} and {@code size})
  * and are backed by an array.
- * Only {@code Seq.view(Iterable)} in this library and any user-defined
- * subclasses use the default linear-time implementations (if not overridden).
+ * Only {@code Seq.viewOf(Collection)} in this library and any user-defined
+ * subclasses use the default linear-time {@code get} implementation (if not
+ * overridden). A collection view delegates {@code size} and {@code isEmpty}
+ * to its backing collection.
  *
  * <h2>Collections</h2>
  *
  * <p>Factory methods convert from existing types.
  *
  * <pre>{@code
- *     Seq.copy(new Integer[]{4, 5});
- *     Seq.copy(Optional.of(6));
- *     Seq.view(List.of(7, 8));
- *     Seq.copy(List.of(9, 10).iterator());
- *     Seq.copy(Stream.of(11, 12, 13));
+ *     Seq.copyOf(new Integer[]{4, 5});
+ *     Seq.copyOf(Optional.of(6));
+ *     Seq.viewOf(List.of(7, 8));
+ *     Seq.copyOf(List.of(9, 10).iterator());
+ *     Seq.copyOf(Stream.of(11, 12, 13));
  * }</pre>
  *
  * <p>Other methods convert to existing types.
@@ -209,7 +211,7 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns a {@code Seq} containing the given elements.
      */
-    static <E> Seq<E> copy(E[] array) {
+    static <E> Seq<E> copyOf(E[] array) {
         return new ArraySeq<>(Arrays.copyOf(array, array.length));
     }
 
@@ -218,14 +220,14 @@ public interface Seq<E> extends Collection<E> {
      * Does not copy the argument, so subsequent mutations to the argument
      * are reflected in the returned {@code Seq}.
      */
-    static <E> Seq<E> view(E[] array) {
+    static <E> Seq<E> viewOf(E[] array) {
         return new ArraySeq<>(requireNonNull(array));
     }
 
     /**
      * Returns a {@code Seq} containing the given elements.
      */
-    static <E> Seq<E> copy(Iterable<? extends E> iterable) {
+    static <E> Seq<E> copyOf(Iterable<? extends E> iterable) {
         return new ArraySeq<>(Split.toArray(iterable));
     }
 
@@ -234,42 +236,45 @@ public interface Seq<E> extends Collection<E> {
      * Does not copy the argument, so subsequent mutations to the argument
      * are reflected in the returned {@code Seq}.
      * Unlike most {@code Seq} instances, the returned instance will not
-     * support constant-time {@link #size()} or {@link #get(int)}.
+     * support constant-time {@link #get(int)}. Its {@link #size()} and
+     * {@link #isEmpty()} methods delegate to the argument.
      *
-     * <p>The argument must support repeated iteration with the same encounter
-     * order, and its spliterator must report {@link Spliterator#ORDERED},
-     * otherwise {@link #copy(Iterable)} should be used.
+     * <p>The argument's spliterator must report {@link Spliterator#ORDERED},
+     * or this method throws.
+     * See also {@link #copyOf(Iterable)} and {@link SeqStream#viewOf(Iterator)}.
      */
-    static <E> Seq<E> view(Iterable<? extends E> iterable) {
-        return new IterableSeq<>(requireNonNull(iterable));
+    static <E> Seq<E> viewOf(Collection<? extends E> collection) {
+        return new CollectionSeq<>(requireNonNull(collection));
     }
 
     /**
      * Returns a {@code Seq} containing the value of the optional
      * if it is present, otherwise returns an empty {@code Seq}.
+     * Unlike {@code Seq.of(optional)}, the optional itself is not an element
+     * of the returned {@code Seq}.
      */
-    static <E> Seq<E> copy(Optional<? extends E> optional) {
+    static <E> Seq<E> copyOf(Optional<? extends E> optional) {
         return optional.isPresent() ? of(optional.get()) : of();
     }
 
     /**
      * Returns a {@code Seq} containing the given elements.
      */
-    static <E> Seq<E> copy(Iterator<? extends E> iterator) {
+    static <E> Seq<E> copyOf(Iterator<? extends E> iterator) {
         return new ArraySeq<>(Split.toArray(iterator));
     }
 
     /**
      * Returns a {@code Seq} containing the given elements.
      */
-    static <E> Seq<E> copy(Spliterator<? extends E> spliterator) {
+    static <E> Seq<E> copyOf(Spliterator<? extends E> spliterator) {
         return new ArraySeq<>(Split.toArray(spliterator));
     }
 
     /**
      * Returns a {@code Seq} containing the given elements.
      */
-    static <E> Seq<E> copy(Stream<? extends E> stream) {
+    static <E> Seq<E> copyOf(Stream<? extends E> stream) {
         return new ArraySeq<>(stream.toArray());
     }
 
@@ -296,7 +301,7 @@ public interface Seq<E> extends Collection<E> {
      * if ascending, otherwise returns an empty {@code Seq}.
      */
     static Seq<Integer> range(int from, int to) {
-        return copy(Split.range(from, to));
+        return copyOf(Split.range(from, to));
     }
 
     /**
@@ -316,7 +321,7 @@ public interface Seq<E> extends Collection<E> {
      */
     static <E> Seq<E> flatten(
             Iterable<? extends Iterable<? extends E>> iterables) {
-        return copy(Split.flatten(
+        return copyOf(Split.flatten(
                 Split.map(iterables.spliterator(), Iterable::spliterator)));
     }
 
@@ -455,7 +460,7 @@ public interface Seq<E> extends Collection<E> {
     default <F, R> Seq<R> zip(
             Iterable<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
-        return copy(Split.zip(spliterator(), that.spliterator(), mapper));
+        return copyOf(Split.zip(spliterator(), that.spliterator(), mapper));
     }
 
     /**
@@ -463,7 +468,7 @@ public interface Seq<E> extends Collection<E> {
      * from zero (inclusive) to the size of this {@code Seq} (exclusive).
      */
     default Seq<Integer> indexes() {
-        return copy(Split.indexes(spliterator()));
+        return copyOf(Split.indexes(spliterator()));
     }
 
     /**
@@ -482,7 +487,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> intersection(Iterable<?> that) {
-        return copy(Split.intersection(spliterator(), that.spliterator()));
+        return copyOf(Split.intersection(spliterator(), that.spliterator()));
     }
 
     /**
@@ -501,7 +506,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> difference(Iterable<?> that) {
-        return copy(Split.difference(spliterator(), that.spliterator()));
+        return copyOf(Split.difference(spliterator(), that.spliterator()));
     }
 
     /**
@@ -521,7 +526,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link #sum(Iterable)}.
      */
     default Seq<E> union(Iterable<? extends E> that) {
-        return copy(Split.union(spliterator(), that.spliterator()));
+        return copyOf(Split.union(spliterator(), that.spliterator()));
     }
 
     /**
@@ -554,7 +559,7 @@ public interface Seq<E> extends Collection<E> {
     // benefit of not needing the wildcard in client code that assigns the
     // result to a variable would be better?
     default Seq<? extends Seq<E>> permutations() {
-        return copy(Split.map(Split.<E>permutations(toArray()), Seq::view));
+        return copyOf(Split.map(Split.<E>permutations(toArray()), Seq::viewOf));
     }
 
     /**
@@ -562,8 +567,8 @@ public interface Seq<E> extends Collection<E> {
      * in lexical order of the original index of each element.
      */
     default Seq<? extends Seq<E>> combinations(int size) {
-        return copy(Split.map(
-                Split.<E>combinations(toArray(), size), Seq::view));
+        return copyOf(Split.map(
+                Split.<E>combinations(toArray(), size), Seq::viewOf));
     }
 
     /**
@@ -572,7 +577,7 @@ public interface Seq<E> extends Collection<E> {
      * That is, the subsets are ordered by length then lexically.
      */
     default Seq<? extends Seq<E>> powerSet() {
-        return copy(Split.map(Split.<E>powerSet(toArray()), Seq::view));
+        return copyOf(Split.map(Split.<E>powerSet(toArray()), Seq::viewOf));
     }
 
     /**
@@ -580,7 +585,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
-        return copy(Split.flatMap(spliterator(), mapper.andThen(iterable ->
+        return copyOf(Split.flatMap(spliterator(), mapper.andThen(iterable ->
                 iterable == null ? null : iterable.spliterator())));
     }
 
@@ -590,7 +595,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
-        return copy(Split.mapMulti(spliterator(), requireNonNull(mapper)));
+        return copyOf(Split.mapMulti(spliterator(), requireNonNull(mapper)));
     }
 
     /**
@@ -601,7 +606,7 @@ public interface Seq<E> extends Collection<E> {
      * Is not a view.
      */
     default Seq<E> slice(int from, int to) {
-        return copy(Split.slice(spliterator(), from, to));
+        return copyOf(Split.slice(spliterator(), from, to));
     }
 
     /**
@@ -611,7 +616,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default Seq<Integer> indexesOfSlice(Iterable<?> that) {
-        return copy(Split.indexesOfSlice(spliterator(), that.spliterator()));
+        return copyOf(Split.indexesOfSlice(spliterator(), that.spliterator()));
     }
 
     /**
@@ -692,7 +697,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns the indexes of all elements equal to the given argument.
      */
     default Seq<Integer> indexesOf(Object object) {
-        return copy(Split.indexesOf(spliterator(), object));
+        return copyOf(Split.indexesOf(spliterator(), object));
     }
 
     /**
@@ -707,7 +712,7 @@ public interface Seq<E> extends Collection<E> {
     // Seq<E> reversed() is a legal covariant override, and snapshot versus view
     // becomes a decision then; ArraySeq could flip indexes over the array.
     default Seq<E> reversed() {
-        return view(Split.reversed(spliterator()));
+        return viewOf(Split.reversed(spliterator()));
     }
 
     /**
@@ -715,7 +720,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link Collections#rotate(List, int)}.
      */
     default Seq<E> rotated(int distance) {
-        return view(Split.rotated(spliterator(), distance));
+        return viewOf(Split.rotated(spliterator(), distance));
     }
 
     /**
@@ -723,21 +728,21 @@ public interface Seq<E> extends Collection<E> {
      * See {@link Collections#shuffle(List)}.
      */
     default Seq<E> shuffled(Random random) {
-        return view(Split.shuffled(spliterator(), random));
+        return viewOf(Split.shuffled(spliterator(), random));
     }
 
     /**
      * Returns the last {@code size} elements.
      */
     default Seq<E> limitLast(long size) {
-        return copy(Split.limitLast(spliterator(), size));
+        return copyOf(Split.limitLast(spliterator(), size));
     }
 
     /**
      * Returns all except the last {@code size} elements.
      */
     default Seq<E> skipLast(long size) {
-        return copy(Split.skipLast(spliterator(), size));
+        return copyOf(Split.skipLast(spliterator(), size));
     }
 
     /**
@@ -745,7 +750,7 @@ public interface Seq<E> extends Collection<E> {
      * the given {@code Predicate} returns false (exclusive).
      */
     default Seq<E> takeWhile(Predicate<? super E> predicate) {
-        return copy(Split.takeWhile(spliterator(), predicate));
+        return copyOf(Split.takeWhile(spliterator(), predicate));
     }
 
     /**
@@ -753,56 +758,56 @@ public interface Seq<E> extends Collection<E> {
      * {@code Predicate} returns false (inclusive) and the end.
      */
     default Seq<E> dropWhile(Predicate<? super E> predicate) {
-        return copy(Split.dropWhile(spliterator(), predicate));
+        return copyOf(Split.dropWhile(spliterator(), predicate));
     }
 
     /**
      * Eager equivalent of {@link Stream#filter(Predicate)}.
      */
     default Seq<E> filter(Predicate<? super E> predicate) {
-        return copy(Split.filter(spliterator(), predicate));
+        return copyOf(Split.filter(spliterator(), predicate));
     }
 
     /**
      * Eager equivalent of {@link Stream#map(Function)}.
      */
     default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
-        return copy(Split.map(spliterator(), mapper));
+        return copyOf(Split.map(spliterator(), mapper));
     }
 
     /**
      * Equivalent of {@link Stream#distinct()}.
      */
     default Seq<E> distinct() {
-        return copy(Split.distinct(spliterator()));
+        return copyOf(Split.distinct(spliterator()));
     }
 
     /**
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {
-        return view(Split.sorted(spliterator(), null));
+        return viewOf(Split.sorted(spliterator(), null));
     }
 
     /**
      * Equivalent of {@link Stream#sorted(Comparator)}.
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return view(Split.sorted(spliterator(), requireNonNull(comparator)));
+        return viewOf(Split.sorted(spliterator(), requireNonNull(comparator)));
     }
 
     /**
      * Eager equivalent of {@link Stream#limit(long)}.
      */
     default Seq<E> limit(long size) {
-        return copy(Split.limit(spliterator(), size));
+        return copyOf(Split.limit(spliterator(), size));
     }
 
     /**
      * Eager equivalent of {@link Stream#skip(long)}.
      */
     default Seq<E> skip(long size) {
-        return copy(Split.skip(spliterator(), size));
+        return copyOf(Split.skip(spliterator(), size));
     }
 
     /**
@@ -1080,7 +1085,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns a {@code SeqStream} with this collection as its source.
      */
     default SeqStream<E> stream() {
-        return SeqStream.view(spliterator());
+        return SeqStream.viewOf(spliterator());
     }
 
     /**

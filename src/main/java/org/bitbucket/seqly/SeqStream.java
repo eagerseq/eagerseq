@@ -78,14 +78,14 @@ public interface SeqStream<E> extends Stream<E> {
     /**
      * Returns a {@code SeqStream} containing the given elements.
      */
-    static <E> SeqStream<E> view(Iterator<? extends E> iterator) {
+    static <E> SeqStream<E> viewOf(Iterator<? extends E> iterator) {
         return new SpliteratorSeqStream<>(Split.toSpliterator(iterator));
     }
 
     /**
      * Returns a {@code SeqStream} containing the given elements.
      */
-    static <E> SeqStream<E> view(Spliterator<? extends E> spliterator) {
+    static <E> SeqStream<E> viewOf(Spliterator<? extends E> spliterator) {
         return new SpliteratorSeqStream<>(spliterator);
     }
 
@@ -94,7 +94,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Note, {@code SeqStream} does not support {@link #close} and will not call
      * any close handlers of the given {@code Stream}.
      */
-    static <E> SeqStream<E> view(Stream<? extends E> stream) {
+    static <E> SeqStream<E> viewOf(Stream<? extends E> stream) {
         return new SpliteratorSeqStream<>(stream.spliterator());
     }
 
@@ -102,7 +102,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#range(int, int)}.
      */
     static SeqStream<Integer> range(int from, int to) {
-        return view(Split.range(from, to));
+        return viewOf(Split.range(from, to));
     }
 
     /**
@@ -119,7 +119,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static <E> SeqStream<E> flatten(
             Stream<? extends Stream<? extends E>> streams) {
-        return view(Split.flatten(
+        return viewOf(Split.flatten(
                 Split.map(streams.spliterator(), Stream::spliterator)));
     }
 
@@ -155,35 +155,35 @@ public interface SeqStream<E> extends Stream<E> {
     default <F, R> SeqStream<R> zip(
             Stream<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
-        return view(Split.zip(spliterator(), that.spliterator(), mapper));
+        return viewOf(Split.zip(spliterator(), that.spliterator(), mapper));
     }
 
     /**
      * Stream equivalent of {@link Seq#indexes()}.
      */
     default SeqStream<Integer> indexes() {
-        return view(Split.indexes(spliterator()));
+        return viewOf(Split.indexes(spliterator()));
     }
 
     /**
      * Stream equivalent of {@link Seq#intersection(Iterable)}.
      */
     default SeqStream<E> intersection(Stream<?> that) {
-        return view(Split.intersection(spliterator(), that.spliterator()));
+        return viewOf(Split.intersection(spliterator(), that.spliterator()));
     }
 
     /**
      * Stream equivalent of {@link Seq#difference(Iterable)}.
      */
     default SeqStream<E> difference(Stream<?> that) {
-        return view(Split.difference(spliterator(), that.spliterator()));
+        return viewOf(Split.difference(spliterator(), that.spliterator()));
     }
 
     /**
      * Stream equivalent of {@link Seq#union(Iterable)}.
      */
     default SeqStream<E> union(Stream<? extends E> that) {
-        return view(Split.union(spliterator(), that.spliterator()));
+        return viewOf(Split.union(spliterator(), that.spliterator()));
     }
 
     /**
@@ -204,7 +204,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#permutations()}.
      */
     default SeqStream<? extends SeqStream<E>> permutations() {
-        return view(Split.map(
+        return viewOf(Split.map(
                 Split.permutations(toArray()), Split::toSeqStream));
     }
 
@@ -212,7 +212,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#combinations(int)}.
      */
     default SeqStream<? extends SeqStream<E>> combinations(int size) {
-        return view(Split.map(Split.combinations(toArray(), size),
+        return viewOf(Split.map(Split.combinations(toArray(), size),
                 Split::toSeqStream));
     }
 
@@ -220,25 +220,25 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#powerSet()}.
      */
     default SeqStream<? extends SeqStream<E>> powerSet() {
-        return view(Split.map(Split.powerSet(toArray()), Split::toSeqStream));
+        return viewOf(Split.map(Split.powerSet(toArray()), Split::toSeqStream));
     }
 
     /**
      * Stream equivalent of {@link Seq#slice(int, int)}.
      */
     default SeqStream<E> slice(int from, int to) {
-        return view(Split.slice(spliterator(), from, to));
+        return viewOf(Split.slice(spliterator(), from, to));
     }
 
     /**
      * Stream equivalent of {@link Seq#indexesOfSlice(Iterable)}.
      */
     default SeqStream<Integer> indexesOfSlice(Stream<?> that) {
-        return view(Split.indexesOfSlice(spliterator(), that.spliterator()));
+        return viewOf(Split.indexesOfSlice(spliterator(), that.spliterator()));
     }
 
     /**
-     * Stream equivalent of {@link Seq#indexesOfSlice(Iterable)}.
+     * Stream equivalent of {@link Seq#indexOfSlice(Iterable)}.
      */
     default int indexOfSlice(Stream<?> that) {
         return Split.indexOfSlice(spliterator(), that.spliterator());
@@ -297,7 +297,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#indexesOf(Object)}.
      */
     default SeqStream<Integer> indexesOf(Object object) {
-        return view(Split.indexesOf(spliterator(), object));
+        return viewOf(Split.indexesOf(spliterator(), object));
     }
 
     /**
@@ -361,35 +361,35 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#limitLast(long)}.
      */
     default SeqStream<E> limitLast(long size) {
-        return view(Split.limitLast(spliterator(), size));
+        return viewOf(Split.limitLast(spliterator(), size));
     }
 
     /**
      * Stream equivalent of {@link Seq#skipLast(long)}.
      */
     default SeqStream<E> skipLast(long size) {
-        return view(Split.skipLast(spliterator(), size));
+        return viewOf(Split.skipLast(spliterator(), size));
     }
 
     /**
      * Stream equivalent of {@link Seq#takeWhile(Predicate)}.
      */
     default SeqStream<E> takeWhile(Predicate<? super E> predicate) {
-        return view(Split.takeWhile(spliterator(), predicate));
+        return viewOf(Split.takeWhile(spliterator(), predicate));
     }
 
     /**
      * Stream equivalent of {@link Seq#dropWhile(Predicate)}.
      */
     default SeqStream<E> dropWhile(Predicate<? super E> predicate) {
-        return view(Split.dropWhile(spliterator(), predicate));
+        return viewOf(Split.dropWhile(spliterator(), predicate));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> filter(Predicate<? super E> predicate) {
-        return view(Split.filter(spliterator(), predicate));
+        return viewOf(Split.filter(spliterator(), predicate));
     }
 
     /**
@@ -397,7 +397,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R> SeqStream<R> map(
             Function<? super E, ? extends R> mapper) {
-        return view(Split.map(spliterator(), mapper));
+        return viewOf(Split.map(spliterator(), mapper));
     }
 
     /**
@@ -427,7 +427,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R> SeqStream<R> flatMap(
             Function<? super E, ? extends Stream<? extends R>> mapper) {
-        return view(Split.flatMap(spliterator(), mapper.andThen(stream ->
+        return viewOf(Split.flatMap(spliterator(), mapper.andThen(stream ->
                 stream == null ? null : stream.spliterator())));
     }
 
@@ -436,7 +436,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R> SeqStream<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
-        return view(Split.mapMulti(spliterator(), requireNonNull(mapper)));
+        return viewOf(Split.mapMulti(spliterator(), requireNonNull(mapper)));
     }
 
     /**
@@ -467,7 +467,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> distinct() {
-        return view(Split.distinct(spliterator()));
+        return viewOf(Split.distinct(spliterator()));
     }
 
     /**
@@ -489,14 +489,14 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> limit(long size) {
-        return view(Split.limit(spliterator(), size));
+        return viewOf(Split.limit(spliterator(), size));
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> skip(long size) {
-        return view(Split.skip(spliterator(), size));
+        return viewOf(Split.skip(spliterator(), size));
     }
 
     /**
@@ -564,7 +564,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Equivalent to {@code collect(Seq.toSeq())}.
      */
     default Seq<E> toSeq() {
-        return Seq.copy(spliterator());
+        return Seq.copyOf(spliterator());
     }
 
     /**
@@ -744,7 +744,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> peek(Consumer<? super E> action) {
-        return view(Split.peek(spliterator(), action));
+        return viewOf(Split.peek(spliterator(), action));
     }
 
     /**
@@ -788,7 +788,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Returns an equivalent unordered {@code SeqStream}.
      */
     default SeqStream<E> unordered() {
-        return view(Split.unordered(spliterator()));
+        return viewOf(Split.unordered(spliterator()));
     }
 
     /**

@@ -42,7 +42,7 @@ public class ReadmeGenerator {
 
     /** Returns the full README text, ending with a newline. */
     public static String generate() throws IOException {
-        String lines = SeqStream.view(Files.lines(SOURCE))
+        String lines = SeqStream.viewOf(Files.lines(SOURCE))
                 .takeWhile(line -> !line.startsWith(" */"))
                 .dropWhile(line -> !line.startsWith(" * "))
                 .toString("\n", "", "");

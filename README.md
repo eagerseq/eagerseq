@@ -56,19 +56,21 @@ Almost all instances of `Seq` produced by this library (ie by
 factory methods and returned by `map`, `filter`, etc)
 support constant-time indexing (`get` and `size`)
 and are backed by an array.
-Only `Seq.view(Iterable)` in this library and any user-defined
-subclasses use the default linear-time implementations (if not overridden).
+Only `Seq.viewOf(Collection)` in this library and any user-defined
+subclasses use the default linear-time `get` implementation (if not
+overridden). A collection view delegates `size` and `isEmpty`
+to its backing collection.
 
 ## Collections
 
 Factory methods convert from existing types.
 
 ```java
-Seq.copy(new Integer[]{4, 5});
-Seq.copy(Optional.of(6));
-Seq.view(List.of(7, 8));
-Seq.copy(List.of(9, 10).iterator());
-Seq.copy(Stream.of(11, 12, 13));
+Seq.copyOf(new Integer[]{4, 5});
+Seq.copyOf(Optional.of(6));
+Seq.viewOf(List.of(7, 8));
+Seq.copyOf(List.of(9, 10).iterator());
+Seq.copyOf(Stream.of(11, 12, 13));
 ```
 
 Other methods convert to existing types.

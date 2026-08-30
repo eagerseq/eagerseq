@@ -261,7 +261,7 @@ public class SeqStreamTest {
     @Test(timeout = 5000)
     public void testGetRejectsNegativeIndexWithoutTraversing() {
         assertThrows(IndexOutOfBoundsException.class, () ->
-                SeqStream.view(Stream.iterate(0, i -> i + 1)).get(-1));
+                SeqStream.viewOf(Stream.iterate(0, i -> i + 1)).get(-1));
     }
 
     @Test
@@ -353,8 +353,8 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testViewRejectsNullSpliterator() {
-        assertThrows(() -> SeqStream.view((Spliterator<Object>) null));
+    public void testViewOfRejectsNullSpliterator() {
+        assertThrows(() -> SeqStream.viewOf((Spliterator<Object>) null));
     }
 
     private static void assertConsumed(Runnable action) {
@@ -367,6 +367,6 @@ public class SeqStreamTest {
 
     @SafeVarargs
     private final <E> SeqStream<E> streamOf(E... elements) {
-        return SeqStream.view(Arrays.stream(elements));
+        return SeqStream.viewOf(Arrays.stream(elements));
     }
 }

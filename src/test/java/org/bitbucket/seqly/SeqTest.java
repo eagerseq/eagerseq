@@ -93,11 +93,11 @@ public class SeqTest {
 
     @Test
     public void testAllMethodsHaveTests() {
-        Seq<String> testMethods = Seq.view(SeqTest.class.getDeclaredMethods())
+        Seq<String> testMethods = Seq.viewOf(SeqTest.class.getDeclaredMethods())
                 .filter(m -> m.getAnnotation(Test.class) != null)
                 .map(m -> m.getName().toLowerCase().replaceFirst("test", ""))
                 .distinct();
-        Seq<String> implementedMethods = Seq.view(Seq.class.getMethods())
+        Seq<String> implementedMethods = Seq.viewOf(Seq.class.getMethods())
                 .map(m -> m.getName().toLowerCase())
                 .distinct();
         assertThat(implementedMethods.difference(testMethods), empty());
@@ -138,32 +138,39 @@ public class SeqTest {
     }
 
     @Test
-    public void testCopy() {
+    public void testCopyOf() {
         Seq<String> collection = Seq.of("", null, ".");
         for (Seq<String> seq : Seq.of(
-                Seq.copy(collection.toArray(new String[0])),
-                Seq.copy(collection),
-                Seq.copy(collection.iterator()),
-                Seq.copy(collection.spliterator()),
-                Seq.copy(collection.stream()))) {
+                Seq.copyOf(collection.toArray(new String[0])),
+                Seq.copyOf(collection),
+                Seq.copyOf(collection.iterator()),
+                Seq.copyOf(collection.spliterator()),
+                Seq.copyOf(collection.stream()))) {
             assertThat(seq, contains("", null, "."));
         }
-        assertThat(Seq.copy(Optional.of("")), contains(""));
-        assertThat(Seq.copy(Optional.empty()), empty());
+        Optional<String> optional = Optional.of("");
+        assertThat(Seq.of(optional), contains(optional));
+        assertThat(Seq.copyOf(optional), contains(""));
+        assertThat(Seq.copyOf(Optional.empty()), empty());
     }
 
     @Test
-    public void testView() {
+    public void testViewOf() {
         Seq<String> collection = Seq.of("", null, ".");
         for (Seq<String> seq : Seq.of(
-                Seq.view(collection.toArray(new String[0])),
-                Seq.view(collection))) {
+                Seq.viewOf(collection.toArray(new String[0])),
+                Seq.viewOf(collection))) {
             assertThat(seq, contains("", null, "."));
         }
         Integer[] elements = {0, 1};
-        Seq<Integer> seq = Seq.view(elements);
+        Seq<Integer> seq = Seq.viewOf(elements);
         elements[0] = 2;
         assertThat(seq, contains(2, 1));
+
+        List<Integer> list = new ArrayList<>(Arrays.asList(0, 1));
+        Seq<Integer> listView = Seq.viewOf(list);
+        list.set(0, 2);
+        assertThat(listView, contains(2, 1));
     }
 
     @Test
@@ -241,10 +248,10 @@ public class SeqTest {
                 equalTo(Arrays.asList(0, 1, null)));
         assertThat(seqOf(0, 1, null).toList(),
                 not(equalTo(Arrays.asList(null, 1, 0))));
-        assertThat(Seq.copy(seqOf(0, 1, null).toList().spliterator()),
+        assertThat(Seq.copyOf(seqOf(0, 1, null).toList().spliterator()),
                 contains(0, 1, null));
         List<Integer> elements = new ArrayList<>(Arrays.asList(0, 1));
-        List<Integer> snapshot = Seq.view(elements).toList();
+        List<Integer> snapshot = Seq.viewOf(elements).toList();
         elements.add(2);
         assertThat(snapshot, contains(0, 1));
         assertThrows(() -> snapshot.add(2));
@@ -262,7 +269,7 @@ public class SeqTest {
                 equalTo(Stream.of(null, 1, 0).collect(toSet())));
         assertThat(seqOf(0, 1, null).toSet(),
                 not(equalTo(Stream.of(0, 1).collect(toSet()))));
-        assertThat(Seq.copy(seqOf(0, 1, null).toSet().spliterator()),
+        assertThat(Seq.copyOf(seqOf(0, 1, null).toSet().spliterator()),
                 contains(0, 1, null));
         assertThrows(() -> seqOf(0, 1).toSet().add(2));
     }
@@ -294,7 +301,7 @@ public class SeqTest {
                         s -> s, s -> s, (a, b) -> a),
                 allOf(hasEntry("zero", "zero"), hasEntry((Object) null, null)));
         assertThat(
-                Seq.copy(seqOf("zero", "one", "zebra").toMap(
+                Seq.copyOf(seqOf("zero", "one", "zebra").toMap(
                         s -> s.charAt(0), s -> s, (a, b) -> b).keySet()),
                 contains('z', 'o'));
         assertThrows(() -> seqOf("zero")

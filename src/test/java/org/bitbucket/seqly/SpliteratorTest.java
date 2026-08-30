@@ -35,15 +35,11 @@ public class SpliteratorTest {
     }
 
     @Test
-    public void testIterableViewRequiresOrder() {
+    public void testCollectionViewRequiresOrder() {
         assertThrows(IllegalArgumentException.class,
-                "iterable spliterator was not ORDERED",
-                () -> Seq.view(new HashSet<>(Arrays.asList(0, 1))));
-        Stream<Integer> stream = Stream.of(0, 1);
-        assertThrows(IllegalArgumentException.class,
-                "iterable spliterator was not ORDERED",
-                () -> Seq.view((Iterable<Integer>) stream::iterator));
-        assertThat(Seq.view(Arrays.asList(0, 1)), contains(0, 1));
+                "collection spliterator was not ORDERED",
+                () -> Seq.viewOf(new HashSet<>(Arrays.asList(0, 1))));
+        assertThat(Seq.viewOf(Arrays.asList(0, 1)), contains(0, 1));
     }
 
     @Test
@@ -94,7 +90,7 @@ public class SpliteratorTest {
         assertOnlyOrdered(Split.combinations(new Object[]{0, 1}, 1));
         assertOnlyOrdered(Split.powerSet(new Object[]{0, 1}));
 
-        Spliterator<Integer> sorted = SeqStream.view(unordered(1, 0))
+        Spliterator<Integer> sorted = SeqStream.viewOf(unordered(1, 0))
                 .sorted().spliterator();
         assertTrue(sorted.hasCharacteristics(ORDERED | SIZED | SUBSIZED));
     }
@@ -110,7 +106,7 @@ public class SpliteratorTest {
 
         Spliterator<Integer> sortedSource = new TreeSet<>(
                 Arrays.asList(0, 1)).spliterator();
-        Spliterator<Integer> unordered = SeqStream.view(sortedSource)
+        Spliterator<Integer> unordered = SeqStream.viewOf(sortedSource)
                 .unordered().spliterator();
         assertFalse(unordered.hasCharacteristics(
                 Spliterator.ORDERED | Spliterator.SORTED));
@@ -153,7 +149,7 @@ public class SpliteratorTest {
     @Test
     public void testReportedSizeIsNotTrustedForResults() {
         assertThat(Split.count(lyingSized()), equalTo(3L));
-        assertThat(Seq.copy(lyingSized()), contains(0, 1, 2));
+        assertThat(Seq.copyOf(lyingSized()), contains(0, 1, 2));
     }
 
     private static Spliterator<Integer> lyingSized() {

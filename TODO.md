@@ -16,12 +16,27 @@ Touches: pom coordinates + `Automatic-Module-Name`, package move, README,
 `ReadmeGenerator`. Verify namespace before first release; 0.5.0 stays up under
 the old coordinates.
 
-While breaking anyway, consider `Seq.copy` → `copyOf`, matching `List.copyOf`.
-Needs a matching decision for `view`: `viewOf` is clumsy, so perhaps both keep
-their current names, or `view` becomes something else. Settle the `view`
-question under "Contract and robustness" first — if the factories go, or
-narrow to `Collection`, this is just `copy` → `copyOf` and there is nothing to
-pair the name with.
+The factory renames described under "Settled: factories" are already made;
+include them in the same breaking release as the package move.
+
+## Settled: factories
+
+Snapshot factories are named `copyOf` and live factories are named `viewOf`.
+The array overloads remain alongside `of(E...)`: `copyOf(E[])` is behaviorally
+redundant with `of(array)`, but makes the ownership choice against
+`viewOf(array)` explicit and discoverable. `viewOf(E[])` is deliberately not
+varargs, because a no-copy call over compiler-created varargs has no useful
+external backing array to view.
+
+`copyOf(Optional)` treats the optional like the other sources of elements:
+`of(optional)` contains the optional itself, while `copyOf(optional)` contains
+its zero or one elements. This also pairs naturally with `toOptional()`.
+
+`viewOf(Collection)` replaces `viewOf(Iterable)`. A collection expresses the
+reusable-source requirement in its type, while the runtime `ORDERED` check
+enforces a defined encounter order. `copyOf(Iterable)` covers snapshots and
+`SeqStream.viewOf` covers one-pass processing. A broader `viewOf(Iterable)`
+remains possible as an additive overload if its absence proves painful.
 
 ## JDK contract clashes
 
@@ -41,9 +56,9 @@ semantics live. javac on 25 already warns that `source`/`target` 8 is
 ## Settled: spliterator characteristics
 
 Every `Seq` has a stable encounter order and its spliterator reports `ORDERED`.
-The `view(Iterable)` factory checks the characteristic up front and documents
-the still-unenforceable repeated-iteration requirement. Array-backed results
-also receive `SIZED | SUBSIZED` from the JDK array spliterator.
+The `viewOf(Collection)` factory checks the characteristic up front.
+Array-backed results also receive `SIZED | SUBSIZED` from the JDK array
+spliterator.
 
 `SeqStream` may be unordered. Ordinary intermediate operations preserve the
 source's `ORDERED` flag; `zip` and `union` require both sources to be ordered;
@@ -58,7 +73,10 @@ that falsely reports `SIZED` cannot change a result or silently drop elements.
 `ArraySeq` uses its array directly for constant-observation queries, including
 `count()`, `size()`, positional access and the single-element terminals; these
 specializations rely on the representation it owns rather than spliterator
-characteristics.
+characteristics. `CollectionSeq` delegates `size()` and `isEmpty()` to its
+backing collection, whose contract directly supplies those observations, but
+does not delegate `count()`: `Collection.size()` clamps above
+`Integer.MAX_VALUE`, while `count()` returns an exact `long`.
 
 ## Contract and robustness
 
@@ -70,23 +88,6 @@ characteristics.
   at `Split.toArray(Spliterator, IntFunction)` stays, since its `A` and
   `E` are unrelated. Cost: `Consumer.andThen` joins the surface returning
   `Consumer<E>`, not `Builder<E>`.
-- **Consider dropping the `view` factories altogether**, or failing that,
-  narrowing `view(Iterable)` to `view(Collection)`. `Seq` now requires stable
-  encounter order and the factory rejects a spliterator that does not report
-  `ORDERED`, which catches ordinary one-shot iterables such as
-  `stream::iterator` immediately. Repeated iteration remains an unenforceable
-  precondition: a custom one-shot iterable can report `ORDERED`, pass the
-  construction check, then fail on first use because the check obtained its
-  only spliterator. `Collection` would express the reusable-source half of the
-  contract in the type, with the same runtime order check excluding `HashSet`.
-  `view(E[])` is re-traversable but *mutable*, making it the one `Seq` whose
-  `hashCode` can change under a `HashMap`, which sits badly with 88b6330
-  having replaced the collection views with immutable conversions.
-  Guava is the precedent for narrowing: its views preserve the argument type
-  exactly (`Iterables.transform` returns `Iterable`, `Collections2.transform`
-  returns `Collection`), and every `Iterable`-to-`Collection` conversion it
-  offers is a copy. `copy(Iterable)` already covers the one-shot case, and the
-  library copies at every other step anyway.
 - **Document `AbstractSeq` as the extension point.** `Seq`'s only abstract
   method is `spliterator()`, so `Seq<E> s = list::spliterator` compiles and
   gets identity `equals`/`hashCode`/`toString`, making equality asymmetric
@@ -180,7 +181,14 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
   Want `sum(ToIntFunction)`, `average`, or `mapToInt` on `Seq` itself.
 - **`min()`/`max()` natural-order overloads**, as `sorted()` already has.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
-- **Factories** — `rangeClosed`, `repeat(e, n)`, bounded `iterate`.
+- **Factories** — consider `SeqStream.builder()`, `repeat(e, n)`, both JDK
+  `iterate` forms, `generate`, `rangeClosed`, and `long` versions of `range`
+  and `rangeClosed`. Value-producing factories should generally be symmetrical
+  between `Seq` and `SeqStream`, unless their semantics give a specific reason
+  not to be. Which potentially non-terminating factories belong on eager `Seq`
+  is TBD; so is a bounded `generate(supplier, n)`. The `copyOf`/`viewOf`
+  conversion factories need not be symmetrical because ownership and one-pass
+  sources differ between the two types.
 - **Positional copy-modify** — `updated(i, e)` and friends, the immutable
   answer to the `List` mutators `Seq` inherits only to throw, currently
   spelled `slice`/`sum`; Scala has `updated`/`patch`, but undecided.
@@ -217,6 +225,14 @@ neither remaining one is patched locally.
 
 ## Docs and build
 
+- **Restructure the `Seq` class javadoc and the README generated from it.**
+  The library's focus has shifted subtly over time, and the current opening
+  undersells it. Lead with the API story: `map` and `filter` are defined
+  eagerly on `Seq`, and the longer-term pitch is that the useful
+  collection-like operations live together on one rich type. The latter needs
+  some of the API gaps above filled before it can be emphasized honestly.
+  Move installation instructions toward the end, after the overview and API
+  motivation.
 - **No CI.** A GitHub Actions matrix (8/11/17/21/25) would make the existing
   guards real: `testStreamMethodsAbsentFromSeqAreOnlyTheKnownExceptions`
   catches `Stream` methods added by later JDKs only if it runs, and JaCoCo

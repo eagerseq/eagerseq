@@ -1,5 +1,6 @@
 package org.bitbucket.seqly;
 
+import java.util.AbstractCollection;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Spliterator;
@@ -20,18 +21,21 @@ interface Factory {
         return Seq.of(
                 parameters("DelegatingSeq", TestDelegatingSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
-                parameters("Seq#copy(E[])", Seq::copy),
-                parameters("Seq#view(E[])", Seq::view),
-                parameters("Seq#copy(Iterable<E>)", new Factory() {
+                parameters("Seq#copyOf(E[])", Seq::copyOf),
+                parameters("Seq#viewOf(E[])", Seq::viewOf),
+                parameters("Seq#copyOf(Iterable<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.copy(Arrays.asList(elements));
+                        return Seq.copyOf(Arrays.asList(elements));
                     }
                 }),
-                parameters("Seq#view(Iterable<E>) [non-SIZED]", new Factory() {
+                parameters("Seq#viewOf(Collection<E>) [non-SIZED]", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.view(new Iterable<E>() {
+                        return Seq.viewOf(new AbstractCollection<E>() {
                             public Iterator<E> iterator() {
                                 return Arrays.asList(elements).iterator();
+                            }
+                            public int size() {
+                                return elements.length;
                             }
                             public Spliterator<E> spliterator() {
                                 return Spliterators.spliteratorUnknownSize(
@@ -40,19 +44,19 @@ interface Factory {
                         });
                     }
                 }),
-                parameters("Seq#copy(Iterator<E>)", new Factory() {
+                parameters("Seq#copyOf(Iterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.copy(Arrays.asList(elements).iterator());
+                        return Seq.copyOf(Arrays.asList(elements).iterator());
                     }
                 }),
-                parameters("Seq#copy(Spliterator<E>)", new Factory() {
+                parameters("Seq#copyOf(Spliterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.copy(Arrays.asList(elements).spliterator());
+                        return Seq.copyOf(Arrays.asList(elements).spliterator());
                     }
                 }),
-                parameters("Seq#copy(Stream<E>)", new Factory() {
+                parameters("Seq#copyOf(Stream<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.copy(Arrays.stream(elements));
+                        return Seq.copyOf(Arrays.stream(elements));
                     }
                 }),
                 parameters("SeqStream#of(E...)", new Factory() {
@@ -60,21 +64,21 @@ interface Factory {
                         return SeqStream.of(elements).toSeq();
                     }
                 }),
-                parameters("SeqStream#view(Iterator<E>)", new Factory() {
+                parameters("SeqStream#viewOf(Iterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.view(Arrays.asList(elements)
+                        return SeqStream.viewOf(Arrays.asList(elements)
                                 .iterator()).toSeq();
                     }
                 }),
-                parameters("SeqStream#view(Spliterator<E>)", new Factory() {
+                parameters("SeqStream#viewOf(Spliterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.view(Arrays.asList(elements)
+                        return SeqStream.viewOf(Arrays.asList(elements)
                                 .spliterator()).toSeq();
                     }
                 }),
-                parameters("SeqStream#view(Stream<E>)", new Factory() {
+                parameters("SeqStream#viewOf(Stream<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return SeqStream.view(Arrays.stream(elements))
+                        return SeqStream.viewOf(Arrays.stream(elements))
                                 .toSeq();
                     }
                 }));
