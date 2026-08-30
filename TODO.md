@@ -226,7 +226,10 @@ neither remaining one is patched locally.
   some of the API gaps above filled before it can be emphasized honestly.
   Move installation instructions toward the end, after the overview and API
   motivation.
+- **The README is generated from `Seq` alone**, but `SeqStream` is just as
+  much a part of the library, even if it is the less important of the two.
+  Reconsider the generation order and source of truth: the README might be
+  assembled by concatenating material from both class javadocs, or generating
+  the README directly from javadoc may no longer be the right relationship.
 - **JaCoCo reports coverage but gates nothing.** Decide whether a coverage
   threshold would catch useful regressions or merely create maintenance work.
-- **Test compilation warns about a deprecated API**, with no detail without
-  `-Xlint:deprecation`.
