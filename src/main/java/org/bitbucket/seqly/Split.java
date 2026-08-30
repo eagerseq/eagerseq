@@ -271,9 +271,7 @@ final class Split {
         if (!spliterator.tryAdvance(next)) return Optional.empty();
         E first = next.value;
         if (spliterator.tryAdvance(next)) {
-            throw new IllegalStateException(String.format(
-                    "expected at most one element (found %s and %s)",
-                    first, next.value));
+            throw moreThanOne(first, next.value);
         }
         return Optional.of(first);
     }
@@ -919,6 +917,12 @@ final class Split {
     static NoSuchElementException notExactlyOne() {
         return new NoSuchElementException(
                 "sequence does not contain exactly one element");
+    }
+
+    static IllegalStateException moreThanOne(Object first, Object second) {
+        return new IllegalStateException(String.format(
+                "expected at most one element (found %s and %s)",
+                first, second));
     }
 
     private static Spliterator.OfInt matchLengths(

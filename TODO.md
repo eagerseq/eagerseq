@@ -52,10 +52,13 @@ and `unordered()` removes it. Custom lazy spliterators report no size, sorted,
 distinct, non-null, immutable or concurrent characteristics. Their shared
 bases also enforce the `tryAdvance(null)` contract.
 
-Characteristics are not consumed for correctness. `count()` and the default
-`size()` traverse, and buffers grow from the data, so a source that falsely
-reports `SIZED` cannot change a result or silently drop elements. `ArraySeq`
-keeps its direct constant-time `size()` and `isEmpty()` implementations.
+Characteristics are not consumed for correctness. The default `count()` and
+`size()` implementations traverse, and buffers grow from the data, so a source
+that falsely reports `SIZED` cannot change a result or silently drop elements.
+`ArraySeq` uses its array directly for constant-observation queries, including
+`count()`, `size()`, positional access and the single-element terminals; these
+specializations rely on the representation it owns rather than spliterator
+characteristics.
 
 ## Contract and robustness
 
