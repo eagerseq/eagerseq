@@ -8,8 +8,10 @@ import org.junit.runners.Parameterized.Parameters;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -50,6 +52,14 @@ public class SeqReferenceTest {
 
     private static final List<List<String>> PAIR_INPUTS =
             inputs(MAX_PAIR_LENGTH);
+
+    /** Index expectations depend on lengths, not on the input values. */
+    private static final Map<String, List<List<Integer>>> INDEX_WORDS =
+            new HashMap<>();
+    private static final Map<String, List<List<Integer>>> INDEX_PERMUTATIONS =
+            new HashMap<>();
+    private static final Map<String, List<List<Integer>>> INDEX_COMBINATIONS =
+            new HashMap<>();
 
     private final Factory factory;
 
@@ -327,32 +337,92 @@ public class SeqReferenceTest {
         forEachInput(input ->
                 assertThat(toLists(seq(input).permutations()),
                         equalTo(select(input,
-                                indexPermutations(indexes(input.size()))))));
+                                indexPermutations(
+                                        input.size(), input.size())))));
     }
 
     @Test
-    public void testCombinations() {
-        forEachInputAndArgument((input, size) -> {
-            if (size < 0 || size > input.size()) {
+    public void testPermutationsWithLength() {
+        forEachInputAndArgument((input, k) -> {
+            if (k < 0 || k > input.size()) {
                 assertThrows(IllegalArgumentException.class,
-                        () -> seq(input).combinations(size));
+                        () -> seq(input).permutations(k));
             } else {
-                assertThat(toLists(seq(input).combinations(size)),
-                        equalTo(select(input, indexCombinations(
-                                0, input.size(), size))));
+                assertThat(toLists(seq(input).permutations(k)),
+                        equalTo(select(input,
+                                indexPermutations(input.size(), k))));
             }
         });
     }
 
     @Test
-    public void testPowerSet() {
+    public void testAllPermutations() {
         forEachInput(input -> {
             List<List<Integer>> expected = new ArrayList<>();
-            for (int size = 0; size <= input.size(); size++) {
-                expected.addAll(indexCombinations(0, input.size(), size));
+            for (int k = 0; k <= input.size(); k++) {
+                expected.addAll(indexPermutations(input.size(), k));
             }
-            assertThat(toLists(seq(input).powerSet()),
+            assertThat(toLists(seq(input).allPermutations()),
                     equalTo(select(input, expected)));
+        });
+    }
+
+    @Test
+    public void testCombinations() {
+        forEachInputAndArgument((input, k) -> {
+            if (k < 0 || k > input.size()) {
+                assertThrows(IllegalArgumentException.class,
+                        () -> seq(input).combinations(k));
+            } else {
+                assertThat(toLists(seq(input).combinations(k)),
+                        equalTo(select(input,
+                                indexCombinations(input.size(), k))));
+            }
+        });
+    }
+
+    @Test
+    public void testAllCombinations() {
+        forEachInput(input -> {
+            List<List<Integer>> expected = new ArrayList<>();
+            for (int k = 0; k <= input.size(); k++) {
+                expected.addAll(indexCombinations(input.size(), k));
+            }
+            assertThat(toLists(seq(input).allCombinations()),
+                    equalTo(select(input, expected)));
+        });
+    }
+
+    @Test
+    public void testPower() {
+        forEachInput(input -> {
+            // Unlike the other k operations there is no upper bound on k,
+            // so sweeping to input.size() + 2 would make this reference
+            // test grow exponentially in both dimensions.
+            for (int k = -2; k <= 3; k++) {
+                final int argument = k;
+                if (argument < 0) {
+                    assertThrows(IllegalArgumentException.class,
+                            () -> seq(input).power(argument));
+                } else {
+                    assertThat(toLists(seq(input).power(argument)),
+                            equalTo(select(input,
+                                    indexWords(input.size(), argument))));
+                }
+            }
+        });
+    }
+
+    @Test
+    public void testProduct() {
+        forEachInputPair((input, that) -> {
+            List<String> expected = new ArrayList<>();
+            for (String e : input) {
+                for (String f : that) expected.add(e + ":" + f);
+            }
+            assertThat(seq(input).product(
+                            that, (e, f) -> e + ":" + f).toList(),
+                    equalTo(expected));
         });
     }
 
@@ -405,52 +475,62 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** All permutations of the given indexes, in lexical order. */
+    /** Index words without repeated indexes, in lexical order. */
     private static List<List<Integer>> indexPermutations(
-            List<Integer> available) {
+            int alphabetSize, int size) {
+        String key = alphabetSize + ":" + size;
+        List<List<Integer>> cached = INDEX_PERMUTATIONS.get(key);
+        if (cached != null) return cached;
         List<List<Integer>> result = new ArrayList<>();
-        if (available.isEmpty()) {
-            result.add(new ArrayList<>());
-            return result;
+        for (List<Integer> word : indexWords(alphabetSize, size)) {
+            if (new HashSet<>(word).size() == word.size()) result.add(word);
         }
-        for (int i = 0; i < available.size(); i++) {
-            List<Integer> rest = new ArrayList<>(available);
-            Integer first = rest.remove(i);
-            for (List<Integer> tail : indexPermutations(rest)) {
-                List<Integer> permutation = new ArrayList<>();
-                permutation.add(first);
-                permutation.addAll(tail);
-                result.add(permutation);
-            }
-        }
+        INDEX_PERMUTATIONS.put(key, result);
         return result;
     }
 
-    /**
-     * The subsets of {@code size} indexes drawn from {@code from} (inclusive)
-     * to {@code to} (exclusive), in lexical order.
-     */
-    private static List<List<Integer>> indexCombinations(
-            int from, int to, int size) {
+    /** Index words of the given alphabet and size, in lexical order. */
+    private static List<List<Integer>> indexWords(
+            int alphabetSize, int size) {
+        String key = alphabetSize + ":" + size;
+        List<List<Integer>> cached = INDEX_WORDS.get(key);
+        if (cached != null) return cached;
         List<List<Integer>> result = new ArrayList<>();
         if (size == 0) {
             result.add(new ArrayList<>());
+            INDEX_WORDS.put(key, result);
             return result;
         }
-        for (int i = from; i <= to - size; i++) {
-            for (List<Integer> rest : indexCombinations(i + 1, to, size - 1)) {
-                List<Integer> combination = new ArrayList<>();
-                combination.add(i);
-                combination.addAll(rest);
-                result.add(combination);
+        for (int i = 0; i < alphabetSize; i++) {
+            for (List<Integer> tail : indexWords(alphabetSize, size - 1)) {
+                List<Integer> word = new ArrayList<>();
+                word.add(i);
+                word.addAll(tail);
+                result.add(word);
             }
         }
+        INDEX_WORDS.put(key, result);
         return result;
     }
 
-    private static List<Integer> indexes(int size) {
-        List<Integer> result = new ArrayList<>();
-        for (int i = 0; i < size; i++) result.add(i);
+    /** Strictly increasing index words, in lexical order. */
+    private static List<List<Integer>> indexCombinations(
+            int alphabetSize, int size) {
+        String key = alphabetSize + ":" + size;
+        List<List<Integer>> cached = INDEX_COMBINATIONS.get(key);
+        if (cached != null) return cached;
+        List<List<Integer>> result = new ArrayList<>();
+        for (List<Integer> word : indexWords(alphabetSize, size)) {
+            boolean increasing = true;
+            for (int i = 1; i < word.size(); i++) {
+                if (word.get(i - 1) >= word.get(i)) {
+                    increasing = false;
+                    break;
+                }
+            }
+            if (increasing) result.add(word);
+        }
+        INDEX_COMBINATIONS.put(key, result);
         return result;
     }
 

@@ -107,16 +107,35 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().containsMultiset(toSeqStream(that));
     }
 
-    default Seq<? extends Seq<E>> permutations() {
-        return stream().permutations().map(SeqStream::toSeq).toSeq();
+    default Seq<Seq<E>> permutations() {
+        return stream().permutations().toSeq();
     }
 
-    default Seq<? extends Seq<E>> combinations(int size) {
-        return stream().combinations(size).map(SeqStream::toSeq).toSeq();
+    default Seq<Seq<E>> permutations(int k) {
+        return stream().permutations(k).toSeq();
     }
 
-    default Seq<? extends Seq<E>> powerSet() {
-        return stream().powerSet().map(SeqStream::toSeq).toSeq();
+    default Seq<Seq<E>> allPermutations() {
+        return stream().allPermutations().toSeq();
+    }
+
+    default Seq<Seq<E>> combinations(int k) {
+        return stream().combinations(k).toSeq();
+    }
+
+    default Seq<Seq<E>> allCombinations() {
+        return stream().allCombinations().toSeq();
+    }
+
+    default Seq<Seq<E>> power(int k) {
+        return stream().power(k).toSeq();
+    }
+
+    default <F, R> Seq<R> product(
+            Iterable<? extends F> that,
+            BiFunction<? super E, ? super F, ? extends R> mapper) {
+        return stream().<F, R>product(
+                toSeqStream(that), mapper).toSeq();
     }
 
     default <R> Seq<R> flatMap(

@@ -53,11 +53,12 @@ which is exactly the `Stream` boilerplate the README opens by rejecting. So the
 gap is not "a few missing conveniences"; it is a category of operation where the
 library currently does not deliver its stated benefit at all.
 
-Secondary finding: **the tail is over-served relative to the head.** `powerSet`,
-`permutations`, `lastIndexOfSlice`, `indexesOfSlice` and `containsMultiset` are
-all present, and none of them appears in lodash or Python's builtins. Meanwhile
-`groupBy` — which all four reference APIs have — does not. That is an inverted
-priority, and worth weighing before adding more combinatorics.
+Secondary finding: **the tail is over-served relative to the head.** The
+combinatorics family now includes fixed- and all-size permutations and
+combinations, Cartesian power and Cartesian product; `lastIndexOfSlice`,
+`indexesOfSlice` and `containsMultiset` are present too. Meanwhile `groupBy` —
+which all four reference APIs have — does not. That is an inverted priority,
+and worth weighing before adding more combinatorics.
 
 ## Coverage tables
 
@@ -111,7 +112,7 @@ loop.
 | rotate | — | — | `rotated` | yes |
 | chunk into blocks of n | `chunk` | `batched` | — | **no** |
 | sliding window | — | `pairwise` | — | **no** |
-| cartesian product | — | `product` | — | **no** |
+| cartesian product | — | `product` | `product(that, mapper)` | yes |
 | compact / drop nulls | `compact` | comp. | `filter(nonNull)` | comp. |
 | deep flatten | `flattenDeep` | — | — | no² |
 | unzip | `unzip` | `zip(*xs)` | — | no² |
@@ -159,9 +160,9 @@ no counterpart in either. Only `xor` (symmetric difference) is missing, and
 | repeat element n times | `times`, `fill` | `[x] * n` | — |
 | unbounded generate | — | `count`, `cycle`, `repeat` | — |
 
-The unbounded ones only make sense on `SeqStream`, which has no `iterate` or
-`generate` either — so `SeqStream` cannot currently express an infinite source
-at all, unlike the `Stream` it wraps.
+The unbounded ones only make sense on `SeqStream`. It now has `iterate`, so it
+can express recurrence-based infinite sources, but it still has no `generate`,
+`cycle` or unbounded `repeat`.
 
 ## What Java's type system makes unreachable
 
@@ -223,10 +224,8 @@ reference APIs have each one; each currently forces `stream()` + `Collectors`.
 - `windowed(n)` / `pairwise()`.
 - `scan` / running reduce.
 - `range` with step; `rangeClosed`; `repeat(e, n)`.
-- `iterate` / `generate` on `SeqStream` (currently no infinite source exists).
-- `product(other)` — cartesian product; it belongs with the combinatorics the
-  library already invests in, and its absence there is odd given `powerSet` is
-  present.
+- `generate`, `cycle` and unbounded `repeat` on `SeqStream`; `iterate` now
+  supplies recurrence-based infinite sources.
 - `slice` with step.
 
 **Not worth adding.** `flattenDeep`, `unzip`, `starmap`, `zipObject`,

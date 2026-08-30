@@ -553,33 +553,72 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Returns all permutations
-     * in lexical order of the original index of each element.
+     * Returns all full-length permutations
+     * in lexical order of the original index of each element,
+     * ie equivalent to {@code permutations(size())}.
      */
-    // wildcard gives subtypes more flexibility and makes zero restrictions
-    // on callers but given how rare subtype overrides would be, maybe the tiny
-    // benefit of not needing the wildcard in client code that assigns the
-    // result to a variable would be better?
-    default Seq<? extends Seq<E>> permutations() {
+    default Seq<Seq<E>> permutations() {
         return copyOf(Split.map(Split.<E>permutations(toArray()), Seq::viewOf));
     }
 
     /**
-     * Returns combinations of the given {@code size}
+     * Returns all permutations of length {@code k}
      * in lexical order of the original index of each element.
      */
-    default Seq<? extends Seq<E>> combinations(int size) {
+    default Seq<Seq<E>> permutations(int k) {
         return copyOf(Split.map(
-                Split.<E>combinations(toArray(), size), Seq::viewOf));
+                Split.<E>permutations(toArray(), k), Seq::viewOf));
     }
 
     /**
-     * Returns all subsets
+     * Returns all permutations of all lengths from zero to {@link #size()}
      * in shortlex order of the original index of each element.
-     * That is, the subsets are ordered by length then lexically.
      */
-    default Seq<? extends Seq<E>> powerSet() {
-        return copyOf(Split.map(Split.<E>powerSet(toArray()), Seq::viewOf));
+    default Seq<Seq<E>> allPermutations() {
+        return copyOf(Split.map(
+                Split.<E>allPermutations(toArray()), Seq::viewOf));
+    }
+
+    /**
+     * Returns all combinations of length {@code k}
+     * in lexical order of the original index of each element.
+     */
+    default Seq<Seq<E>> combinations(int k) {
+        return copyOf(Split.map(
+                Split.<E>combinations(toArray(), k), Seq::viewOf));
+    }
+
+    /**
+     * Returns all combinations of all lengths from zero to {@link #size()}
+     * in shortlex order of the original index of each element.
+     */
+    default Seq<Seq<E>> allCombinations() {
+        return copyOf(Split.map(
+                Split.<E>allCombinations(toArray()), Seq::viewOf));
+    }
+
+    /**
+     * Returns the {@code k}-th Cartesian power,
+     * in lexical order of the original index of each element,
+     * ie all sequences of length {@code k} whose elements are drawn
+     * from this {@code Seq} with repeated selection allowed.
+     */
+    default Seq<Seq<E>> power(int k) {
+        return copyOf(Split.map(
+                Split.<E>power(toArray(), k), Seq::viewOf));
+    }
+
+    /**
+     * Returns the Cartesian product of this {@code Seq} and the given
+     * {@code Iterable} after applying {@code mapper} to each pair
+     * in lexical order of the original indexes.
+     * The given {@code Iterable} is buffered and must be finite.
+     */
+    default <F, R> Seq<R> product(
+            Iterable<? extends F> that,
+            BiFunction<? super E, ? super F, ? extends R> mapper) {
+        return copyOf(Split.product(
+                spliterator(), Split.toArray(that), mapper));
     }
 
     /**

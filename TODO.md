@@ -38,6 +38,26 @@ enforces a defined encounter order. `copyOf(Iterable)` covers snapshots and
 `SeqStream.viewOf` covers one-pass processing. A broader `viewOf(Iterable)`
 remains possible as an additive overload if its absence proves painful.
 
+## Settled: combinatorics
+
+The fixed-size operations use the conventional parameter name `k`:
+`permutations(k)`, `combinations(k)` and `power(k)`. No-argument
+`permutations()` retains its conventional meaning of full-length permutations.
+`allPermutations()` and `allCombinations()` cover every `k` from zero through
+the receiver size in shortlex order: length first, then lexical source-index
+order. The old `powerSet()` name is gone; it implied equality-based set
+semantics that the positional combinations do not have.
+
+`product(that, mapper)` is lazy in the receiver and reads the second operand
+before producing results, so an infinite receiver works when the second operand
+is finite. The asymmetric implementation follows the receiver-method shape and
+the nested-loop order: each receiver element is paired with every element of
+`that` before advancing the receiver.
+
+The combinatorics methods on `SeqStream` return `SeqStream<Seq<E>>`, not a
+stream of streams. Laziness belongs to producing the outer sequence of results;
+each individual permutation, combination or power is a finite, reusable value.
+
 ## JDK contract clashes
 
 `Seq.reversed()` versus `SequencedCollection.reversed()` is settled: ours stays
@@ -88,17 +108,24 @@ does not delegate `count()`: `Collection.size()` clamps above
   at `Split.toArray(Spliterator, IntFunction)` stays, since its `A` and
   `E` are unrelated. Cost: `Consumer.andThen` joins the surface returning
   `Consumer<E>`, not `Builder<E>`.
-- **`combinations(int size)` takes a size but `permutations()` does not.**
-  Consider a `permutations(int size)` overload, i.e. k-permutations. If it
-  lands, rename the parameter to `k` in both — the shared domain term, where
-  `combinationSize`/`permutationSize` would stutter against the method names.
-  Either way the hand-written range message reads better as `cannot choose 3
-  from 2 elements` than as `size 3 was greater than length 2`, which reaches
-  for *length* only because the parameter took the word *size*.
+- **Combinatoric range messages remain mechanical.** The fixed-size operations
+  now consistently take `k`, but `k 3 was greater than length 2` may still read
+  less naturally than `cannot choose 3 from 2 elements`.
 - **`combinations` is the one count that throws rather than clamps** when the
   argument exceeds the data, where `limit`, `skip`, `limitLast` and `skipLast`
   all return what is present. Guava's `Sets.combinations` throws too, so this
   is defensible, but it should be a decision rather than an accident.
+- **Null argument checks are ad hoc.** `requireNonNull` is used where an
+  argument is stored for later (`mapMulti`, `sorted(Comparator)`,
+  `toArray(IntFunction)`, `Split.replaceAll`), but most of the surface relies
+  on the incidental NPE from the first call instead — so an empty source, a
+  short-circuiting terminal, or an operand that empties the result swallows a
+  null silently, and on `SeqStream` the failure is deferred to the terminal
+  operation. `allMatch` looks like an exception but only throws because
+  `Split.allMatch` calls `predicate.negate()`; `anyMatch` has no such
+  accident, so the siblings disagree. Decide whether a null functional
+  argument is checked eagerly or left to fail on first use, then apply it in
+  `Split` where one check covers both `Seq` and `SeqStream`.
 - **Three overflow policies for one concept.** `count()` returns `long`,
   `size()` clamps to `Integer.MAX_VALUE` per the `Collection` javadoc, and
   `indexes()` throws when an index cannot be represented as an `int`. Each is
@@ -130,8 +157,8 @@ does not delegate `count()`: `Collection.size()` clamps above
 ## Settled: index and count conventions
 
 Decided while fixing `slice`, and worth applying to anything new that takes a
-number (`chunked`, `windowed`, `rangeClosed`, `repeat(e, n)`, a `permutations`
-overload).
+number (`chunked`, `windowed`, `rangeClosed`, `repeat(e, n)`). The combinatoric
+operations use an `int k` consistently.
 
 - **`int` unless the JDK forces `long`.** `count`, `limit` and `skip` are
   forced by `Stream`; `limitLast`/`skipLast` match them in case the JDK ever
@@ -200,9 +227,13 @@ neither remaining one is patched locally.
   `setEquals`), against a naive `java.util`-only reference, over every
   sequence of `a`/`b`/`null` up to length 5 (length 4 where a test sweeps
   input pairs) and every argument from `-2` to `length + 2`, across all 13
-  factories. 2.1s. The `DelegatingSeq` factory routes through `SeqStream`,
-  so every one of those methods is checked in its `SeqStream` implementation
-  too, not only its `Seq` one. Verified to catch a real bug: swapping `slice` to
+  factories. The combinatorics references derive index words independently,
+  then filter them for permutations and combinations; the all-size operations
+  concatenate those fixed-`k` references, while `power` uses the words directly
+  and `product` is checked over exhaustive input pairs. The `DelegatingSeq`
+  factory routes through `SeqStream`, so every one of those methods is checked
+  in its `SeqStream` implementation too, not only its `Seq` one. Verified to
+  catch a real bug: swapping `slice` to
   `limit(skip(...))` fails at `[a, a], 1, 1`.
   Not covered there, and still hand-picked in `SeqTest`: the predicate and
   mapping operations (`filter`, `map`, `takeWhile`, `dropWhile`, `distinct`,
@@ -212,9 +243,11 @@ neither remaining one is patched locally.
 
 - **Infinite-source and laziness coverage is in place.** `SeqStreamTest` uses
   `SeqStream.iterate` under `@Test(timeout = ...)` for prompt validation,
-  finite-prefix intermediate operations and short-circuiting terminals. A
-  `peek` counter verifies that a representative intermediate pipeline consumes
-  nothing on construction and only the required source elements on traversal.
+  finite-prefix intermediate operations and short-circuiting terminals. It
+  also checks that `product` streams an infinite receiver when its second
+  operand is finite, including the empty-second-operand case. A `peek` counter
+  verifies that a representative intermediate pipeline consumes nothing on
+  construction and only the required source elements on traversal.
 
 ## Docs and build
 

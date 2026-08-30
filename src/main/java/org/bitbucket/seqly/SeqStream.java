@@ -214,24 +214,60 @@ public interface SeqStream<E> extends Stream<E> {
     /**
      * Stream equivalent of {@link Seq#permutations()}.
      */
-    default SeqStream<? extends SeqStream<E>> permutations() {
+    default SeqStream<Seq<E>> permutations() {
         return viewOf(Split.map(
-                Split.permutations(toArray()), Split::toSeqStream));
+                Split.<E>permutations(toArray()), Seq::viewOf));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#permutations(int)}.
+     */
+    default SeqStream<Seq<E>> permutations(int k) {
+        return viewOf(Split.map(
+                Split.<E>permutations(toArray(), k), Seq::viewOf));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#allPermutations()}.
+     */
+    default SeqStream<Seq<E>> allPermutations() {
+        return viewOf(Split.map(
+                Split.<E>allPermutations(toArray()), Seq::viewOf));
     }
 
     /**
      * Stream equivalent of {@link Seq#combinations(int)}.
      */
-    default SeqStream<? extends SeqStream<E>> combinations(int size) {
-        return viewOf(Split.map(Split.combinations(toArray(), size),
-                Split::toSeqStream));
+    default SeqStream<Seq<E>> combinations(int k) {
+        return viewOf(Split.map(Split.<E>combinations(toArray(), k),
+                Seq::viewOf));
     }
 
     /**
-     * Stream equivalent of {@link Seq#powerSet()}.
+     * Stream equivalent of {@link Seq#allCombinations()}.
      */
-    default SeqStream<? extends SeqStream<E>> powerSet() {
-        return viewOf(Split.map(Split.powerSet(toArray()), Split::toSeqStream));
+    default SeqStream<Seq<E>> allCombinations() {
+        return viewOf(Split.map(
+                Split.<E>allCombinations(toArray()), Seq::viewOf));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#power(int)}.
+     */
+    default SeqStream<Seq<E>> power(int k) {
+        return viewOf(Split.map(Split.<E>power(toArray(), k),
+                Seq::viewOf));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#product(Iterable, BiFunction)}.
+     * The second operand is buffered and must be finite.
+     */
+    default <F, R> SeqStream<R> product(
+            Stream<? extends F> that,
+            BiFunction<? super E, ? super F, ? extends R> mapper) {
+        return viewOf(Split.product(
+                spliterator(), that.toArray(), mapper));
     }
 
     /**

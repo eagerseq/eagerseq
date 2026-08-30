@@ -616,44 +616,64 @@ final class Split {
     }
 
     static <E> Spliterator<E[]> permutations(Object[] array) {
+        return permutations(array, array.length);
+    }
+
+    static <E> Spliterator<E[]> permutations(Object[] array, int k) {
+        requireNonNegativeArgument("k", k);
+        if (k > array.length) {
+            throw new IllegalArgumentException(
+                    "k " + k + " was greater than length " + array.length);
+        }
         return new UnknownSizeSpliterator<E[]>(ORDERED) {
-            private int[] index = IntStream.range(0, array.length).toArray();
+            private int[] index = IntStream.range(0, k).toArray();
+            private final boolean[] used = new boolean[array.length];
+            {
+                Arrays.fill(used, 0, k, true);
+            }
             boolean advance(Consumer<? super E[]> action) {
                 if (index == null) return false;
                 @SuppressWarnings("unchecked")
                 E[] r = (E[]) Arrays.stream(index)
                         .mapToObj(i -> array[i]).toArray();
-                int a = index.length - 2;
-                while (a >= 0 && index[a + 1] < index[a]) a--;
-                if (a < 0) {
-                    index = null;
-                } else {
-                    int b = a + 1;
-                    while (b < index.length && index[a] < index[b]) b++;
-                    swap(a++, b - 1);
-                    b = index.length - 1;
-                    while (a < b) swap(a++, b--);
+                int a = index.length - 1;
+                for (; a >= 0; a--) {
+                    used[index[a]] = false;
+                    int i = index[a] + 1;
+                    while (i < used.length && used[i]) i++;
+                    if (i < used.length) {
+                        index[a] = i;
+                        used[i] = true;
+                        i = 0;
+                        for (int b = a + 1; b < index.length; b++) {
+                            while (used[i]) i++;
+                            index[b] = i;
+                            used[i] = true;
+                        }
+                        break;
+                    }
                 }
+                if (a < 0) index = null;
                 action.accept(r);
                 return true;
-            }
-            private void swap(int a, int b) {
-                int t = index[a];
-                index[a] = index[b];
-                index[b] = t;
             }
         };
     }
 
-    static <E> Spliterator<E[]> combinations(Object[] array, int size) {
-        requireNonNegativeArgument("size", size);
-        if (size > array.length) {
+    static <E> Spliterator<E[]> allPermutations(Object[] array) {
+        return flatMap(
+                range(0, array.length + 1),
+                k -> permutations(array, k));
+    }
+
+    static <E> Spliterator<E[]> combinations(Object[] array, int k) {
+        requireNonNegativeArgument("k", k);
+        if (k > array.length) {
             throw new IllegalArgumentException(
-                    "size " + size + " was greater than length "
-                            + array.length);
+                    "k " + k + " was greater than length " + array.length);
         }
         return new UnknownSizeSpliterator<E[]>(ORDERED) {
-            private int[] index = IntStream.range(0, size).toArray();
+            private int[] index = IntStream.range(0, k).toArray();
             boolean advance(Consumer<? super E[]> action) {
                 if (index == null) return false;
                 @SuppressWarnings("unchecked")
@@ -674,10 +694,40 @@ final class Split {
         };
     }
 
-    static <E> Spliterator<E[]> powerSet(Object[] array) {
-        return flatten(map(
+    static <E> Spliterator<E[]> allCombinations(Object[] array) {
+        return flatMap(
                 range(0, array.length + 1),
-                size -> combinations(array, size)));
+                k -> combinations(array, k));
+    }
+
+    static <E> Spliterator<E[]> power(Object[] array, int k) {
+        requireNonNegativeArgument("k", k);
+        return new UnknownSizeSpliterator<E[]>(ORDERED) {
+            private int[] index = array.length == 0 && k > 0
+                    ? null : new int[k];
+            boolean advance(Consumer<? super E[]> action) {
+                if (index == null) return false;
+                @SuppressWarnings("unchecked")
+                E[] r = (E[]) Arrays.stream(index)
+                        .mapToObj(i -> array[i]).toArray();
+                int a = index.length - 1;
+                while (a >= 0 && ++index[a] == array.length) {
+                    index[a--] = 0;
+                }
+                if (a < 0) index = null;
+                action.accept(r);
+                return true;
+            }
+        };
+    }
+
+    static <E, F, R> Spliterator<R> product(
+            Spliterator<E> first,
+            Object[] second,
+            BiFunction<? super E, ? super F, ? extends R> mapper) {
+        if (second.length == 0) return emptySpliterator(ordered(first));
+        return flatMap(first, e -> map(
+                Split.<F>toSpliterator(second), f -> mapper.apply(e, f)));
     }
 
     static <E> Spliterator<E> filter(

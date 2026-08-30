@@ -159,6 +159,19 @@ public class SeqStreamTest {
         assertThrows(() -> SeqStream.iterate(0, null));
     }
 
+    @Test(timeout = 5000)
+    public void testProductWithInfiniteReceiver() {
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                        .product(
+                                SeqStream.of("x", "y"), (i, s) -> i + s)
+                        .limit(4).toSeq(),
+                equalTo(Seq.of("0x", "0y", "1x", "1y")));
+
+        assertTrue(SeqStream.iterate(0, i -> i + 1)
+                .product(SeqStream.of(), Integer::sum)
+                .isEmpty());
+    }
+
     @Test
     public void testConcat() {
         assertTrue(SeqStream.concat().isEmpty());

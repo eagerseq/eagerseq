@@ -463,6 +463,10 @@ public class SeqTest {
 
     @Test
     public void testPermutations() {
+        Seq<Seq<String>> seqs = seqOf("").permutations();
+        List<Seq<String>> list = seqs.toList();
+        assertThat(list, contains(seqOf("")));
+
         assertThat(seqOf().permutations(), contains(seqOf()));
         assertThat(seqOf(4).permutations(), contains(seqOf(4)));
         assertThat(seqOf(4, 2).permutations(),
@@ -480,6 +484,49 @@ public class SeqTest {
     }
 
     @Test
+    public void testPermutationsWithLength() {
+        assertThat(seqOf().permutations(0), contains(seqOf()));
+        assertThat(seqOf(4, 2).permutations(0), contains(seqOf()));
+        assertThat(seqOf(4, 2).permutations(1),
+                contains(seqOf(4), seqOf(2)));
+        assertThat(seqOf(0, 1, 2).permutations(2), contains(
+                seqOf(0, 1), seqOf(0, 2), seqOf(1, 0),
+                seqOf(1, 2), seqOf(2, 0), seqOf(2, 1)));
+        assertThat(seqOf(4, 2).permutations(2),
+                contains(seqOf(4, 2), seqOf(2, 4)));
+        assertThrows(IllegalArgumentException.class,
+                "k -1 was negative",
+                () -> seqOf(4, 2).permutations(-1));
+        assertThrows(IllegalArgumentException.class,
+                "k 3 was greater than length 2",
+                () -> seqOf(4, 2).permutations(3));
+        assertThat(seqOf(0, 1, 2, 3, 4).permutations(3).size(),
+                equalTo(60));
+        assertThat(seqOf(null, null).permutations(1),
+                contains(seqOf((Object) null), seqOf((Object) null)));
+    }
+
+    @Test
+    public void testAllPermutations() {
+        assertThat(seqOf().allPermutations(), contains(seqOf()));
+        assertThat(seqOf(4).allPermutations(),
+                contains(seqOf(), seqOf(4)));
+        assertThat(seqOf(4, 2).allPermutations(), contains(
+                seqOf(), seqOf(4), seqOf(2),
+                seqOf(4, 2), seqOf(2, 4)));
+        assertThat(seqOf(0, 1, 2, 3, 4).allPermutations().size(),
+                equalTo(326));
+        assertTrue(seqOf(0, 1, 2, 3, 4).allPermutations()
+                .zip(
+                        seqOf(0, 1, 2, 3, 4).allPermutations().skip(1),
+                        (s, t) -> s.size() < t.size() || isLexicalOrder(s, t))
+                .allMatch(b -> b));
+        assertThat(seqOf(null, null).allPermutations(), contains(
+                seqOf(), seqOf((Object) null), seqOf((Object) null),
+                seqOf(null, null), seqOf(null, null)));
+    }
+
+    @Test
     public void testCombinations() {
         assertThat(seqOf().combinations(0), contains(seqOf()));
         assertThat(seqOf(4).combinations(0), contains(seqOf()));
@@ -488,10 +535,10 @@ public class SeqTest {
         assertThat(seqOf(4, 2).combinations(1), contains(seqOf(4), seqOf(2)));
         assertThat(seqOf(4, 2).combinations(2), contains(seqOf(4, 2)));
         assertThrows(IllegalArgumentException.class,
-                "size -1 was negative",
+                "k -1 was negative",
                 () -> seqOf(4, 2).combinations(-1));
         assertThrows(IllegalArgumentException.class,
-                "size 3 was greater than length 2",
+                "k 3 was greater than length 2",
                 () -> seqOf(4, 2).combinations(3));
         assertThat(seqOf(0, 1, 2, 3, 4).combinations(2).size(), equalTo(10));
         seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
@@ -506,22 +553,59 @@ public class SeqTest {
     }
 
     @Test
-    public void testPowerSet() {
-        assertThat(seqOf().powerSet(), contains(seqOf()));
-        assertThat(seqOf(4).powerSet(), contains(seqOf(), seqOf(4)));
-        assertThat(seqOf(4, 2).powerSet(),
+    public void testAllCombinations() {
+        assertThat(seqOf().allCombinations(), contains(seqOf()));
+        assertThat(seqOf(4).allCombinations(),
+                contains(seqOf(), seqOf(4)));
+        assertThat(seqOf(4, 2).allCombinations(),
                 contains(seqOf(), seqOf(4), seqOf(2), seqOf(4, 2)));
-        assertThat(seqOf(0, 1, 2, 3, 4).powerSet().size(), equalTo(32));
-        seqOf(0, 1, 2, 3, 4).powerSet().forEach(p ->
-                assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(p)));
-        assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).powerSet()
+        assertThat(seqOf(0, 1, 2, 3, 4).allCombinations().size(),
+                equalTo(32));
+        seqOf(0, 1, 2, 3, 4).allCombinations().forEach(c ->
+                assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(c)));
+        assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).allCombinations()
                 .zip(
-                        seqOf(0, 1, 2, 3, 4, 5, 6).powerSet().skip(1),
+                        seqOf(0, 1, 2, 3, 4, 5, 6)
+                                .allCombinations().skip(1),
                         (s, t) -> s.size() < t.size() || isLexicalOrder(s, t))
                 .allMatch(b -> b));
-        assertThat(seqOf(null, null).powerSet(),
+        assertThat(seqOf(null, null).allCombinations(),
                 contains(seqOf(), seqOf((Object) null), seqOf((Object) null),
                         seqOf(null, null)));
+    }
+
+    @Test
+    public void testPower() {
+        assertThat(seqOf().power(0), contains(seqOf()));
+        assertThat(seqOf().power(1), empty());
+        assertThat(seqOf(4, 2).power(0), contains(seqOf()));
+        assertThat(seqOf(4, 2).power(1),
+                contains(seqOf(4), seqOf(2)));
+        assertThat(seqOf(4, 2).power(2), contains(
+                seqOf(4, 4), seqOf(4, 2),
+                seqOf(2, 4), seqOf(2, 2)));
+        assertThrows(IllegalArgumentException.class,
+                "k -1 was negative",
+                () -> seqOf(4, 2).power(-1));
+        assertThat(seqOf(0, 1, 2).power(4).size(), equalTo(81));
+        assertThat(seqOf(null, null).power(2), contains(
+                seqOf(null, null), seqOf(null, null),
+                seqOf(null, null), seqOf(null, null)));
+    }
+
+    @Test
+    public void testProduct() {
+        assertThat(Seq.<Integer>of().product(
+                seqOf(1), Integer::sum), empty());
+        assertThat(seqOf(1).product(
+                Seq.of(), Integer::sum), empty());
+        assertThat(seqOf(0, 1).product(
+                        seqOf("a", "b", "c"), (i, s) -> i + s),
+                contains("0a", "0b", "0c", "1a", "1b", "1c"));
+        assertThat(seqOf(0, null).product(
+                        seqOf(1, null), (a, b) -> a == null || b == null
+                                ? null : a + b),
+                contains(1, null, null, null));
     }
 
     @Test

@@ -77,6 +77,10 @@ public class SpliteratorTest {
         assertOnlyOrdered(Split.union(ordered(0), ordered(1)));
         assertFalse(Split.union(ordered(0), unordered(1))
                 .hasCharacteristics(ORDERED));
+
+        assertFalse(Split.product(
+                unordered(0), new Object[]{1}, Integer::sum)
+                .hasCharacteristics(ORDERED));
     }
 
     @Test
@@ -86,8 +90,13 @@ public class SpliteratorTest {
         assertOnlyOrdered(Split.indexesOfSlice(
                 unordered(0, 0), unordered(0)));
         assertOnlyOrdered(Split.permutations(new Object[]{0, 1}));
+        assertOnlyOrdered(Split.permutations(new Object[]{0, 1}, 1));
+        assertOnlyOrdered(Split.allPermutations(new Object[]{0, 1}));
         assertOnlyOrdered(Split.combinations(new Object[]{0, 1}, 1));
-        assertOnlyOrdered(Split.powerSet(new Object[]{0, 1}));
+        assertOnlyOrdered(Split.allCombinations(new Object[]{0, 1}));
+        assertOnlyOrdered(Split.power(new Object[]{0, 1}, 1));
+        assertOnlyOrdered(Split.product(
+                ordered(0, 1), new Object[]{2, 3}, Integer::sum));
 
         Spliterator<Integer> sorted = SeqStream.viewOf(unordered(1, 0))
                 .sorted().spliterator();
