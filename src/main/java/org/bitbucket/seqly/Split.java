@@ -100,6 +100,7 @@ final class Split {
     @SuppressWarnings("unchecked")
     public static <E, A> A[] toArray(
             Spliterator<E> spliterator, IntFunction<A[]> generator) {
+        requireNonNull(generator);
         SeqBuilder<A> builder = new SeqBuilder<>(generator);
         spliterator.forEachRemaining((SeqBuilder<E>) builder);
         return builder.trim();
@@ -152,6 +153,8 @@ final class Split {
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper,
             BinaryOperator<V> mergeFunction) {
+        requireNonNull(keyMapper);
+        requireNonNull(valueMapper);
         Map<K, V> map = new LinkedHashMap<>();
         spliterator.forEachRemaining(e -> {
             K key = keyMapper.apply(e);
@@ -186,6 +189,7 @@ final class Split {
     }
 
     static <E> E[] shuffled(Spliterator<E> spliterator, Random random) {
+        requireNonNull(random);
         @SuppressWarnings("unchecked")
         E[] array = (E[]) toArray(spliterator);
         Collections.shuffle(Arrays.asList(array), random);
@@ -372,6 +376,7 @@ final class Split {
             Spliterator<E> spl0,
             Spliterator<? extends F> spl1,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
+        requireNonNull(mapper);
         return new UnknownSizeSpliterator<R>(ordered(spl0, spl1)) {
             private final Box<E> box0 = new Box<>();
             private final Box<F> box1 = new Box<>();
@@ -504,6 +509,7 @@ final class Split {
     static <E> Spliterator<E> takeWhile(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
             private boolean found;
@@ -526,6 +532,7 @@ final class Split {
     static <E> Spliterator<E> dropWhile(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
             private boolean found;
@@ -728,6 +735,7 @@ final class Split {
             Spliterator<E> first,
             Object[] second,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
+        requireNonNull(mapper);
         if (second.length == 0) return emptySpliterator(ordered(first));
         return flatMap(first, e -> map(
                 Split.<F>toSpliterator(second), f -> mapper.apply(e, f)));
@@ -736,6 +744,7 @@ final class Split {
     static <E> Spliterator<E> filter(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
             boolean advance(Consumer<? super E> action) {
@@ -753,6 +762,7 @@ final class Split {
     static <E, R> Spliterator<R> map(
             Spliterator<E> spliterator,
             Function<? super E, ? extends R> mapper) {
+        requireNonNull(mapper);
         return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
             boolean advance(Consumer<? super R> action) {
@@ -766,6 +776,7 @@ final class Split {
     static <E, R> Spliterator<R> flatMap(
             Spliterator<E> spliterator,
             Function<? super E, ? extends Spliterator<R>> mapper) {
+        requireNonNull(mapper);
         return flatten(map(spliterator, mapper.andThen(
                 s -> s == null ? emptySpliterator(ORDERED) : s)));
     }
@@ -773,6 +784,7 @@ final class Split {
     static <E, R> Spliterator<R> mapMulti(
             Spliterator<E> spliterator,
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
+        requireNonNull(mapper);
         return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
             private ArrayList<R> buffer = new ArrayList<>();
@@ -807,9 +819,17 @@ final class Split {
         };
     }
 
+    static <E> E[] sorted(Spliterator<E> spliterator) {
+        // ClassCastException only thrown when casting to Comparable later
+        @SuppressWarnings("unchecked")
+        Comparator<E> comparator = (Comparator<E>) Comparator.naturalOrder();
+        return sorted(spliterator, comparator);
+    }
+
     static <E> E[] sorted(
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
+        requireNonNull(comparator);
         @SuppressWarnings("unchecked")
         E[] array = (E[]) toArray(spliterator);
         Arrays.sort(array, comparator);
@@ -865,6 +885,7 @@ final class Split {
             Spliterator<E> spliterator,
             R identity,
             BiFunction<R, ? super E, R> accumulator) {
+        requireNonNull(accumulator);
         Box<E> next = new Box<>();
         while (spliterator.tryAdvance(next)) {
             identity = accumulator.apply(identity, next.value);
@@ -875,6 +896,7 @@ final class Split {
     static <E> Optional<E> reduce(
             Spliterator<E> spliterator,
             BinaryOperator<E> accumulator) {
+        requireNonNull(accumulator);
         Box<E> next = new Box<>();
         if (!spliterator.tryAdvance(next)) return Optional.empty();
         return Optional.of(reduce(spliterator, next.value, accumulator));
@@ -884,6 +906,8 @@ final class Split {
             Spliterator<E> spliterator,
             Supplier<R> supplier,
             BiConsumer<R, ? super E> accumulator) {
+        requireNonNull(supplier);
+        requireNonNull(accumulator);
         R acc = supplier.get();
         spliterator.forEachRemaining(e -> accumulator.accept(acc, e));
         return acc;
@@ -892,6 +916,7 @@ final class Split {
     static <E, A, R> R collect(
             Spliterator<E> spliterator,
             Collector<? super E, A, R> collector) {
+        requireNonNull(collector);
         return collector.finisher().apply(collect(
                 spliterator, collector.supplier(), collector.accumulator()));
     }
@@ -899,6 +924,7 @@ final class Split {
     static <E> Optional<E> min(
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
+        requireNonNull(comparator);
         E min;
         Box<E> next = new Box<>();
         if (spliterator.tryAdvance(next)) min = next.value;
@@ -912,12 +938,13 @@ final class Split {
     static <E> Optional<E> max(
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
-        return min(spliterator, reverseOrder(comparator));
+        return min(spliterator, reverseOrder(requireNonNull(comparator)));
     }
 
     static <E> boolean noneMatch(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         Box<E> next = new Box<>();
         while (spliterator.tryAdvance(next)) {
             if (predicate.test(next.value)) return false;
@@ -934,12 +961,14 @@ final class Split {
     static <E> boolean allMatch(
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return noneMatch(spliterator, predicate.negate());
     }
 
     static <E> Spliterator<E> peek(
             Spliterator<E> spliterator,
             Consumer<? super E> peeker) {
+        requireNonNull(peeker);
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
             boolean advance(Consumer<? super E> action) {

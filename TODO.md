@@ -126,17 +126,42 @@ removed the old allocations is unknown.
   argument exceeds the data, where `limit`, `skip`, `limitLast` and `skipLast`
   all return what is present. Guava's `Sets.combinations` throws too, so this
   is defensible, but it should be a decision rather than an accident.
-- **Null argument checks are ad hoc.** `requireNonNull` is used where an
-  argument is stored for later (`mapMulti`, `sorted(Comparator)`,
-  `toArray(IntFunction)`, `Split.replaceAll`), but most of the surface relies
-  on the incidental NPE from the first call instead — so an empty source, a
-  short-circuiting terminal, or an operand that empties the result swallows a
-  null silently, and on `SeqStream` the failure is deferred to the terminal
-  operation. `allMatch` looks like an exception but only throws because
-  `Split.allMatch` calls `predicate.negate()`; `anyMatch` has no such
-  accident, so the siblings disagree. Decide whether a null functional
-  argument is checked eagerly or left to fail on first use, then apply it in
-  `Split` where one check covers both `Seq` and `SeqStream`.
+- **A null functional argument is rejected eagerly**, matching the JDK: on an
+  empty stream `Stream.filter`, `map`, `forEach`, `reduce`, `collect`, `min`,
+  `max`, the three `*Match` methods and `sorted(Comparator)` all throw. The
+  checks live in `Split`, where one covers both `Seq` and `SeqStream`. The one
+  deliberate exception is `toMap`'s `mergeFunction`, where null means "throw
+  on duplicate". `Collectors.toMap` does not check its mappers; `Split.toMap`
+  does, since it is a named operation rather than a composed `Collector`.
+  `collect(Collector)` checks only the collector itself, as `ReduceOps.makeRef`
+  does, and not the four methods it bundles. `Split.sorted(Spliterator)` passes
+  `Comparator.naturalOrder()` to the checked overload, as `SortedOps.OfRef`
+  does; `Arrays.sort`'s null comparator would take a separate code path for the
+  same cost, but would need the check bypassed. Methods that only
+  delegate add no check of their own, since the delegate's contract already
+  requires the argument: `forEach`, `forEachOrdered` and `peek` to
+  `Spliterator.forEachRemaining`, `mapToInt` and the other primitive
+  conversions to `Stream`, and both `flatMap`s to `Function.andThen`.
+
+- **Eleven `SeqStream` intermediate operations traverse the source when they
+  are called**, not when the result is first advanced: `sorted()`,
+  `sorted(Comparator)`, `reversed()`, `rotated(distance)`, `shuffled(random)`,
+  `permutations()`, `permutations(k)`, `allPermutations()`, `combinations(k)`,
+  `allCombinations()` and `power(k)`. A `peek` counter on a source with no
+  terminal operation shows each consuming every element. Every one of them
+  needs the whole source before it can yield a first element, so the work is
+  unavoidable; only its timing is wrong. The two `sorted` overloads are the
+  contract break, since they override `Stream` and carry `{@inheritDoc}`,
+  which republishes `Stream.sorted()`'s promise that a `ClassCastException`
+  "may be thrown when the terminal operation is executed" — ours throws it
+  from the `sorted()` call. The other nine are seqly's own, but the class
+  javadoc still advertises "lazy versions of most other `Seq` methods".
+  Decided: defer the traversal in a later commit with one shared
+  `Split.lazy(Supplier<Spliterator<E>>)` that materializes on first advance,
+  rather than documenting the deviation. That also moves the consumed-stream
+  `IllegalStateException` from the call to the terminal operation, which is
+  what `Stream` does.
+
 - **Three overflow policies for one concept.** `count()` returns `long`,
   `size()` clamps to `Integer.MAX_VALUE` per the `Collection` javadoc, and
   `indexes()` throws when an index cannot be represented as an `int`. Each is
@@ -164,6 +189,19 @@ removed the old allocations is unknown.
   it stays out, say so. Jackson is the other half: check what
   `ObjectMapper.writeValueAsString(seq)` does today (probably fine — `Seq` is a
   `Collection`) and whether reading one back needs a module.
+- **The five `BaseStream` methods are unreviewed as a group.**
+  `SeqStream` is single-threaded by design, so `isParallel()` returns
+  `false`, `sequential()` returns `this`, `parallel()` also returns `this`,
+  `unordered()` wraps the spliterator, `onClose` throws and `close()` does
+  nothing. The consequence is that `s.parallel().isParallel()` is `false`,
+  which contradicts `BaseStream.parallel`'s "returns an equivalent stream
+  that is parallel". Options: keep it and document the deviation, make
+  `parallel()` throw `UnsupportedOperationException` like `onClose`, or have
+  it hand back a real parallel `Stream` (which would have to leave
+  `SeqStream`). The `onClose`/`close` pair has the mirror-image question —
+  `close()` silently succeeds while registering a handler fails — and
+  `unordered()` is the only one of the five that does actual work, so
+  it is the only one whose current behaviour is clearly right.
 
 ## Settled: index and count conventions
 

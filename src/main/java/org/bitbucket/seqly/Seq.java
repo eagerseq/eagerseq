@@ -636,7 +636,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
-        return copyOf(Split.mapMulti(spliterator(), requireNonNull(mapper)));
+        return copyOf(Split.mapMulti(spliterator(), mapper));
     }
 
     /**
@@ -827,14 +827,14 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {
-        return viewOf(Split.sorted(spliterator(), null));
+        return viewOf(Split.sorted(spliterator()));
     }
 
     /**
      * Equivalent of {@link Stream#sorted(Comparator)}.
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return viewOf(Split.sorted(spliterator(), requireNonNull(comparator)));
+        return viewOf(Split.sorted(spliterator(), comparator));
     }
 
     /**
@@ -876,7 +876,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#toArray(IntFunction)}.
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
-        return Split.toArray(spliterator(), requireNonNull(generator));
+        return Split.toArray(spliterator(), generator);
     }
 
     /**
@@ -1023,7 +1023,7 @@ public interface Seq<E> extends Collection<E> {
      * Eager equivalent of {@link Stream#peek(Consumer)}.
      */
     default Seq<E> peek(Consumer<? super E> action) {
-        forEach(action);
+        spliterator().forEachRemaining(action);
         return this;
     }
 

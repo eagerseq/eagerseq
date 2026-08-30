@@ -29,7 +29,6 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-import static java.util.Objects.requireNonNull;
 import static org.bitbucket.seqly.Split.toStream;
 
 /**
@@ -483,7 +482,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R> SeqStream<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
-        return viewOf(Split.mapMulti(spliterator(), requireNonNull(mapper)));
+        return viewOf(Split.mapMulti(spliterator(), mapper));
     }
 
     /**
@@ -521,7 +520,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {
-        return Split.toSeqStream(Split.sorted(spliterator(), null));
+        return Split.toSeqStream(Split.sorted(spliterator()));
     }
 
     /**
@@ -529,7 +528,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
         return Split.toSeqStream(
-                Split.sorted(spliterator(), requireNonNull(comparator)));
+                Split.sorted(spliterator(), comparator));
     }
 
     /**
@@ -571,7 +570,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
-        return Split.toArray(spliterator(), requireNonNull(generator));
+        return Split.toArray(spliterator(), generator);
     }
 
     /**

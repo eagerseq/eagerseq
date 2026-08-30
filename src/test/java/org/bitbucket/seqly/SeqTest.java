@@ -17,7 +17,10 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.RandomAccess;
 import java.util.Spliterator;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -1232,6 +1235,57 @@ public class SeqTest {
         assertThat(seqOf(true, false).toString("|", "<", ">"),
                 equalTo("<true|false>"));
         assertThat(seqOf("fox", null).toString(), equalTo("[fox, null]"));
+    }
+
+    /**
+     * A null functional argument is rejected even when the source is empty
+     * and the argument would never have been called, as the JDK does.
+     */
+    @Test
+    public void testNullFunctionalArgumentsAreRejectedOnAnEmptySeq() {
+        Seq<Integer> empty = seqOf();
+        assertNullRejected(() -> empty.filter(null));
+        assertNullRejected(() -> empty.map(null));
+        assertNullRejected(() -> empty.flatMap(null));
+        assertNullRejected(() -> empty.mapMulti(null));
+        assertNullRejected(() -> empty.takeWhile(null));
+        assertNullRejected(() -> empty.dropWhile(null));
+        assertNullRejected(() -> empty.peek(null));
+        assertNullRejected(() -> empty.forEach(null));
+        assertNullRejected(() -> empty.forEachOrdered(null));
+        assertNullRejected(() -> empty.sorted(null));
+        assertNullRejected(() -> empty.shuffled(null));
+        assertNullRejected(() -> empty.min(null));
+        assertNullRejected(() -> empty.max(null));
+        assertNullRejected(() -> empty.reduce(null));
+        assertNullRejected(() -> empty.reduce(0, (BinaryOperator<Integer>) null));
+        assertNullRejected(() ->
+                empty.reduce(0, (BiFunction<Integer, Integer, Integer>) null));
+        assertNullRejected(() -> empty.collect(ArrayList::new, null));
+        assertNullRejected(() ->
+                empty.<List<Integer>>collect(null, List::add));
+        assertNullRejected(() -> empty.collect(null));
+        assertNullRejected(() -> empty.anyMatch(null));
+        assertNullRejected(() -> empty.allMatch(null));
+        assertNullRejected(() -> empty.noneMatch(null));
+        assertNullRejected(() -> empty.toArray((IntFunction<Integer[]>) null));
+        assertNullRejected(() -> empty.toMap(null));
+        assertNullRejected(() -> empty.toMap(null, identity()));
+        assertNullRejected(() -> empty.toMap(identity(), null));
+        assertNullRejected(() -> empty.toMap(null, identity(), (a, b) -> a));
+        assertNullRejected(() -> empty.toMap(identity(), null, (a, b) -> a));
+        assertNullRejected(() -> empty.zip(empty, null));
+        assertNullRejected(() -> empty.product(empty, null));
+        // the one deliberate exception: a null mergeFunction means that a
+        // duplicate key throws. The no-argument sorted() is not an
+        // exception, it is a separate overload that takes no comparator.
+        assertThat(empty.sorted(), empty());
+        assertThat(seqOf(0).toMap(identity(), identity(), null),
+                hasEntry(0, 0));
+    }
+
+    private static void assertNullRejected(Runnable action) {
+        assertThrows(NullPointerException.class, action);
     }
 
     @SafeVarargs

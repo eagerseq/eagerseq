@@ -4,16 +4,22 @@ import org.junit.Test;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
+import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import static java.util.function.Function.identity;
 import static org.bitbucket.seqly.SeqTest.assertThrows;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.sameInstance;
@@ -439,6 +445,77 @@ public class SeqStreamTest {
     @Test
     public void testViewOfRejectsNullSpliterator() {
         assertThrows(() -> SeqStream.viewOf((Spliterator<Object>) null));
+    }
+
+    /**
+     * The {@code SeqStream} half of
+     * {@link SeqTest#testNullFunctionalArgumentsAreRejectedOnAnEmptySeq}.
+     * Each operation gets a fresh stream, since reaching the check consumes
+     * the one it is called on.
+     */
+    @Test
+    public void testNullFunctionalArgumentsAreRejectedOnAnEmptyStream() {
+        assertNullRejected(() -> emptyStream().filter(null));
+        assertNullRejected(() -> emptyStream().map(null));
+        assertNullRejected(() -> emptyStream().flatMap(null));
+        assertNullRejected(() -> emptyStream().mapMulti(null));
+        assertNullRejected(() -> emptyStream().mapToInt(null));
+        assertNullRejected(() -> emptyStream().mapToLong(null));
+        assertNullRejected(() -> emptyStream().mapToDouble(null));
+        assertNullRejected(() -> emptyStream().flatMapToInt(null));
+        assertNullRejected(() -> emptyStream().flatMapToLong(null));
+        assertNullRejected(() -> emptyStream().flatMapToDouble(null));
+        assertNullRejected(() -> emptyStream().takeWhile(null));
+        assertNullRejected(() -> emptyStream().dropWhile(null));
+        assertNullRejected(() -> emptyStream().peek(null));
+        assertNullRejected(() -> emptyStream().forEach(null));
+        assertNullRejected(() -> emptyStream().forEachOrdered(null));
+        assertNullRejected(() -> emptyStream().sorted(null));
+        assertNullRejected(() -> emptyStream().shuffled(null));
+        assertNullRejected(() -> emptyStream().min(null));
+        assertNullRejected(() -> emptyStream().max(null));
+        assertNullRejected(() -> emptyStream().reduce(null));
+        assertNullRejected(() ->
+                emptyStream().reduce(0, (BinaryOperator<Integer>) null));
+        assertNullRejected(() -> emptyStream()
+                .reduce(0, (BiFunction<Integer, Integer, Integer>) null));
+        assertNullRejected(() -> emptyStream()
+                .reduce(0, null, (BinaryOperator<Integer>) null));
+        assertNullRejected(() -> emptyStream().collect(ArrayList::new, null));
+        assertNullRejected(() ->
+                emptyStream().<List<Integer>>collect(null, List::add));
+        assertNullRejected(() ->
+                emptyStream().collect(ArrayList::new, null, (a, b) -> { }));
+        assertNullRejected(() -> emptyStream().collect(null));
+        assertNullRejected(() -> emptyStream().anyMatch(null));
+        assertNullRejected(() -> emptyStream().allMatch(null));
+        assertNullRejected(() -> emptyStream().noneMatch(null));
+        assertNullRejected(() -> emptyStream().toArray((IntFunction<Integer[]>) null));
+        assertNullRejected(() -> emptyStream().toMap(null));
+        assertNullRejected(() -> emptyStream().toMap(null, identity()));
+        assertNullRejected(() -> emptyStream().toMap(identity(), null));
+        assertNullRejected(() -> emptyStream().toMap(null, identity(), (a, b) -> a));
+        assertNullRejected(() -> emptyStream().toMap(identity(), null, (a, b) -> a));
+        assertNullRejected(() -> emptyStream().zip(emptyStream(), null));
+        assertNullRejected(() -> emptyStream().product(emptyStream(), null));
+        // the combiners a sequential pipeline never needs stay optional,
+        // as does the mergeFunction, whose absence means that a duplicate
+        // key throws. The no-argument sorted() is not an exception, it is
+        // a separate overload that takes no comparator.
+        assertThat(emptyStream().reduce(0, Integer::sum, null), equalTo(0));
+        assertThat(emptyStream().collect(ArrayList::new, List::add, null),
+                equalTo(new ArrayList<Integer>()));
+        assertThat(streamOf(0).toMap(identity(), identity(), null).get(0),
+                equalTo(0));
+        assertTrue(emptyStream().sorted().isEmpty());
+    }
+
+    private static void assertNullRejected(Runnable action) {
+        assertThrows(NullPointerException.class, action);
+    }
+
+    private SeqStream<Integer> emptyStream() {
+        return streamOf();
     }
 
     private static void assertConsumed(Runnable action) {
