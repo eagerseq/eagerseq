@@ -293,7 +293,7 @@ public interface Seq<E> extends Collection<E> {
      */
     static <E> Collector<E, ?, Seq<E>> toSeq() {
         return Collector.<E, Builder<E>, Seq<E>>of(
-                Seq::builder, Builder::add,
+                Seq::builder, Builder::accept,
                 (b, c) -> b.addAll(c.build()), Builder::build);
     }
 
@@ -1147,12 +1147,12 @@ public interface Seq<E> extends Collection<E> {
     /**
      * A builder for creating {@link Seq} instances.
      */
-    interface Builder<E> {
+    interface Builder<E> extends Consumer<E> {
 
         /**
-         * Adds the element and returns {@code this}.
+         * Adds the element.
          */
-        Builder<E> add(E element);
+        void accept(E element);
 
         /**
          * Builds the {@link Seq} instance.
@@ -1161,10 +1161,18 @@ public interface Seq<E> extends Collection<E> {
         Seq<E> build();
 
         /**
+         * Adds the element and returns {@code this}.
+         */
+        default Builder<E> add(E element) {
+            accept(element);
+            return this;
+        }
+
+        /**
          * Adds all elements and returns {@code this}.
          */
         default Builder<E> addAll(Iterable<? extends E> iterable) {
-            iterable.forEach(this::add);
+            iterable.forEach(this);
             return this;
         }
     }

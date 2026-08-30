@@ -39,12 +39,11 @@ final class SeqBuilder<E> implements Seq.Builder<E> {
         return copy;
     }
 
-    public Seq.Builder<E> add(E element) {
+    public void accept(E element) {
         if (size == array.length) {
             array = arrayCopy(array, nextLength(size), generator);
         }
         array[size++] = element;
-        return this;
     }
 
     public Seq<E> build() {

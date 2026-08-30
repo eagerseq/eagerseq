@@ -183,7 +183,7 @@ public class SeqTest {
         assertThat(builder.add(null).build(), contains(0, 1, null));
         assertThat(builder.add(3).build(), contains(0, 1, null, 3));
         Seq<Integer> built = builder.build();
-        Arrays.asList(4, 5, 6, 7).forEach(builder::add);
+        Arrays.asList(4, 5, 6, 7).forEach(builder);
         assertThat(built, contains(0, 1, null, 3));
     }
 

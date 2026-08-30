@@ -93,7 +93,7 @@ final class Split {
 
     static Object[] toArray(Spliterator<?> spliterator) {
         SeqBuilder<Object> builder = new SeqBuilder<>();
-        spliterator.forEachRemaining(builder::add);
+        spliterator.forEachRemaining(builder);
         return builder.trim();
     }
 
@@ -101,7 +101,7 @@ final class Split {
     public static <E, A> A[] toArray(
             Spliterator<E> spliterator, IntFunction<A[]> generator) {
         SeqBuilder<A> builder = new SeqBuilder<>(generator);
-        spliterator.forEachRemaining(((SeqBuilder<E>) builder)::add);
+        spliterator.forEachRemaining((SeqBuilder<E>) builder);
         return builder.trim();
     }
 
@@ -217,13 +217,14 @@ final class Split {
     }
 
     static boolean listEquals(Spliterator<?> spl0, Spliterator<?> spl1) {
-        Object[] next = new Object[2];
+        Box<Object> next0 = new Box<>();
+        Box<Object> next1 = new Box<>();
         while (true) {
-            boolean has0 = spl0.tryAdvance(e -> next[0] = e);
-            boolean has1 = spl1.tryAdvance(e -> next[1] = e);
+            boolean has0 = spl0.tryAdvance(next0);
+            boolean has1 = spl1.tryAdvance(next1);
             if (!has0 & !has1) return true;
             if (!has0 | !has1) return false;
-            if (!Objects.equals(next[0], next[1])) return false;
+            if (!Objects.equals(next0.value, next1.value)) return false;
         }
     }
 
@@ -308,12 +309,14 @@ final class Split {
     static <E> Spliterator<E> flatten(
             Spliterator<Spliterator<E>> spliterators) {
         return new UnknownSizeSpliterator<E>(ordered(spliterators)) {
-            private Spliterator<E> current = emptySpliterator(ORDERED);
+            private final Box<Spliterator<E>> current = new Box<>();
+            {
+                current.value = emptySpliterator(ORDERED);
+            }
             boolean advance(Consumer<? super E> action) {
                 while (true) {
-                    if (current.tryAdvance(action)) return true;
-                    if (spliterators.tryAdvance(s -> current = s)) continue;
-                    return false;
+                    if (current.value.tryAdvance(action)) return true;
+                    if (!spliterators.tryAdvance(current)) return false;
                 }
             }
         };
@@ -335,11 +338,11 @@ final class Split {
     static <E> Spliterator.OfInt indexesOf(
             Spliterator<E> spliterator, Object object) {
         return new UnknownSizeIntSpliterator(ORDERED) {
+            private final Box<E> next = new Box<>();
             private int index;
-            private E next;
             boolean advance(IntConsumer action) {
-                while (spliterator.tryAdvance(e -> next = e)) {
-                    if (Objects.equals(object, next)) {
+                while (spliterator.tryAdvance(next)) {
+                    if (Objects.equals(object, next.value)) {
                         action.accept(index++);
                         return true;
                     }
@@ -370,13 +373,13 @@ final class Split {
             Spliterator<? extends F> spl1,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
         return new UnknownSizeSpliterator<R>(ordered(spl0, spl1)) {
-            private E e0;
-            private F e1;
+            private final Box<E> box0 = new Box<>();
+            private final Box<F> box1 = new Box<>();
             boolean advance(Consumer<? super R> action) {
-                boolean has0 = spl0.tryAdvance(e -> this.e0 = e);
-                boolean has1 = spl1.tryAdvance(e -> this.e1 = e);
+                boolean has0 = spl0.tryAdvance(box0);
+                boolean has1 = spl1.tryAdvance(box1);
                 if (!has0 | !has1) return false;
-                action.accept(mapper.apply(e0, e1));
+                action.accept(mapper.apply(box0.value, box1.value));
                 return true;
             }
         };
@@ -427,7 +430,7 @@ final class Split {
         requireNonNegativeArgument("size", size);
         if (size == 0) return emptySpliterator(ordered(spliterator));
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private int used;
             private int index;
             private boolean skipped;
@@ -440,15 +443,15 @@ final class Split {
                     // place, by which point its length is settled
                     SeqBuilder<E> builder = new SeqBuilder<>();
                     while (used < size
-                            && spliterator.tryAdvance(builder::add)) {
+                            && spliterator.tryAdvance(builder)) {
                         used++;
                     }
                     queue = builder.trim();
                     // used reaches size only if the fill loop filled the
                     // queue rather than exhausting the source
                     if (used == size) {
-                        while (spliterator.tryAdvance(e -> next = e)) {
-                            queue[index] = next;
+                        while (spliterator.tryAdvance(next)) {
+                            queue[index] = next.value;
                             index++;
                             index %= queue.length;
                         }
@@ -470,7 +473,7 @@ final class Split {
         requireNonNegativeArgument("size", size);
         if (size == 0) return spliterator;
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private int used;
             private int index;
             private boolean skipped;
@@ -481,15 +484,15 @@ final class Split {
                     // as limitLast, the queue is sized from the data
                     SeqBuilder<E> builder = new SeqBuilder<>();
                     while (used < size
-                            && spliterator.tryAdvance(builder::add)) {
+                            && spliterator.tryAdvance(builder)) {
                         used++;
                     }
                     queue = builder.trim();
                 }
                 if (used < size) return false;
-                if (!spliterator.tryAdvance(e -> next = e)) return false;
+                if (!spliterator.tryAdvance(next)) return false;
                 E e = queue[index];
-                queue[index] = next;
+                queue[index] = next.value;
                 index++;
                 index %= queue.length;
                 action.accept(e);
@@ -502,16 +505,16 @@ final class Split {
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private boolean found;
             boolean advance(Consumer<? super E> action) {
                 if (!found) {
-                    if (spliterator.tryAdvance(e -> next = e)) {
-                        if (!predicate.test(next)) {
+                    if (spliterator.tryAdvance(next)) {
+                        if (!predicate.test(next.value)) {
                             found = true;
                             return false;
                         }
-                        action.accept(next);
+                        action.accept(next.value);
                         return true;
                     }
                 }
@@ -524,14 +527,14 @@ final class Split {
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private boolean found;
             boolean advance(Consumer<? super E> action) {
                 if (!found) {
-                    while (spliterator.tryAdvance(e -> next = e)) {
-                        if (!predicate.test(next)) {
+                    while (spliterator.tryAdvance(next)) {
+                        if (!predicate.test(next.value)) {
                             found = true;
-                            action.accept(next);
+                            action.accept(next.value);
                             return true;
                         }
                     }
@@ -734,11 +737,11 @@ final class Split {
             Spliterator<E> spliterator,
             Predicate<? super E> predicate) {
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             boolean advance(Consumer<? super E> action) {
-                while (spliterator.tryAdvance(e -> next = e)) {
-                    if (predicate.test(next)) {
-                        action.accept(next);
+                while (spliterator.tryAdvance(next)) {
+                    if (predicate.test(next.value)) {
+                        action.accept(next.value);
                         return true;
                     }
                 }
@@ -751,9 +754,11 @@ final class Split {
             Spliterator<E> spliterator,
             Function<? super E, ? extends R> mapper) {
         return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
+            private final Box<E> next = new Box<>();
             boolean advance(Consumer<? super R> action) {
-                return spliterator.tryAdvance(e ->
-                        action.accept(mapper.apply(e)));
+                if (!spliterator.tryAdvance(next)) return false;
+                action.accept(mapper.apply(next.value));
+                return true;
             }
         };
     }
@@ -769,6 +774,7 @@ final class Split {
             Spliterator<E> spliterator,
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
         return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
+            private final Box<E> next = new Box<>();
             private ArrayList<R> buffer = new ArrayList<>();
             private Consumer<R> sink = buffer::add;
             private int index;
@@ -776,9 +782,8 @@ final class Split {
                 while (index == buffer.size()) {
                     buffer.clear();
                     index = 0;
-                    if (!spliterator.tryAdvance(e -> mapper.accept(e, sink))) {
-                        return false;
-                    }
+                    if (!spliterator.tryAdvance(next)) return false;
+                    mapper.accept(next.value, sink);
                 }
                 action.accept(buffer.get(index++));
                 return true;
@@ -788,12 +793,12 @@ final class Split {
 
     static <E> Spliterator<E> distinct(Spliterator<E> spliterator) {
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private Set<E> seen = new HashSet<>();
             boolean advance(Consumer<? super E> action) {
-                while (spliterator.tryAdvance(e -> next = e)) {
-                    if (seen.add(next)) {
-                        action.accept(next);
+                while (spliterator.tryAdvance(next)) {
+                    if (seen.add(next.value)) {
+                        action.accept(next.value);
                         return true;
                     }
                 }
@@ -815,13 +820,13 @@ final class Split {
             Spliterator<E> spliterator, long size) {
         requireNonNegativeArgument("size", size);
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private long index;
             boolean advance(Consumer<? super E> action) {
                 if (index >= size) return false;
-                if (spliterator.tryAdvance(e -> next = e)) {
+                if (spliterator.tryAdvance(next)) {
                     index++;
-                    action.accept(next);
+                    action.accept(next.value);
                     return true;
                 }
                 return false;
@@ -833,12 +838,12 @@ final class Split {
             Spliterator<E> spliterator, long size) {
         requireNonNegativeArgument("size", size);
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
-            private E next;
+            private final Box<E> next = new Box<>();
             private long index;
             boolean advance(Consumer<? super E> action) {
-                while (spliterator.tryAdvance(e -> next = e)) {
+                while (spliterator.tryAdvance(next)) {
                     if (index++ >= size) {
-                        action.accept(next);
+                        action.accept(next.value);
                         return true;
                     }
                 }
@@ -936,11 +941,12 @@ final class Split {
             Spliterator<E> spliterator,
             Consumer<? super E> peeker) {
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
+            private final Box<E> next = new Box<>();
             boolean advance(Consumer<? super E> action) {
-                return spliterator.tryAdvance(e -> {
-                    peeker.accept(e);
-                    action.accept(e);
-                });
+                if (!spliterator.tryAdvance(next)) return false;
+                peeker.accept(next.value);
+                action.accept(next.value);
+                return true;
             }
         };
     }
@@ -1001,8 +1007,8 @@ final class Split {
     private static Spliterator.OfInt matchLengths(
             Spliterator<?> spliterator, Object[] slice, int[] jumps, int from) {
         return new UnknownSizeIntSpliterator(ORDERED) {
+            private final Box<Object> next = new Box<>();
             private int j = from;
-            private Object next;
             private boolean started;
             boolean advance(IntConsumer action) {
                 if (!started) {
@@ -1010,9 +1016,9 @@ final class Split {
                     action.accept(j);
                     return true;
                 }
-                if (!spliterator.tryAdvance(e -> next = e)) return false;
+                if (!spliterator.tryAdvance(next)) return false;
                 while (j == slice.length
-                        || j >= 0 && !Objects.equals(next, slice[j])) {
+                        || j >= 0 && !Objects.equals(next.value, slice[j])) {
                     j = jumps[j];
                 }
                 action.accept(++j);
@@ -1026,8 +1032,9 @@ final class Split {
         return new UnknownSizeIntSpliterator(ORDERED) {
             private int index;
             private int length;
+            private final IntConsumer setLength = e -> length = e;
             boolean advance(IntConsumer action) {
-                while (lengths.tryAdvance((IntConsumer) e -> length = e)) {
+                while (lengths.tryAdvance(setLength)) {
                     if (length == sliceLength) {
                         action.accept(index++ - sliceLength);
                         return true;
@@ -1051,22 +1058,24 @@ final class Split {
             boolean difference, boolean union, int characteristics) {
         Map<Object, Long> multiset = new HashMap<>();
         return new UnknownSizeSpliterator<E>(characteristics) {
-            private E next;
+            private final Box<Object> next = new Box<>();
             private boolean concatenated;
             boolean advance(Consumer<? super E> action) {
                 if (!concatenated) {
-                    while (second.tryAdvance(e -> next = (E) e)) {
-                        multisetAdd(multiset, next);
+                    while (second.tryAdvance(next)) {
+                        multisetAdd(multiset, next.value);
                         if (union) {
-                            action.accept(next);
+                            // if union, second contains E, not Object
+                            action.accept((E) next.value);
                             return true;
                         }
                     }
                     concatenated = true;
                 }
-                while (first.tryAdvance(e -> next = e)) {
-                    if (multisetRemove(multiset, next) ^ difference) {
-                        action.accept(next);
+                while (first.tryAdvance(next)) {
+                    if (multisetRemove(multiset, next.value) ^ difference) {
+                        // first contains E, not Object
+                        action.accept((E) next.value);
                         return true;
                     }
                 }

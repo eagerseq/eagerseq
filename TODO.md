@@ -98,16 +98,27 @@ backing collection, whose contract directly supplies those observations, but
 does not delegate `count()`: `Collection.size()` clamps above
 `Integer.MAX_VALUE`, while `count()` returns an exact `long`.
 
+## Settled: consumer sinks
+
+`Seq.Builder` extends `Consumer<E>` following `Stream.Builder`: `accept` is the
+abstract insertion operation and `add` is the fluent default that delegates to
+it. `addAll` and internal spliterator sinks pass the builder directly as a
+consumer; fluent caller-facing uses remain `add`. `Consumer.andThen` therefore
+joins the builder surface and returns `Consumer<E>`, which is accepted.
+
+`Split` does not create capturing consumers at repeated `tryAdvance` pull
+sites. Reference-valued pulls reuse `Box` fields on their returned
+spliterators; the terminal `listEquals` uses two local boxes because it has no
+wrapper object. `zip` uses two typed boxes, `flatten` keeps its current
+spliterator directly in its box, and `map`, `mapMulti` and `peek` buffer their
+input in a box before applying their operation. The primitive assignment in
+`toMatchIndexes` instead caches its `IntConsumer` as a field. No-op consumers,
+whole-traversal accumulators and genuine transformation functions remain
+lambdas. No benchmark was taken, so whether escape analysis had already
+removed the old allocations is unknown.
+
 ## Contract and robustness
 
-- **Should `Seq.Builder` extend `Consumer<E>`?** `Stream.Builder` does
-  (`accept` abstract, `add` a default); delegating the other way — `add`
-  abstract, `default void accept(E e) { add(e); }` — would leave
-  `SeqBuilder` untouched. Four `builder::add` sinks become `builder`
-  (`Seq.addAll`, `Split.toArray`, `Split.limitLast`/`skipLast`); the cast
-  at `Split.toArray(Spliterator, IntFunction)` stays, since its `A` and
-  `E` are unrelated. Cost: `Consumer.andThen` joins the surface returning
-  `Consumer<E>`, not `Builder<E>`.
 - **Combinatoric range messages remain mechanical.** The fixed-size operations
   now consistently take `k`, but `k 3 was greater than length 2` may still read
   less naturally than `cannot choose 3 from 2 elements`.
@@ -140,14 +151,14 @@ does not delegate `count()`: `Collection.size()` clamps above
   and immutable by design. Whether a message is the right answer is undecided:
   the exception type is arguably self-explanatory, and seven near-identical
   strings are their own kind of noise. The javadoc already says it.
-- **A dozen spliterators still allocate a lambda per element.** `Box` now
-  implements `Consumer`, but the anonymous `AbstractSpliterator`s keep a
-  `private E next` field and write `spliterator.tryAdvance(e -> next = e)`,
-  which captures `this` and so allocates once per element on the hot path
-  (grep `e -> next = e`, 11 sites in `Split`). A `Box<E>` field, or just
-  caching the consumer beside the existing one, would remove that and make one
-  pattern serve the whole file. Worth measuring before changing anything:
-  escape analysis often erases the allocation.
+- **Nothing says whether `toList`/`toSet`/`toMap` permit nulls.** They build
+  an `ArrayList`, `LinkedHashSet` and `LinkedHashMap` and wrap them with
+  `Collections.unmodifiable*`, so nulls are permitted — matching
+  `Stream.toList()` rather than `List.copyOf` and
+  `Collectors.toUnmodifiableList()`, which reject them. That is a decision the
+  javadoc does not state. The neighbouring questions from the same note are
+  answered: `toSet()` and `toMap()` document encounter order, and the
+  duplicate-key behaviour is documented on the three-argument `toMap`.
 - **Serialization is unconsidered.** No `Seq` implementation is
   `Serializable`, and nothing says whether that is deliberate. Decide, and if
   it stays out, say so. Jackson is the other half: check what
