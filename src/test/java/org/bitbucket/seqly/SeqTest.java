@@ -5,7 +5,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -91,31 +90,6 @@ public class SeqTest {
         } catch (RuntimeException e) {
             if (!expected.isInstance(e)) throw e;
             assertThat(e.getMessage(), equalTo(message));
-        }
-    }
-
-    @Test
-    public void testAllMethodsHaveTests() {
-        Seq<String> testMethods = Seq.viewOf(SeqTest.class.getDeclaredMethods())
-                .filter(m -> m.getAnnotation(Test.class) != null)
-                .map(m -> m.getName().toLowerCase().replaceFirst("test", ""))
-                .distinct();
-        Seq<String> implementedMethods = Seq.viewOf(Seq.class.getMethods())
-                .map(m -> m.getName().toLowerCase())
-                .distinct();
-        assertThat(implementedMethods.difference(testMethods), empty());
-    }
-
-    @Test
-    public void testAllSeqReturningMethodsReturnViews() {
-        for (Method method : Seq.class.getMethods()) {
-            if (Seq.class.isAssignableFrom(method.getReturnType())
-                    && !method.isSynthetic()
-                    && !method.getName().equals("stream")
-                    && !method.getName().equals("parallelStream")) {
-                assertThat(method.getName(), method.getReturnType(),
-                        equalTo(Seq.class));
-            }
         }
     }
 

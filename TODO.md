@@ -174,28 +174,6 @@ removed the old allocations is unknown.
 
 ## Contract and robustness
 
-- **Three overflow policies for one concept.** `count()` returns `long`,
-  `size()` clamps to `Integer.MAX_VALUE` per the `Collection` javadoc, and
-  `indexes()` throws when an index cannot be represented as an `int`. Each is
-  individually justified; worth stating in one place rather than discovering
-  one at a time.
-- **The unsupported operations throw bare `UnsupportedOperationException`.**
-  The seven inherited `Collection` mutators on `Seq` (`add`, `remove`,
-  `addAll`, `removeAll`, `removeIf`, `retainAll`, `clear`) plus
-  `SeqStream.onClose`, all message-less. Unlike the other failures the
-  mutators are reached through a `Collection`- or `List`-typed reference,
-  where the stack trace names `add` but nothing says the receiver is a `Seq`
-  and immutable by design. Whether a message is the right answer is undecided:
-  the exception type is arguably self-explanatory, and seven near-identical
-  strings are their own kind of noise. The javadoc already says it.
-- **Nothing says whether `toList`/`toSet`/`toMap` permit nulls.** They build
-  an `ArrayList`, `LinkedHashSet` and `LinkedHashMap` and wrap them with
-  `Collections.unmodifiable*`, so nulls are permitted — matching
-  `Stream.toList()` rather than `List.copyOf` and
-  `Collectors.toUnmodifiableList()`, which reject them. That is a decision the
-  javadoc does not state. The neighbouring questions from the same note are
-  answered: `toSet()` and `toMap()` document encounter order, and the
-  duplicate-key behaviour is documented on the three-argument `toMap`.
 - **Serialization is unconsidered.** No `Seq` implementation is
   `Serializable`, and nothing says whether that is deliberate. Decide, and if
   it stays out, say so. Jackson is the other half: check what
@@ -287,7 +265,7 @@ neither remaining one is patched locally.
   the multiplicity-sensitive comparisons (`listEquals`, `multisetEquals`,
   `setEquals`), against a naive `java.util`-only reference, over every
   sequence of `a`/`b`/`null` up to length 5 (length 4 where a test sweeps
-  input pairs) and every argument from `-2` to `length + 2`, across all 13
+  input pairs) and every argument from `-2` to `length + 2`, across all 14
   factories. The combinatorics references derive index words independently,
   then filter them for permutations and combinations; the all-size operations
   concatenate those fixed-`k` references, while `power` uses the words directly
@@ -325,5 +303,3 @@ neither remaining one is patched locally.
   Reconsider the generation order and source of truth: the README might be
   assembled by concatenating material from both class javadocs, or generating
   the README directly from javadoc may no longer be the right relationship.
-- **JaCoCo reports coverage but gates nothing.** Decide whether a coverage
-  threshold would catch useful regressions or merely create maintenance work.

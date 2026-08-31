@@ -20,6 +20,7 @@ interface Factory {
     static Iterable<Object[]> all() {
         return Seq.of(
                 parameters("DelegatingSeq", TestDelegatingSeq::new),
+                parameters("AbstractSeq defaults", TestDefaultSeq::new),
                 parameters("Seq#of(E...)", Seq::of),
                 parameters("Seq#copyOf(E[])", Seq::copyOf),
                 parameters("Seq#viewOf(E[])", Seq::viewOf),
@@ -95,6 +96,20 @@ interface Factory {
 
         @SafeVarargs
         public TestDelegatingSeq(E... elements) {
+            this.elements = elements;
+        }
+
+        public Spliterator<E> spliterator() {
+            return Arrays.spliterator(elements);
+        }
+    }
+
+    class TestDefaultSeq<E> extends AbstractSeq<E> {
+
+        private final E[] elements;
+
+        @SafeVarargs
+        public TestDefaultSeq(E... elements) {
             this.elements = elements;
         }
 

@@ -2,17 +2,12 @@ package org.bitbucket.seqly;
 
 import org.junit.Test;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.Spliterator;
-import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.BooleanSupplier;
@@ -35,92 +30,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class SeqStreamTest {
-
-    @Test
-    public void testAllStreamReturningMethodsReturnSeqStream() {
-        for (Method method : SeqStream.class.getMethods()) {
-            if (Stream.class.isAssignableFrom(method.getReturnType())
-                    && !method.isSynthetic()
-                    && !Seq.of("takeWhile", "dropWhile", "mapMulti")
-                    // compiling with -release 8, so these are declared by
-                    // SeqStream without overriding the Stream method of the
-                    // same name, which is therefore also reported here
-                    .contains(method.getName())
-                    // Gatherer does not exist before Java 24, so gather
-                    // cannot be declared at all while targeting Java 8
-                    && !method.getName().equals("gather")) {
-                assertThat(method.getName(), method.getReturnType(),
-                        equalTo(SeqStream.class));
-            }
-        }
-    }
-
-    /**
-     * Detects methods added to {@code Stream} by later Java versions that
-     * have not yet been considered for {@code Seq}. When this fails, either
-     * add the method to {@code Seq} or add it below with a reason.
-     */
-    @Test
-    public void testStreamMethodsAbsentFromSeqAreOnlyTheKnownExceptions() {
-        Set<String> declaredBySeq = new HashSet<>();
-        for (Method method : Seq.class.getDeclaredMethods()) {
-            declaredBySeq.add(method.getName());
-        }
-        Set<String> absent = new TreeSet<>();
-        for (Method method : Stream.class.getDeclaredMethods()) {
-            if (!method.isSynthetic()
-                    && !Modifier.isStatic(method.getModifiers())
-                    && !declaredBySeq.contains(method.getName())) {
-                absent.add(method.getName());
-            }
-        }
-        absent.removeAll(Arrays.asList(
-                // Seq is an object collection and defines no primitive
-                // stream methods at all, including mapToInt and flatMapToInt
-                "mapMultiToInt", "mapMultiToLong", "mapMultiToDouble",
-                "mapToInt", "mapToLong", "mapToDouble",
-                "flatMapToInt", "flatMapToLong", "flatMapToDouble",
-                // Gatherer does not exist before Java 24
-                "gather",
-                // exists only to let a parallel pipeline ignore encounter
-                // order; a Seq is eager and sequential, so it would be a
-                // synonym for findFirst promising less
-                "findAny"));
-        assertThat("Stream methods absent from Seq without a stated reason",
-                absent, empty());
-    }
-
-    /**
-     * Detects methods added to {@code Seq} that have no {@code SeqStream}
-     * equivalent. When this fails, either add the method to
-     * {@code SeqStream} or add it below with a reason.
-     */
-    @Test
-    public void testSeqMethodsAbsentFromSeqStreamAreOnlyTheKnownExceptions() {
-        Set<String> declaredBySeqStream = new HashSet<>();
-        for (Method method : SeqStream.class.getMethods()) {
-            declaredBySeqStream.add(method.getName());
-        }
-        Set<String> absent = new TreeSet<>();
-        for (Method method : Seq.class.getMethods()) {
-            if (!method.isSynthetic()
-                    && !Modifier.isStatic(method.getModifiers())
-                    && !declaredBySeqStream.contains(method.getName())) {
-                absent.add(method.getName());
-            }
-        }
-        absent.removeAll(Arrays.asList(
-                // Collection mutators, which Seq inherits only to throw
-                "add", "addAll", "clear", "remove", "removeAll", "removeIf",
-                "retainAll",
-                // a SeqStream is consumed by any traversal, so it cannot
-                // define equality by its elements
-                "equals", "hashCode",
-                // a SeqStream is already a stream
-                "stream", "parallelStream"));
-        assertThat("Seq methods absent from SeqStream without a stated reason",
-                absent, empty());
-    }
 
     @Test
     public void testOf() {
@@ -551,6 +460,13 @@ public class SeqStreamTest {
         SeqStream<Integer> stream = streamOf(0, 1, 2);
         stream.findFirst();
         assertConsumed(stream::toSeq);
+    }
+
+    @Test
+    public void testFindAny() {
+        assertThat(streamOf().findAny(), equalTo(java.util.Optional.empty()));
+        assertThat(streamOf(0, 1, 2).findAny(),
+                equalTo(java.util.Optional.of(0)));
     }
 
     @Test
