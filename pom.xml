@@ -67,6 +67,10 @@
                 <version>3.9.0</version>
                 <configuration>
                     <java>
+                        <removeUnusedImports/>
+                        <importOrder>
+                            <file>${project.basedir}/eclipse.importorder</file>
+                        </importOrder>
                         <eclipse>
                             <version>4.40</version>
                             <file>${project.basedir}/eclipse-formatter.xml</file>
