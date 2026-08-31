@@ -124,8 +124,8 @@ final class Split {
             Spliterator<E> spliterator, T[] ts) {
         Class<?> type = ts.getClass().getComponentType();
         @SuppressWarnings("unchecked")
-        IntFunction<T[]> generator =
-                length -> (T[]) Array.newInstance(type, length);
+        IntFunction<T[]> generator = length -> (T[]) Array.newInstance(type,
+                length);
         T[] array = toArray(spliterator, generator);
         if (ts.length < array.length) return array;
         System.arraycopy(array, 0, ts, 0, array.length);
@@ -343,7 +343,8 @@ final class Split {
             boolean advance(Consumer<? super E> action) {
                 while (true) {
                     if (current.value != null
-                            && current.value.tryAdvance(action)) return true;
+                            && current.value.tryAdvance(action))
+                        return true;
                     if (!spliterators.tryAdvance(current)) return false;
                 }
             }
@@ -724,7 +725,8 @@ final class Split {
     static <E> Spliterator<E[]> power(Object[] array, int k) {
         return new UnknownSizeSpliterator<E[]>(ORDERED) {
             private int[] index = array.length == 0 && k > 0
-                    ? null : new int[k];
+                    ? null
+                    : new int[k];
             boolean advance(Consumer<? super E[]> action) {
                 if (index == null) return false;
                 @SuppressWarnings("unchecked")
@@ -1121,7 +1123,8 @@ final class Split {
     }
 
     private abstract static class UnknownSizeSpliterator<E>
-            extends AbstractSpliterator<E> {
+            extends
+                AbstractSpliterator<E> {
 
         @SuppressWarnings("MagicConstant")
         UnknownSizeSpliterator(int characteristics) {
@@ -1136,7 +1139,8 @@ final class Split {
     }
 
     private abstract static class UnknownSizeIntSpliterator
-            extends AbstractIntSpliterator {
+            extends
+                AbstractIntSpliterator {
 
         @SuppressWarnings("MagicConstant")
         UnknownSizeIntSpliterator(int characteristics) {

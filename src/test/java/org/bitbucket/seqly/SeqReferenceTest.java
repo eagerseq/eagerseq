@@ -50,16 +50,13 @@ public class SeqReferenceTest {
 
     private static final List<List<String>> INPUTS = inputs(MAX_LENGTH);
 
-    private static final List<List<String>> PAIR_INPUTS =
-            inputs(MAX_PAIR_LENGTH);
+    private static final List<List<String>> PAIR_INPUTS = inputs(
+            MAX_PAIR_LENGTH);
 
     /** Index expectations depend on lengths, not on the input values. */
-    private static final Map<String, List<List<Integer>>> INDEX_WORDS =
-            new HashMap<>();
-    private static final Map<String, List<List<Integer>>> INDEX_PERMUTATIONS =
-            new HashMap<>();
-    private static final Map<String, List<List<Integer>>> INDEX_COMBINATIONS =
-            new HashMap<>();
+    private static final Map<String, List<List<Integer>>> INDEX_WORDS = new HashMap<>();
+    private static final Map<String, List<List<Integer>>> INDEX_PERMUTATIONS = new HashMap<>();
+    private static final Map<String, List<List<Integer>>> INDEX_COMBINATIONS = new HashMap<>();
 
     private final Factory factory;
 
@@ -195,22 +192,23 @@ public class SeqReferenceTest {
             List<Integer> expected = referenceIndexesOf(input, element);
             assertThat(seq(input).lastIndexOf(element),
                     equalTo(expected.isEmpty()
-                            ? -1 : expected.get(expected.size() - 1)));
+                            ? -1
+                            : expected.get(expected.size() - 1)));
         });
     }
 
     @Test
     public void testIndexesOf() {
-        forEachInputAndElement((input, element) ->
-                assertThat(seq(input).indexesOf(element).toList(),
-                        equalTo(referenceIndexesOf(input, element))));
+        forEachInputAndElement((input, element) -> assertThat(
+                seq(input).indexesOf(element).toList(),
+                equalTo(referenceIndexesOf(input, element))));
     }
 
     @Test
     public void testIndexesOfSlice() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).indexesOfSlice(that).toList(),
-                        equalTo(referenceIndexesOfSlice(input, that))));
+        forEachInputPair((input, that) -> assertThat(
+                seq(input).indexesOfSlice(that).toList(),
+                equalTo(referenceIndexesOfSlice(input, that))));
     }
 
     @Test
@@ -228,32 +226,32 @@ public class SeqReferenceTest {
             List<Integer> expected = referenceIndexesOfSlice(input, that);
             assertThat(seq(input).lastIndexOfSlice(that),
                     equalTo(expected.isEmpty()
-                            ? -1 : expected.get(expected.size() - 1)));
+                            ? -1
+                            : expected.get(expected.size() - 1)));
         });
     }
 
     @Test
     public void testContainsSlice() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).containsSlice(that),
+        forEachInputPair(
+                (input, that) -> assertThat(seq(input).containsSlice(that),
                         equalTo(!referenceIndexesOfSlice(input, that)
                                 .isEmpty())));
     }
 
     @Test
     public void testStartsWith() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).startsWith(that),
+        forEachInputPair(
+                (input, that) -> assertThat(seq(input).startsWith(that),
                         equalTo(referenceIndexesOfSlice(input, that)
                                 .contains(0))));
     }
 
     @Test
     public void testEndsWith() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).endsWith(that),
-                        equalTo(referenceIndexesOfSlice(input, that)
-                                .contains(input.size() - that.size()))));
+        forEachInputPair((input, that) -> assertThat(seq(input).endsWith(that),
+                equalTo(referenceIndexesOfSlice(input, that)
+                        .contains(input.size() - that.size()))));
     }
 
     @Test
@@ -267,16 +265,16 @@ public class SeqReferenceTest {
 
     @Test
     public void testIntersection() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).intersection(that).toList(),
-                        equalTo(referenceIntersection(input, that))));
+        forEachInputPair((input, that) -> assertThat(
+                seq(input).intersection(that).toList(),
+                equalTo(referenceIntersection(input, that))));
     }
 
     @Test
     public void testDifference() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).difference(that).toList(),
-                        equalTo(referenceDifference(input, that))));
+        forEachInputPair((input, that) -> assertThat(
+                seq(input).difference(that).toList(),
+                equalTo(referenceDifference(input, that))));
     }
 
     @Test
@@ -291,22 +289,22 @@ public class SeqReferenceTest {
 
     @Test
     public void testContainsMultiset() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).containsMultiset(that),
+        forEachInputPair(
+                (input, that) -> assertThat(seq(input).containsMultiset(that),
                         equalTo(referenceDifference(that, input).isEmpty())));
     }
 
     @Test
     public void testListEquals() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).listEquals(that),
+        forEachInputPair(
+                (input, that) -> assertThat(seq(input).listEquals(that),
                         equalTo(input.equals(that))));
     }
 
     @Test
     public void testMultisetEquals() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).multisetEquals(that),
+        forEachInputPair(
+                (input, that) -> assertThat(seq(input).multisetEquals(that),
                         equalTo(referenceDifference(input, that).isEmpty()
                                 && referenceDifference(that, input)
                                         .isEmpty())));
@@ -314,10 +312,9 @@ public class SeqReferenceTest {
 
     @Test
     public void testSetEquals() {
-        forEachInputPair((input, that) ->
-                assertThat(seq(input).setEquals(that),
-                        equalTo(new HashSet<>(input)
-                                .equals(new HashSet<>(that)))));
+        forEachInputPair((input, that) -> assertThat(seq(input).setEquals(that),
+                equalTo(new HashSet<>(input)
+                        .equals(new HashSet<>(that)))));
     }
 
     @Test
@@ -334,11 +331,10 @@ public class SeqReferenceTest {
 
     @Test
     public void testPermutations() {
-        forEachInput(input ->
-                assertThat(toLists(seq(input).permutations()),
-                        equalTo(select(input,
-                                indexPermutations(
-                                        input.size(), input.size())))));
+        forEachInput(input -> assertThat(toLists(seq(input).permutations()),
+                equalTo(select(input,
+                        indexPermutations(
+                                input.size(), input.size())))));
     }
 
     @Test
@@ -421,7 +417,7 @@ public class SeqReferenceTest {
                 for (String f : that) expected.add(e + ":" + f);
             }
             assertThat(seq(input).product(
-                            that, (e, f) -> e + ":" + f).toList(),
+                    that, (e, f) -> e + ":" + f).toList(),
                     equalTo(expected));
         });
     }
@@ -429,8 +425,7 @@ public class SeqReferenceTest {
     private static List<String> referenceSlice(
             List<String> input, long from, long to) {
         List<String> result = new ArrayList<>();
-        for (long i = Math.max(from, 0);
-                i < Math.min(to, input.size()); i++) {
+        for (long i = Math.max(from, 0); i < Math.min(to, input.size()); i++) {
             result.add(input.get((int) i));
         }
         return result;

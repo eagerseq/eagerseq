@@ -29,22 +29,25 @@ interface Factory {
                         return Seq.copyOf(Arrays.asList(elements));
                     }
                 }),
-                parameters("Seq#viewOf(Collection<E>) [non-SIZED]", new Factory() {
-                    public <E> Seq<E> create(E[] elements) {
-                        return Seq.viewOf(new AbstractCollection<E>() {
-                            public Iterator<E> iterator() {
-                                return Arrays.asList(elements).iterator();
+                parameters("Seq#viewOf(Collection<E>) [non-SIZED]",
+                        new Factory() {
+                            public <E> Seq<E> create(E[] elements) {
+                                return Seq.viewOf(new AbstractCollection<E>() {
+                                    public Iterator<E> iterator() {
+                                        return Arrays.asList(elements)
+                                                .iterator();
+                                    }
+                                    public int size() {
+                                        return elements.length;
+                                    }
+                                    public Spliterator<E> spliterator() {
+                                        return Spliterators
+                                                .spliteratorUnknownSize(
+                                                        iterator(), ORDERED);
+                                    }
+                                });
                             }
-                            public int size() {
-                                return elements.length;
-                            }
-                            public Spliterator<E> spliterator() {
-                                return Spliterators.spliteratorUnknownSize(
-                                        iterator(), ORDERED);
-                            }
-                        });
-                    }
-                }),
+                        }),
                 parameters("Seq#copyOf(Iterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
                         return Seq.copyOf(Arrays.asList(elements).iterator());
@@ -52,7 +55,8 @@ interface Factory {
                 }),
                 parameters("Seq#copyOf(Spliterator<E>)", new Factory() {
                     public <E> Seq<E> create(E[] elements) {
-                        return Seq.copyOf(Arrays.asList(elements).spliterator());
+                        return Seq
+                                .copyOf(Arrays.asList(elements).spliterator());
                     }
                 }),
                 parameters("Seq#copyOf(Stream<E>)", new Factory() {
@@ -90,7 +94,10 @@ interface Factory {
     }
 
     class TestDelegatingSeq<E>
-            extends AbstractSeq<E> implements DelegatingSeq<E> {
+            extends
+                AbstractSeq<E>
+            implements
+                DelegatingSeq<E> {
 
         private final E[] elements;
 

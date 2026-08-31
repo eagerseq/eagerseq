@@ -74,10 +74,10 @@ public class ApiShapeTest {
             if (Stream.class.isAssignableFrom(method.getReturnType())
                     && !method.isSynthetic()
                     && !Seq.of("takeWhile", "dropWhile", "mapMulti")
-                    // compiling with -release 8, so these are declared by
-                    // SeqStream without overriding the Stream method of the
-                    // same name, which is therefore also reported here
-                    .contains(method.getName())
+                            // compiling with -release 8, so these are declared by
+                            // SeqStream without overriding the Stream method of the
+                            // same name, which is therefore also reported here
+                            .contains(method.getName())
                     // Gatherer does not exist before Java 24, so gather
                     // cannot be declared at all while targeting Java 8
                     && !method.getName().equals("gather")) {

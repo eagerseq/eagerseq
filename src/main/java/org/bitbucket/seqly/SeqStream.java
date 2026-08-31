@@ -140,8 +140,10 @@ public interface SeqStream<E> extends Stream<E> {
             Stream<? extends Stream<? extends E>> streams) {
         requireNonNull(streams);
         return viewOf(Split.flatten(
-                Split.map(streams.spliterator(), stream ->
-                        stream == null ? null : stream.spliterator())));
+                Split.map(streams.spliterator(),
+                        stream -> stream == null
+                                ? null
+                                : stream.spliterator())));
     }
 
     /**
@@ -541,8 +543,8 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> flatMap(
             Function<? super E, ? extends Stream<? extends R>> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.flatMap(spliterator(), mapper.andThen(stream ->
-                stream == null ? null : stream.spliterator())));
+        return viewOf(Split.flatMap(spliterator(), mapper.andThen(
+                stream -> stream == null ? null : stream.spliterator())));
     }
 
     /**

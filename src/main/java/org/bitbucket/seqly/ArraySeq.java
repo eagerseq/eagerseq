@@ -55,7 +55,8 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
 
     public Optional<E> findLast() {
         return array.length == 0
-                ? Optional.empty() : Optional.of(array[array.length - 1]);
+                ? Optional.empty()
+                : Optional.of(array[array.length - 1]);
     }
 
     public Optional<E> findSingle() {

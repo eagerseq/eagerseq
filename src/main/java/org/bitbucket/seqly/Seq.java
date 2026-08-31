@@ -332,8 +332,10 @@ public interface Seq<E> extends Collection<E> {
             Iterable<? extends Iterable<? extends E>> iterables) {
         requireNonNull(iterables);
         return copyOf(Split.flatten(
-                Split.map(iterables.spliterator(), iterable ->
-                        iterable == null ? null : iterable.spliterator())));
+                Split.map(iterables.spliterator(),
+                        iterable -> iterable == null
+                                ? null
+                                : iterable.spliterator())));
     }
 
     /**
@@ -659,8 +661,8 @@ public interface Seq<E> extends Collection<E> {
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
         requireNonNull(mapper);
-        return copyOf(Split.flatMap(spliterator(), mapper.andThen(iterable ->
-                iterable == null ? null : iterable.spliterator())));
+        return copyOf(Split.flatMap(spliterator(), mapper.andThen(
+                iterable -> iterable == null ? null : iterable.spliterator())));
     }
 
     /**

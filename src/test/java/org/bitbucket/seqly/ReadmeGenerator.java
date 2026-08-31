@@ -12,8 +12,8 @@ import static java.util.regex.Pattern.MULTILINE;
 public class ReadmeGenerator {
 
     /** The source file whose class comment README.md is derived from. */
-    static final Path SOURCE =
-            Paths.get("src/main/java/org/bitbucket/seqly/Seq.java");
+    static final Path SOURCE = Paths
+            .get("src/main/java/org/bitbucket/seqly/Seq.java");
     static final Path README = Paths.get("README.md");
 
     private static String prefix = "## Maven\n"

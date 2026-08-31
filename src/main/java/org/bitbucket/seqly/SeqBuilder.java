@@ -52,6 +52,7 @@ final class SeqBuilder<E> implements Seq.Builder<E> {
 
     E[] trim() {
         return size == array.length
-                ? array : arrayCopy(array, size, generator);
+                ? array
+                : arrayCopy(array, size, generator);
     }
 }

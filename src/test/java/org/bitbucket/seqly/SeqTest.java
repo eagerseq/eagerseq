@@ -267,8 +267,7 @@ public class SeqTest {
         assertThat(
                 seqOf("zero", null).toMap(), allOf(hasEntry("zero", "zero"),
                         hasEntry((Object) null, null)));
-        assertThrows(() ->
-                seqOf("zero", "zebra").toMap(s -> s.charAt(0)));
+        assertThrows(() -> seqOf("zero", "zebra").toMap(s -> s.charAt(0)));
         assertThrows(() -> seqOf("zero").toMap().put("one", "one"));
         assertThat(
                 seqOf("zero", "zebra").toMap(
@@ -363,9 +362,12 @@ public class SeqTest {
         assertThat(seqOf(0, 7).zip(seqOf(2, 3, 4), Math::min), contains(0, 3));
         assertThat(seqOf(0, 7, 2).zip(seqOf(3, 4), Math::min), contains(0, 4));
         assertThat(
-                seqOf(0, 1, null, null).zip(seqOf(0, null, 2, null), (a, b) ->
-                        a == null & b == null ? "both" : a == null ? "a"
-                                : b == null ? "b" : "neither"),
+                seqOf(0, 1, null, null).zip(seqOf(0, null, 2, null),
+                        (a, b) -> a == null & b == null
+                                ? "both"
+                                : a == null
+                                        ? "a"
+                                        : b == null ? "b" : "neither"),
                 contains("neither", "b", "a", "both"));
     }
 
@@ -450,8 +452,8 @@ public class SeqTest {
         assertThat(seqOf(4, 2).permutations(),
                 contains(seqOf(4, 2), seqOf(2, 4)));
         assertThat(seqOf(0, 1, 2, 3, 4).permutations().size(), equalTo(120));
-        seqOf(0, 1, 2, 3, 4).permutations().forEach(p ->
-                assertThat(p, containsInAnyOrder(0, 1, 2, 3, 4)));
+        seqOf(0, 1, 2, 3, 4).permutations()
+                .forEach(p -> assertThat(p, containsInAnyOrder(0, 1, 2, 3, 4)));
         assertTrue(seqOf(0, 1, 2, 3, 4).permutations()
                 .zip(
                         seqOf(0, 1, 2, 3, 4).permutations().skip(1),
@@ -515,8 +517,8 @@ public class SeqTest {
                 () -> seqOf(4, 2).combinations(-1));
         assertThat(seqOf(4, 2).combinations(3), empty());
         assertThat(seqOf(0, 1, 2, 3, 4).combinations(2).size(), equalTo(10));
-        seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
-                assertThat(p, hasSize(3)));
+        seqOf(0, 1, 2, 3, 4).combinations(3)
+                .forEach(p -> assertThat(p, hasSize(3)));
         assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4)
                 .zip(
                         seqOf(0, 1, 2, 3, 4, 5, 6).combinations(4).skip(1),
@@ -535,8 +537,8 @@ public class SeqTest {
                 contains(seqOf(), seqOf(4), seqOf(2), seqOf(4, 2)));
         assertThat(seqOf(0, 1, 2, 3, 4).allCombinations().size(),
                 equalTo(32));
-        seqOf(0, 1, 2, 3, 4).allCombinations().forEach(c ->
-                assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(c)));
+        seqOf(0, 1, 2, 3, 4).allCombinations().forEach(
+                c -> assertTrue(seqOf(0, 1, 2, 3, 4).containsMultiset(c)));
         assertTrue(seqOf(0, 1, 2, 3, 4, 5, 6).allCombinations()
                 .zip(
                         seqOf(0, 1, 2, 3, 4, 5, 6)
@@ -574,11 +576,12 @@ public class SeqTest {
         assertThat(seqOf(1).product(
                 Seq.of(), Integer::sum), empty());
         assertThat(seqOf(0, 1).product(
-                        seqOf("a", "b", "c"), (i, s) -> i + s),
+                seqOf("a", "b", "c"), (i, s) -> i + s),
                 contains("0a", "0b", "0c", "1a", "1b", "1c"));
         assertThat(seqOf(0, null).product(
-                        seqOf(1, null), (a, b) -> a == null || b == null
-                                ? null : a + b),
+                seqOf(1, null), (a, b) -> a == null || b == null
+                        ? null
+                        : a + b),
                 contains(1, null, null, null));
     }
 
@@ -602,7 +605,7 @@ public class SeqTest {
         assertThat(seqOf(0, 1, null, 3).slice(0, Integer.MAX_VALUE),
                 contains(0, 1, null, 3));
         assertThat(seqOf(0, 1, null, 3)
-                        .slice(Integer.MAX_VALUE, Integer.MAX_VALUE),
+                .slice(Integer.MAX_VALUE, Integer.MAX_VALUE),
                 empty());
         Integer[] array = {0, 1};
         Seq<Integer> slice = seqOf(array).slice(0, 2);
@@ -612,8 +615,8 @@ public class SeqTest {
 
     @Test
     public void testIndexesOfSlice() {
-        Function<String, Seq<Integer>> toSeq =
-                s -> seqOf(s.chars().boxed().toArray(Integer[]::new));
+        Function<String, Seq<Integer>> toSeq = s -> seqOf(
+                s.chars().boxed().toArray(Integer[]::new));
         Seq.of(
                 Seq.of("abacabadac", "",
                         Seq.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
@@ -631,26 +634,26 @@ public class SeqTest {
                 Seq.of("aaa", "aaaa", Seq.of()),
                 Seq.of("", "def", Seq.of()),
                 Seq.of("", "", Seq.of(0))).forEach(args -> {
-            Seq<Integer> seq = toSeq.apply((String) args.get(0));
-            Seq<Integer> slice = toSeq.apply((String) args.get(1));
-            @SuppressWarnings("unchecked")
-            Seq<Integer> indexes = (Seq<Integer>) args.get(2);
-            assertThat(seq.indexesOfSlice(slice),
-                    equalTo(indexes));
-            assertThat(seq.indexOfSlice(slice),
-                    equalTo(indexes.findFirst().orElse(-1)));
-            assertThat(seq.lastIndexOfSlice(slice),
-                    equalTo(indexes.findLast().orElse(-1)));
-            assertThat(seq.containsSlice(slice),
-                    equalTo(!indexes.isEmpty()));
-            assertThat(seq.startsWith(slice),
-                    equalTo(indexes.findFirst()
-                            .map(i -> i == 0).orElse(false)));
-            assertThat(seq.endsWith(slice),
-                    equalTo(indexes.findLast()
-                            .map(i -> i == seq.size() - slice.size())
-                            .orElse(false)));
-        });
+                    Seq<Integer> seq = toSeq.apply((String) args.get(0));
+                    Seq<Integer> slice = toSeq.apply((String) args.get(1));
+                    @SuppressWarnings("unchecked")
+                    Seq<Integer> indexes = (Seq<Integer>) args.get(2);
+                    assertThat(seq.indexesOfSlice(slice),
+                            equalTo(indexes));
+                    assertThat(seq.indexOfSlice(slice),
+                            equalTo(indexes.findFirst().orElse(-1)));
+                    assertThat(seq.lastIndexOfSlice(slice),
+                            equalTo(indexes.findLast().orElse(-1)));
+                    assertThat(seq.containsSlice(slice),
+                            equalTo(!indexes.isEmpty()));
+                    assertThat(seq.startsWith(slice),
+                            equalTo(indexes.findFirst()
+                                    .map(i -> i == 0).orElse(false)));
+                    assertThat(seq.endsWith(slice),
+                            equalTo(indexes.findLast()
+                                    .map(i -> i == seq.size() - slice.size())
+                                    .orElse(false)));
+                });
         assertThat(seqOf(3, null, 4).indexesOfSlice(seqOf(null, 4)),
                 equalTo(Seq.of(1)));
     }
@@ -935,7 +938,7 @@ public class SeqTest {
         assertThat(seqOf(2, 3, 1, 0, 4).sorted(),
                 contains(0, 1, 2, 3, 4));
         assertThat(seqOf("two", "three", "one", "zero", "four")
-                        .sorted(comparing(String::length)),
+                .sorted(comparing(String::length)),
                 contains("two", "one", "zero", "four", "three"));
     }
 
@@ -1229,12 +1232,12 @@ public class SeqTest {
         assertNullRejected(() -> empty.min(null));
         assertNullRejected(() -> empty.max(null));
         assertNullRejected(() -> empty.reduce(null));
-        assertNullRejected(() -> empty.reduce(0, (BinaryOperator<Integer>) null));
-        assertNullRejected(() ->
-                empty.reduce(0, (BiFunction<Integer, Integer, Integer>) null));
+        assertNullRejected(
+                () -> empty.reduce(0, (BinaryOperator<Integer>) null));
+        assertNullRejected(() -> empty.reduce(0,
+                (BiFunction<Integer, Integer, Integer>) null));
         assertNullRejected(() -> empty.collect(ArrayList::new, null));
-        assertNullRejected(() ->
-                empty.<List<Integer>>collect(null, List::add));
+        assertNullRejected(() -> empty.<List<Integer>>collect(null, List::add));
         assertNullRejected(() -> empty.collect(null));
         assertNullRejected(() -> empty.anyMatch(null));
         assertNullRejected(() -> empty.allMatch(null));

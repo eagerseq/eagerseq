@@ -142,8 +142,9 @@ public interface DelegatingSeq<E> extends Seq<E> {
 
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
-        return stream().<R>flatMap(mapper.andThen(iterable ->
-                iterable == null ? null : toSeqStream(iterable))).toSeq();
+        return stream().<R>flatMap(mapper.andThen(
+                iterable -> iterable == null ? null : toSeqStream(iterable)))
+                .toSeq();
     }
 
     default Seq<E> slice(int from, int to) {
@@ -285,7 +286,8 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().toSeq();
     }
 
-    default <U> U collect(Supplier<U> supplier, BiConsumer<U, ? super E> accumulator) {
+    default <U> U collect(Supplier<U> supplier,
+            BiConsumer<U, ? super E> accumulator) {
         return stream().collect(supplier, accumulator);
     }
 
