@@ -84,22 +84,6 @@ final class Split {
         };
     }
 
-    static <E> Spliterator<E[]> defer(
-            Spliterator<E> source,
-            Function<Object[], Spliterator<E[]>> function) {
-        requireNonNull(function);
-        return defer(() -> function.apply(toArray(source)), ordered(source));
-    }
-
-    static <E> Spliterator<E> defer(
-            Spliterator<E> source,
-            Function<Object[], E[]> function,
-            int characteristics) {
-        requireNonNull(function);
-        return defer(() -> toSpliterator(
-                function.apply(toArray(source))), characteristics);
-    }
-
     static int ordered(Spliterator<?> spliterator) {
         return spliterator.characteristics() & ORDERED;
     }
@@ -203,23 +187,23 @@ final class Split {
         return Collections.unmodifiableMap(map);
     }
 
-    static <E> E[] reversed(Object[] source) {
+    static <E> E[] reversed(Spliterator<E> spliterator) {
         @SuppressWarnings("unchecked")
-        E[] array = (E[]) source;
+        E[] array = (E[]) toArray(spliterator);
         Collections.reverse(Arrays.asList(array));
         return array;
     }
 
-    static <E> E[] rotated(Object[] source, int distance) {
+    static <E> E[] rotated(Spliterator<E> spliterator, int distance) {
         @SuppressWarnings("unchecked")
-        E[] array = (E[]) source;
+        E[] array = (E[]) toArray(spliterator);
         Collections.rotate(Arrays.asList(array), distance);
         return array;
     }
 
-    static <E> E[] shuffled(Object[] source, Random random) {
+    static <E> E[] shuffled(Spliterator<E> spliterator, Random random) {
         @SuppressWarnings("unchecked")
-        E[] array = (E[]) source;
+        E[] array = (E[]) toArray(spliterator);
         Collections.shuffle(Arrays.asList(array), random);
         return array;
     }
@@ -839,16 +823,16 @@ final class Split {
         };
     }
 
-    static <E> E[] sorted(Object[] array) {
-        return sorted(array, null);
+    static <E> E[] sorted(Spliterator<E> spliterator) {
+        return sorted(spliterator, null);
     }
 
     static <E> E[] sorted(
-            Object[] source,
+            Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
         // null is an internal natural-order sentinel for private use only
         @SuppressWarnings("unchecked")
-        E[] array = (E[]) source;
+        E[] array = (E[]) toArray(spliterator);
         Arrays.sort(array, comparator);
         return array;
     }

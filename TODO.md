@@ -1,5 +1,7 @@
 # TODO
 
+- Consider adding Spotless.
+
 ## Rename off `org.bitbucket.seqly`
 
 New GitHub org per project, verify `io.github.<org>` on the Central Portal.
@@ -142,10 +144,10 @@ result is traversed. Obtaining the result's `iterator()` or `spliterator()`
 does not read the source; advancing it does.
 
 `Split.defer` implements this by initializing a delegate spliterator on first
-advance. Its array-operation overloads defer both buffering the input and
+advance. `SeqStream` supplies computations that buffer the input before
 constructing either the transformed array spliterator or combinatorial
-generator. The array algorithms themselves are shared with eager `Seq`, which
-can adopt their result without an additional copy. Failed initialization is
+generator. The underlying `Split` algorithms are shared with eager `Seq`, which
+can adopt array results without an additional copy. Failed initialization is
 not retried; a later advance reports that the deferred computation failed.
 
 `product(that, mapper)` still buffers `that` when called. Deferring that work

@@ -235,8 +235,10 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#permutations()}.
      */
     default SeqStream<Seq<E>> permutations() {
+        Spliterator<E> source = spliterator();
         return viewOf(Split.map(Split.defer(
-                spliterator(), Split::permutations), Seq::viewOf));
+                () -> Split.<E>permutations(Split.toArray(source)),
+                Split.ordered(source)), Seq::viewOf));
     }
 
     /**
@@ -244,16 +246,20 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Seq<E>> permutations(int k) {
         Split.requireNonNegativeArgument("k", k);
-        return viewOf(Split.map(Split.defer(spliterator(),
-                array -> Split.permutations(array, k)), Seq::viewOf));
+        Spliterator<E> source = spliterator();
+        return viewOf(Split.map(Split.defer(
+                () -> Split.<E>permutations(Split.toArray(source), k),
+                Split.ordered(source)), Seq::viewOf));
     }
 
     /**
      * Stream equivalent of {@link Seq#allPermutations()}.
      */
     default SeqStream<Seq<E>> allPermutations() {
+        Spliterator<E> source = spliterator();
         return viewOf(Split.map(Split.defer(
-                spliterator(), Split::allPermutations), Seq::viewOf));
+                () -> Split.<E>allPermutations(Split.toArray(source)),
+                Split.ordered(source)), Seq::viewOf));
     }
 
     /**
@@ -261,16 +267,20 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Seq<E>> combinations(int k) {
         Split.requireNonNegativeArgument("k", k);
-        return viewOf(Split.map(Split.defer(spliterator(),
-                array -> Split.combinations(array, k)), Seq::viewOf));
+        Spliterator<E> source = spliterator();
+        return viewOf(Split.map(Split.defer(
+                () -> Split.<E>combinations(Split.toArray(source), k),
+                Split.ordered(source)), Seq::viewOf));
     }
 
     /**
      * Stream equivalent of {@link Seq#allCombinations()}.
      */
     default SeqStream<Seq<E>> allCombinations() {
+        Spliterator<E> source = spliterator();
         return viewOf(Split.map(Split.defer(
-                spliterator(), Split::allCombinations), Seq::viewOf));
+                () -> Split.<E>allCombinations(Split.toArray(source)),
+                Split.ordered(source)), Seq::viewOf));
     }
 
     /**
@@ -278,8 +288,10 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Seq<E>> power(int k) {
         Split.requireNonNegativeArgument("k", k);
-        return viewOf(Split.map(Split.defer(spliterator(),
-                array -> Split.power(array, k)), Seq::viewOf));
+        Spliterator<E> source = spliterator();
+        return viewOf(Split.map(Split.defer(
+                () -> Split.<E>power(Split.toArray(source), k),
+                Split.ordered(source)), Seq::viewOf));
     }
 
     /**
@@ -387,7 +399,8 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> reversed() {
         Spliterator<E> source = spliterator();
         return viewOf(Split.defer(
-                source, Split::reversed, Split.ordered(source)));
+                () -> Split.toSpliterator(Split.reversed(source)),
+                Split.ordered(source)));
     }
 
     /**
@@ -395,8 +408,8 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> rotated(int distance) {
         Spliterator<E> source = spliterator();
-        return viewOf(Split.defer(source,
-                array -> Split.rotated(array, distance),
+        return viewOf(Split.defer(
+                () -> Split.toSpliterator(Split.rotated(source, distance)),
                 Split.ordered(source)));
     }
 
@@ -406,8 +419,8 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> shuffled(Random random) {
         requireNonNull(random);
         Spliterator<E> source = spliterator();
-        return viewOf(Split.defer(source,
-                array -> Split.shuffled(array, random),
+        return viewOf(Split.defer(
+                () -> Split.toSpliterator(Split.shuffled(source, random)),
                 Split.ordered(source)));
     }
 
@@ -579,8 +592,10 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {
+        Spliterator<E> source = spliterator();
         return viewOf(Split.defer(
-                spliterator(), Split::sorted, Spliterator.ORDERED));
+                () -> Split.toSpliterator(Split.sorted(source)),
+                Spliterator.ORDERED));
     }
 
     /**
@@ -588,8 +603,10 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
         requireNonNull(comparator);
-        return viewOf(Split.defer(spliterator(),
-                array -> Split.sorted(array, comparator),
+        Spliterator<E> source = spliterator();
+        return viewOf(Split.defer(
+                () -> Split.toSpliterator(
+                        Split.sorted(source, comparator)),
                 Spliterator.ORDERED));
     }
 

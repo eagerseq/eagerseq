@@ -796,7 +796,7 @@ public interface Seq<E> extends Collection<E> {
     // Seq<E> reversed() is a legal covariant override, and snapshot versus view
     // becomes a decision then; ArraySeq could flip indexes over the array.
     default Seq<E> reversed() {
-        return viewOf(Split.reversed(toArray()));
+        return viewOf(Split.reversed(spliterator()));
     }
 
     /**
@@ -804,7 +804,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link Collections#rotate(List, int)}.
      */
     default Seq<E> rotated(int distance) {
-        return viewOf(Split.rotated(toArray(), distance));
+        return viewOf(Split.rotated(spliterator(), distance));
     }
 
     /**
@@ -813,7 +813,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default Seq<E> shuffled(Random random) {
         requireNonNull(random);
-        return viewOf(Split.shuffled(toArray(), random));
+        return viewOf(Split.shuffled(spliterator(), random));
     }
 
     /**
@@ -877,7 +877,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {
-        return viewOf(Split.sorted(toArray()));
+        return viewOf(Split.sorted(spliterator()));
     }
 
     /**
@@ -885,7 +885,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
         requireNonNull(comparator);
-        return viewOf(Split.sorted(toArray(), comparator));
+        return viewOf(Split.sorted(spliterator(), comparator));
     }
 
     /**
