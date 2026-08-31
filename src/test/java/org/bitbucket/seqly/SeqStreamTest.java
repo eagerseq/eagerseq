@@ -7,12 +7,16 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -190,8 +194,22 @@ public class SeqStreamTest {
         assertTrue(
                 SeqStream.concat(streamOf(0, 1), streamOf(2, 3), streamOf(4, 5))
                         .listEquals(streamOf(0, 1, 2, 3, 4, 5)));
-        assertThrows(() -> SeqStream.concat(streamOf(), null).toSeq());
-        assertThrows(() -> SeqStream.concat(null, streamOf()).toSeq());
+        SeqStream<Integer> beforeNull = streamOf(0);
+        assertNullRejected(() -> SeqStream.concat(beforeNull, null));
+        assertThat(beforeNull.toSeq(), equalTo(Seq.of(0)));
+        assertNullRejected(() -> SeqStream.concat(null, streamOf()));
+
+        int[] traversed = {0};
+        SeqStream<Integer> first = streamOf(0, 1)
+                .peek(ignored -> traversed[0]++);
+        SeqStream<Integer> second = streamOf(2, 3)
+                .peek(ignored -> traversed[0]++);
+        SeqStream<Integer> concatenated = SeqStream.concat(first, second);
+        assertThat(traversed[0], equalTo(0));
+        assertConsumed(first::count);
+        assertConsumed(second::count);
+        assertThat(concatenated.toSeq(), equalTo(Seq.of(0, 1, 2, 3)));
+        assertThat(traversed[0], equalTo(4));
     }
 
     @Test
@@ -207,8 +225,10 @@ public class SeqStreamTest {
                 SeqStream.flatten(streamOf(streamOf(0, 1), streamOf(2, 3),
                         streamOf(4, 5)))
                         .listEquals(streamOf(0, 1, 2, 3, 4, 5)));
-        assertThrows(() -> SeqStream.flatten(streamOf(streamOf(), null)).toSeq());
-        assertThrows(() -> SeqStream.flatten(streamOf(null, streamOf())).toSeq());
+        assertThat(SeqStream.flatten(
+                streamOf(streamOf(0), null, streamOf(1))).toSeq(),
+                equalTo(Seq.of(0, 1)));
+        assertNullRejected(() -> SeqStream.flatten(null));
     }
 
     @Test
@@ -355,6 +375,104 @@ public class SeqStreamTest {
     }
 
     @Test
+    public void testWholeSourceIntermediateOperationsAreLazy() {
+        for (DeferredOperation operation : deferredOperations()) {
+            assertDeferred(operation);
+        }
+    }
+
+    @Test
+    public void testWholeSourceIntermediateOperationOrder() {
+        for (DeferredOperation operation : deferredOperations()) {
+            assertTrue(operation.name, isOrdered(
+                    operation.apply(SeqStream.of(0, 1))));
+            assertThat(operation.name, isOrdered(
+                    operation.apply(SeqStream.of(0, 1).unordered())),
+                    equalTo(operation.establishesOrder));
+        }
+    }
+
+    private static boolean isOrdered(SeqStream<?> stream) {
+        return stream.spliterator().hasCharacteristics(Spliterator.ORDERED);
+    }
+
+    private static void assertDeferred(DeferredOperation operation) {
+        for (Function<SeqStream<?>, BooleanSupplier> cursorFactory
+                : deferredCursors()) {
+            int[] traversed = new int[1];
+            SeqStream<?> result = operation.apply(
+                    SeqStream.of(1, 0).peek(i -> traversed[0]++));
+
+            assertThat(operation.name, traversed[0], equalTo(0));
+            BooleanSupplier advance = cursorFactory.apply(result);
+            assertThat(operation.name, traversed[0], equalTo(0));
+            assertTrue(operation.name, advance.getAsBoolean());
+            assertThat(operation.name, traversed[0], equalTo(2));
+        }
+    }
+
+    private static List<Function<SeqStream<?>, BooleanSupplier>>
+            deferredCursors() {
+        return Arrays.asList(
+                stream -> {
+                    Spliterator<?> spliterator = stream.spliterator();
+                    return () -> spliterator.tryAdvance(element -> {});
+                },
+                stream -> {
+                    Iterator<?> iterator = stream.iterator();
+                    return () -> {
+                        if (!iterator.hasNext()) return false;
+                        iterator.next();
+                        return true;
+                    };
+                });
+    }
+
+    private static List<DeferredOperation> deferredOperations() {
+        return Arrays.asList(
+                new DeferredOperation("sorted()", true, SeqStream::sorted),
+                new DeferredOperation("sorted(comparator)", true,
+                        stream -> stream.sorted(Integer::compareTo)),
+                new DeferredOperation("reversed()", false,
+                        SeqStream::reversed),
+                new DeferredOperation("rotated(distance)", false,
+                        stream -> stream.rotated(1)),
+                new DeferredOperation("shuffled(random)", false,
+                        stream -> stream.shuffled(new Random(0))),
+                new DeferredOperation("permutations()", false,
+                        SeqStream::permutations),
+                new DeferredOperation("permutations(k)", false,
+                        stream -> stream.permutations(1)),
+                new DeferredOperation("allPermutations()", false,
+                        SeqStream::allPermutations),
+                new DeferredOperation("combinations(k)", false,
+                        stream -> stream.combinations(1)),
+                new DeferredOperation("allCombinations()", false,
+                        SeqStream::allCombinations),
+                new DeferredOperation("power(k)", false,
+                        stream -> stream.power(1)));
+    }
+
+    private static final class DeferredOperation {
+        private final String name;
+        private final boolean establishesOrder;
+        private final Function<SeqStream<Integer>, SeqStream<?>> function;
+
+        DeferredOperation(
+                String name,
+                boolean establishesOrder,
+                Function<SeqStream<Integer>, SeqStream<?>> function) {
+            this.name = name;
+            this.establishesOrder = establishesOrder;
+            this.function = function;
+        }
+
+        SeqStream<?> apply(SeqStream<Integer> stream) {
+            return function.apply(stream);
+        }
+    }
+
+    @Test
     public void testNextLength() {
         assertThat(SeqBuilder.nextLength(Integer.MAX_VALUE / 4 * 3),
                 equalTo(Integer.MAX_VALUE - 8));
@@ -450,8 +568,6 @@ public class SeqStreamTest {
     /**
      * The {@code SeqStream} half of
      * {@link SeqTest#testNullFunctionalArgumentsAreRejectedOnAnEmptySeq}.
-     * Each operation gets a fresh stream, since reaching the check consumes
-     * the one it is called on.
      */
     @Test
     public void testNullFunctionalArgumentsAreRejectedOnAnEmptyStream() {
@@ -481,11 +597,15 @@ public class SeqStreamTest {
                 .reduce(0, (BiFunction<Integer, Integer, Integer>) null));
         assertNullRejected(() -> emptyStream()
                 .reduce(0, null, (BinaryOperator<Integer>) null));
+        assertNullRejected(() -> emptyStream()
+                .reduce(0, Integer::sum, null));
         assertNullRejected(() -> emptyStream().collect(ArrayList::new, null));
         assertNullRejected(() ->
                 emptyStream().<List<Integer>>collect(null, List::add));
         assertNullRejected(() ->
                 emptyStream().collect(ArrayList::new, null, (a, b) -> { }));
+        assertNullRejected(() ->
+                emptyStream().collect(ArrayList::new, List::add, null));
         assertNullRejected(() -> emptyStream().collect(null));
         assertNullRejected(() -> emptyStream().anyMatch(null));
         assertNullRejected(() -> emptyStream().allMatch(null));
@@ -496,18 +616,56 @@ public class SeqStreamTest {
         assertNullRejected(() -> emptyStream().toMap(identity(), null));
         assertNullRejected(() -> emptyStream().toMap(null, identity(), (a, b) -> a));
         assertNullRejected(() -> emptyStream().toMap(identity(), null, (a, b) -> a));
+        assertNullRejected(() -> emptyStream().toMap(identity(), identity(), null));
         assertNullRejected(() -> emptyStream().zip(emptyStream(), null));
         assertNullRejected(() -> emptyStream().product(emptyStream(), null));
-        // the combiners a sequential pipeline never needs stay optional,
-        // as does the mergeFunction, whose absence means that a duplicate
-        // key throws. The no-argument sorted() is not an exception, it is
-        // a separate overload that takes no comparator.
-        assertThat(emptyStream().reduce(0, Integer::sum, null), equalTo(0));
-        assertThat(emptyStream().collect(ArrayList::new, List::add, null),
-                equalTo(new ArrayList<Integer>()));
-        assertThat(streamOf(0).toMap(identity(), identity(), null).get(0),
-                equalTo(0));
+        // sorted() is a separate overload that takes no comparator.
         assertTrue(emptyStream().sorted().isEmpty());
+    }
+
+    @Test
+    public void testInvalidIntermediateArgumentsDoNotClaimStream() {
+        SeqStream<Integer> nullArgument = emptyStream();
+        assertNullRejected(() -> nullArgument.filter(null));
+        assertTrue(nullArgument.isEmpty());
+
+        for (Function<SeqStream<Integer>, ?> operation
+                : Arrays.<Function<SeqStream<Integer>, ?>>asList(
+                stream -> stream.permutations(-1),
+                stream -> stream.combinations(-1),
+                stream -> stream.power(-1))) {
+            SeqStream<Integer> stream = emptyStream();
+            assertThrows(IllegalArgumentException.class,
+                    () -> operation.apply(stream));
+            assertTrue(stream.isEmpty());
+        }
+    }
+
+    @Test
+    public void testNullSecondarySourcesDoNotClaimStream() {
+        for (Function<SeqStream<Integer>, ?> operation
+                : Arrays.<Function<SeqStream<Integer>, ?>>asList(
+                stream -> stream.listEquals(null),
+                stream -> stream.setEquals(null),
+                stream -> stream.multisetEquals(null),
+                stream -> stream.zip(null, Integer::sum),
+                stream -> stream.intersection(null),
+                stream -> stream.difference(null),
+                stream -> stream.union(null),
+                stream -> stream.sum(null),
+                stream -> stream.containsMultiset(null),
+                stream -> stream.product(null, Integer::sum),
+                stream -> stream.indexesOfSlice(null),
+                stream -> stream.indexOfSlice(null),
+                stream -> stream.lastIndexOfSlice(null),
+                stream -> stream.containsSlice(null),
+                stream -> stream.startsWith(null),
+                stream -> stream.endsWith(null),
+                stream -> stream.containsAll(null))) {
+            SeqStream<Integer> stream = streamOf(0);
+            assertNullRejected(() -> operation.apply(stream));
+            assertThat(stream.toSeq(), equalTo(Seq.of(0)));
+        }
     }
 
     private static void assertNullRejected(Runnable action) {

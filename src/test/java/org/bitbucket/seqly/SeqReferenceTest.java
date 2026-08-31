@@ -344,7 +344,7 @@ public class SeqReferenceTest {
     @Test
     public void testPermutationsWithLength() {
         forEachInputAndArgument((input, k) -> {
-            if (k < 0 || k > input.size()) {
+            if (k < 0) {
                 assertThrows(IllegalArgumentException.class,
                         () -> seq(input).permutations(k));
             } else {
@@ -370,7 +370,7 @@ public class SeqReferenceTest {
     @Test
     public void testCombinations() {
         forEachInputAndArgument((input, k) -> {
-            if (k < 0 || k > input.size()) {
+            if (k < 0) {
                 assertThrows(IllegalArgumentException.class,
                         () -> seq(input).combinations(k));
             } else {

@@ -18,8 +18,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collector;
 
-import static org.bitbucket.seqly.Split.toSeqStream;
-
 /**
  * An implementation of {@code Seq} that delegates to {@code SeqStream}
  * in order to get test coverage of {@code SeqStream} with the same set of
@@ -30,6 +28,10 @@ import static org.bitbucket.seqly.Split.toSeqStream;
  * of the test coverage report for {@code SeqStream}.
  */
 public interface DelegatingSeq<E> extends Seq<E> {
+
+    static <E> SeqStream<E> toSeqStream(Iterable<? extends E> iterable) {
+        return SeqStream.viewOf(iterable.spliterator());
+    }
 
     default Optional<E> toOptional() {
         return stream().toOptional();

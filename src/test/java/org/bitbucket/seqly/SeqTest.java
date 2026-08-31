@@ -236,8 +236,9 @@ public class SeqTest {
         assertThat(
                 Seq.flatten(seqOf(seqOf(0, 1), seqOf(2, 3), seqOf(4, 5))),
                 contains(0, 1, 2, 3, 4, 5));
-        assertThrows(() -> Seq.flatten(seqOf(seqOf(), null)));
-        assertThrows(() -> Seq.flatten(seqOf(null, seqOf())));
+        assertThat(Seq.flatten(seqOf(seqOf(0), null, seqOf(1))),
+                contains(0, 1));
+        assertNullRejected(() -> Seq.flatten(null));
     }
 
     @Test
@@ -500,9 +501,7 @@ public class SeqTest {
         assertThrows(IllegalArgumentException.class,
                 "k -1 was negative",
                 () -> seqOf(4, 2).permutations(-1));
-        assertThrows(IllegalArgumentException.class,
-                "k 3 was greater than length 2",
-                () -> seqOf(4, 2).permutations(3));
+        assertThat(seqOf(4, 2).permutations(3), empty());
         assertThat(seqOf(0, 1, 2, 3, 4).permutations(3).size(),
                 equalTo(60));
         assertThat(seqOf(null, null).permutations(1),
@@ -540,9 +539,7 @@ public class SeqTest {
         assertThrows(IllegalArgumentException.class,
                 "k -1 was negative",
                 () -> seqOf(4, 2).combinations(-1));
-        assertThrows(IllegalArgumentException.class,
-                "k 3 was greater than length 2",
-                () -> seqOf(4, 2).combinations(3));
+        assertThat(seqOf(4, 2).combinations(3), empty());
         assertThat(seqOf(0, 1, 2, 3, 4).combinations(2).size(), equalTo(10));
         seqOf(0, 1, 2, 3, 4).combinations(3).forEach(p ->
                 assertThat(p, hasSize(3)));
@@ -1274,14 +1271,33 @@ public class SeqTest {
         assertNullRejected(() -> empty.toMap(identity(), null));
         assertNullRejected(() -> empty.toMap(null, identity(), (a, b) -> a));
         assertNullRejected(() -> empty.toMap(identity(), null, (a, b) -> a));
+        assertNullRejected(() -> empty.toMap(identity(), identity(), null));
         assertNullRejected(() -> empty.zip(empty, null));
         assertNullRejected(() -> empty.product(empty, null));
-        // the one deliberate exception: a null mergeFunction means that a
-        // duplicate key throws. The no-argument sorted() is not an
-        // exception, it is a separate overload that takes no comparator.
+        // sorted() is a separate overload that takes no comparator.
         assertThat(empty.sorted(), empty());
-        assertThat(seqOf(0).toMap(identity(), identity(), null),
-                hasEntry(0, 0));
+    }
+
+    @Test
+    public void testNullSecondarySourcesAreRejected() {
+        Seq<Integer> seq = seqOf(0);
+        assertNullRejected(() -> seq.listEquals(null));
+        assertNullRejected(() -> seq.setEquals(null));
+        assertNullRejected(() -> seq.multisetEquals(null));
+        assertNullRejected(() -> seq.zip(null, Integer::sum));
+        assertNullRejected(() -> seq.intersection(null));
+        assertNullRejected(() -> seq.difference(null));
+        assertNullRejected(() -> seq.union(null));
+        assertNullRejected(() -> seq.sum(null));
+        assertNullRejected(() -> seq.containsMultiset(null));
+        assertNullRejected(() -> seq.product(null, Integer::sum));
+        assertNullRejected(() -> seq.indexesOfSlice(null));
+        assertNullRejected(() -> seq.indexOfSlice(null));
+        assertNullRejected(() -> seq.lastIndexOfSlice(null));
+        assertNullRejected(() -> seq.containsSlice(null));
+        assertNullRejected(() -> seq.startsWith(null));
+        assertNullRejected(() -> seq.endsWith(null));
+        assertNullRejected(() -> seq.containsAll(null));
     }
 
     private static void assertNullRejected(Runnable action) {

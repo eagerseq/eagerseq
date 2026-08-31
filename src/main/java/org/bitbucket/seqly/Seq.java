@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -314,7 +315,13 @@ public interface Seq<E> extends Collection<E> {
     @SafeVarargs
     static <E> Seq<E> concat(
             Iterable<? extends E>... iterables) {
-        return flatten(of(iterables));
+        requireNonNull(iterables);
+        Arrays.stream(iterables).forEach(Objects::requireNonNull);
+        @SuppressWarnings("unchecked")
+        Spliterator<? extends E>[] spliterators = Arrays.stream(iterables)
+                .map(Iterable::spliterator)
+                .toArray(Spliterator[]::new);
+        return copyOf(Split.concat(spliterators));
     }
 
     /**
@@ -323,8 +330,10 @@ public interface Seq<E> extends Collection<E> {
      */
     static <E> Seq<E> flatten(
             Iterable<? extends Iterable<? extends E>> iterables) {
+        requireNonNull(iterables);
         return copyOf(Split.flatten(
-                Split.map(iterables.spliterator(), Iterable::spliterator)));
+                Split.map(iterables.spliterator(), iterable ->
+                        iterable == null ? null : iterable.spliterator())));
     }
 
     /**
@@ -391,6 +400,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <K> Map<K, E> toMap(
             Function<? super E, ? extends K> keyMapper) {
+        requireNonNull(keyMapper);
         return Split.toMap(spliterator(), keyMapper);
     }
 
@@ -400,6 +410,8 @@ public interface Seq<E> extends Collection<E> {
     default <K, V> Map<K, V> toMap(
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper) {
+        requireNonNull(keyMapper);
+        requireNonNull(valueMapper);
         return Split.toMap(spliterator(), keyMapper, valueMapper);
     }
 
@@ -412,6 +424,9 @@ public interface Seq<E> extends Collection<E> {
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper,
             BinaryOperator<V> mergeFunction) {
+        requireNonNull(keyMapper);
+        requireNonNull(valueMapper);
+        requireNonNull(mergeFunction);
         return Split.toMap(
                 spliterator(), keyMapper, valueMapper, mergeFunction);
     }
@@ -423,6 +438,7 @@ public interface Seq<E> extends Collection<E> {
      * The type of the given {@code Iterable} is irrelevant.
      */
     default boolean listEquals(Iterable<?> that) {
+        requireNonNull(that);
         return Split.listEquals(spliterator(), that.spliterator());
     }
 
@@ -436,6 +452,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #multisetEquals(Iterable)}.
      */
     default boolean setEquals(Iterable<?> that) {
+        requireNonNull(that);
         return Split.setEquals(spliterator(), that.spliterator());
     }
 
@@ -450,6 +467,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #setEquals(Iterable)}.
      */
     default boolean multisetEquals(Iterable<?> that) {
+        requireNonNull(that);
         return Split.multisetEquals(spliterator(), that.spliterator());
     }
 
@@ -462,6 +480,8 @@ public interface Seq<E> extends Collection<E> {
     default <F, R> Seq<R> zip(
             Iterable<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
+        requireNonNull(that);
+        requireNonNull(mapper);
         return copyOf(Split.zip(spliterator(), that.spliterator(), mapper));
     }
 
@@ -489,6 +509,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> intersection(Iterable<?> that) {
+        requireNonNull(that);
         return copyOf(Split.intersection(spliterator(), that.spliterator()));
     }
 
@@ -508,6 +529,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> difference(Iterable<?> that) {
+        requireNonNull(that);
         return copyOf(Split.difference(spliterator(), that.spliterator()));
     }
 
@@ -528,6 +550,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link #sum(Iterable)}.
      */
     default Seq<E> union(Iterable<? extends E> that) {
+        requireNonNull(that);
         return copyOf(Split.union(spliterator(), that.spliterator()));
     }
 
@@ -539,7 +562,8 @@ public interface Seq<E> extends Collection<E> {
      * {@link #union(Iterable)}.
      */
     default Seq<E> sum(Iterable<? extends E> that) {
-        return flatten(of(this, that));
+        requireNonNull(that);
+        return copyOf(Split.concat(spliterator(), that.spliterator()));
     }
 
     /**
@@ -549,6 +573,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default boolean containsMultiset(Iterable<?> that) {
+        requireNonNull(that);
         return Split.containsMultiset(spliterator(), that.spliterator());
     }
 
@@ -564,8 +589,10 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns all permutations of length {@code k}
      * in lexical order of the original index of each element.
+     * Returns an empty {@code Seq} if {@code k} exceeds {@link #size()}.
      */
     default Seq<Seq<E>> permutations(int k) {
+        Split.requireNonNegativeArgument("k", k);
         return copyOf(Split.map(
                 Split.<E>permutations(toArray(), k), Seq::viewOf));
     }
@@ -582,8 +609,10 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns all combinations of length {@code k}
      * in lexical order of the original index of each element.
+     * Returns an empty {@code Seq} if {@code k} exceeds {@link #size()}.
      */
     default Seq<Seq<E>> combinations(int k) {
+        Split.requireNonNegativeArgument("k", k);
         return copyOf(Split.map(
                 Split.<E>combinations(toArray(), k), Seq::viewOf));
     }
@@ -604,6 +633,7 @@ public interface Seq<E> extends Collection<E> {
      * from this {@code Seq} with repeated selection allowed.
      */
     default Seq<Seq<E>> power(int k) {
+        Split.requireNonNegativeArgument("k", k);
         return copyOf(Split.map(
                 Split.<E>power(toArray(), k), Seq::viewOf));
     }
@@ -617,6 +647,8 @@ public interface Seq<E> extends Collection<E> {
     default <F, R> Seq<R> product(
             Iterable<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
+        requireNonNull(that);
+        requireNonNull(mapper);
         return copyOf(Split.product(
                 spliterator(), Split.toArray(that), mapper));
     }
@@ -626,6 +658,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> flatMap(
             Function<? super E, ? extends Iterable<? extends R>> mapper) {
+        requireNonNull(mapper);
         return copyOf(Split.flatMap(spliterator(), mapper.andThen(iterable ->
                 iterable == null ? null : iterable.spliterator())));
     }
@@ -636,6 +669,7 @@ public interface Seq<E> extends Collection<E> {
      */
     default <R> Seq<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
+        requireNonNull(mapper);
         return copyOf(Split.mapMulti(spliterator(), mapper));
     }
 
@@ -647,6 +681,8 @@ public interface Seq<E> extends Collection<E> {
      * Is not a view.
      */
     default Seq<E> slice(int from, int to) {
+        Split.requireNonNegativeIndex("from", from);
+        Split.requireNonNegativeIndex("to", to);
         return copyOf(Split.slice(spliterator(), from, to));
     }
 
@@ -657,6 +693,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default Seq<Integer> indexesOfSlice(Iterable<?> that) {
+        requireNonNull(that);
         return copyOf(Split.indexesOfSlice(spliterator(), that.spliterator()));
     }
 
@@ -668,6 +705,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such value exists.
      */
     default int indexOfSlice(Iterable<?> that) {
+        requireNonNull(that);
         return Split.indexOfSlice(spliterator(), that.spliterator());
     }
 
@@ -679,6 +717,7 @@ public interface Seq<E> extends Collection<E> {
      * or {@code -1} if no such value exists.
      */
     default int lastIndexOfSlice(Iterable<?> that) {
+        requireNonNull(that);
         return Split.lastIndexOfSlice(spliterator(), that.spliterator());
     }
 
@@ -689,6 +728,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean containsSlice(Iterable<?> that) {
+        requireNonNull(that);
         return Split.containsSlice(spliterator(), that.spliterator());
     }
 
@@ -698,6 +738,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean startsWith(Iterable<?> that) {
+        requireNonNull(that);
         return Split.startsWith(spliterator(), that.spliterator());
     }
 
@@ -707,6 +748,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Iterable} according to {@link #listEquals(Iterable) listEquals}.
      */
     default boolean endsWith(Iterable<?> that) {
+        requireNonNull(that);
         return Split.endsWith(spliterator(), that.spliterator());
     }
 
@@ -715,6 +757,7 @@ public interface Seq<E> extends Collection<E> {
      * or throws {@code IndexOutOfBoundsException} otherwise.
      */
     default E get(int index) {
+        Split.requireNonNegativeIndex("index", index);
         return Split.get(spliterator(), index);
     }
 
@@ -753,7 +796,7 @@ public interface Seq<E> extends Collection<E> {
     // Seq<E> reversed() is a legal covariant override, and snapshot versus view
     // becomes a decision then; ArraySeq could flip indexes over the array.
     default Seq<E> reversed() {
-        return viewOf(Split.reversed(spliterator()));
+        return viewOf(Split.reversed(toArray()));
     }
 
     /**
@@ -761,7 +804,7 @@ public interface Seq<E> extends Collection<E> {
      * {@link Collections#rotate(List, int)}.
      */
     default Seq<E> rotated(int distance) {
-        return viewOf(Split.rotated(spliterator(), distance));
+        return viewOf(Split.rotated(toArray(), distance));
     }
 
     /**
@@ -769,13 +812,15 @@ public interface Seq<E> extends Collection<E> {
      * See {@link Collections#shuffle(List)}.
      */
     default Seq<E> shuffled(Random random) {
-        return viewOf(Split.shuffled(spliterator(), random));
+        requireNonNull(random);
+        return viewOf(Split.shuffled(toArray(), random));
     }
 
     /**
      * Returns the last {@code size} elements.
      */
     default Seq<E> limitLast(long size) {
+        Split.requireNonNegativeArgument("size", size);
         return copyOf(Split.limitLast(spliterator(), size));
     }
 
@@ -783,6 +828,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns all except the last {@code size} elements.
      */
     default Seq<E> skipLast(long size) {
+        Split.requireNonNegativeArgument("size", size);
         return copyOf(Split.skipLast(spliterator(), size));
     }
 
@@ -791,6 +837,7 @@ public interface Seq<E> extends Collection<E> {
      * the given {@code Predicate} returns false (exclusive).
      */
     default Seq<E> takeWhile(Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return copyOf(Split.takeWhile(spliterator(), predicate));
     }
 
@@ -799,6 +846,7 @@ public interface Seq<E> extends Collection<E> {
      * {@code Predicate} returns false (inclusive) and the end.
      */
     default Seq<E> dropWhile(Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return copyOf(Split.dropWhile(spliterator(), predicate));
     }
 
@@ -806,6 +854,7 @@ public interface Seq<E> extends Collection<E> {
      * Eager equivalent of {@link Stream#filter(Predicate)}.
      */
     default Seq<E> filter(Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return copyOf(Split.filter(spliterator(), predicate));
     }
 
@@ -813,6 +862,7 @@ public interface Seq<E> extends Collection<E> {
      * Eager equivalent of {@link Stream#map(Function)}.
      */
     default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
+        requireNonNull(mapper);
         return copyOf(Split.map(spliterator(), mapper));
     }
 
@@ -827,20 +877,22 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {
-        return viewOf(Split.sorted(spliterator()));
+        return viewOf(Split.sorted(toArray()));
     }
 
     /**
      * Equivalent of {@link Stream#sorted(Comparator)}.
      */
     default Seq<E> sorted(Comparator<? super E> comparator) {
-        return viewOf(Split.sorted(spliterator(), comparator));
+        requireNonNull(comparator);
+        return viewOf(Split.sorted(toArray(), comparator));
     }
 
     /**
      * Eager equivalent of {@link Stream#limit(long)}.
      */
     default Seq<E> limit(long size) {
+        Split.requireNonNegativeArgument("size", size);
         return copyOf(Split.limit(spliterator(), size));
     }
 
@@ -848,6 +900,7 @@ public interface Seq<E> extends Collection<E> {
      * Eager equivalent of {@link Stream#skip(long)}.
      */
     default Seq<E> skip(long size) {
+        Split.requireNonNegativeArgument("size", size);
         return copyOf(Split.skip(spliterator(), size));
     }
 
@@ -855,6 +908,7 @@ public interface Seq<E> extends Collection<E> {
      * {@inheritDoc}
      */
     default void forEach(Consumer<? super E> action) {
+        requireNonNull(action);
         spliterator().forEachRemaining(action);
     }
 
@@ -862,6 +916,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#forEachOrdered(Consumer)}.
      */
     default void forEachOrdered(Consumer<? super E> action) {
+        requireNonNull(action);
         spliterator().forEachRemaining(action);
     }
 
@@ -876,6 +931,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#toArray(IntFunction)}.
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
+        requireNonNull(generator);
         return Split.toArray(spliterator(), generator);
     }
 
@@ -883,6 +939,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#reduce(Object, BinaryOperator)}.
      */
     default E reduce(E identity, BinaryOperator<E> accumulator) {
+        requireNonNull(accumulator);
         return Split.reduce(spliterator(), identity, accumulator);
     }
 
@@ -890,6 +947,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#reduce(BinaryOperator)}.
      */
     default Optional<E> reduce(BinaryOperator<E> accumulator) {
+        requireNonNull(accumulator);
         return Split.reduce(spliterator(), accumulator);
     }
 
@@ -901,6 +959,7 @@ public interface Seq<E> extends Collection<E> {
     default <U> U reduce(
             U identity,
             BiFunction<U, ? super E, U> accumulator) {
+        requireNonNull(accumulator);
         return Split.reduce(spliterator(), identity, accumulator);
     }
 
@@ -912,6 +971,8 @@ public interface Seq<E> extends Collection<E> {
     default <U> U collect(
             Supplier<U> supplier,
             BiConsumer<U, ? super E> accumulator) {
+        requireNonNull(supplier);
+        requireNonNull(accumulator);
         return Split.collect(spliterator(), supplier, accumulator);
     }
 
@@ -919,6 +980,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#collect(Collector)}.
      */
     default <R, A> R collect(Collector<? super E, A, R> collector) {
+        requireNonNull(collector);
         return Split.collect(spliterator(), collector);
     }
 
@@ -926,6 +988,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#min(Comparator)}.
      */
     default Optional<E> min(Comparator<? super E> comparator) {
+        requireNonNull(comparator);
         return Split.min(spliterator(), comparator);
     }
 
@@ -933,6 +996,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#max(Comparator)}.
      */
     default Optional<E> max(Comparator<? super E> comparator) {
+        requireNonNull(comparator);
         return Split.max(spliterator(), comparator);
     }
 
@@ -947,6 +1011,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#anyMatch(Predicate)}.
      */
     default boolean anyMatch(Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return Split.anyMatch(spliterator(), predicate);
     }
 
@@ -954,6 +1019,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#allMatch(Predicate)}.
      */
     default boolean allMatch(Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return Split.allMatch(spliterator(), predicate);
     }
 
@@ -961,6 +1027,7 @@ public interface Seq<E> extends Collection<E> {
      * Equivalent of {@link Stream#noneMatch(Predicate)}.
      */
     default boolean noneMatch(Predicate<? super E> predicate) {
+        requireNonNull(predicate);
         return Split.noneMatch(spliterator(), predicate);
     }
 
@@ -1023,6 +1090,7 @@ public interface Seq<E> extends Collection<E> {
      * Eager equivalent of {@link Stream#peek(Consumer)}.
      */
     default Seq<E> peek(Consumer<? super E> action) {
+        requireNonNull(action);
         spliterator().forEachRemaining(action);
         return this;
     }
@@ -1084,6 +1152,7 @@ public interface Seq<E> extends Collection<E> {
      * See also {@link #containsMultiset(Iterable)}.
      */
     default boolean containsAll(Collection<?> that) {
+        requireNonNull(that);
         return Split.containsAll(spliterator(), that.spliterator());
     }
 

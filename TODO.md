@@ -81,11 +81,14 @@ Array-backed results also receive `SIZED | SUBSIZED` from the JDK array
 spliterator.
 
 `SeqStream` may be unordered. Ordinary intermediate operations preserve the
-source's `ORDERED` flag; `zip` and `union` require both sources to be ordered;
-index-producing, combinatorial and materializing operations establish order;
-and `unordered()` removes it. Custom lazy spliterators report no size, sorted,
-distinct, non-null, immutable or concurrent characteristics. Their shared
-bases also enforce the `tryAdvance(null)` contract.
+source's `ORDERED` flag; `zip` and `union` require both sources to be ordered,
+and `concat` requires every source to be ordered; index-producing operations
+and sorting establish order; reversing, rotating, shuffling and combinatorial
+operations preserve the source's order; and `unordered()` removes it.
+Materializing into an array is an implementation detail and does not itself
+establish order. Custom lazy spliterators report no size, sorted, distinct,
+non-null, immutable or concurrent characteristics. Their shared bases also
+enforce the `tryAdvance(null)` contract.
 
 Characteristics are not consumed for correctness. The default `count()` and
 `size()` implementations traverse, and buffers grow from the data, so a source
@@ -97,6 +100,56 @@ characteristics. `CollectionSeq` delegates `size()` and `isEmpty()` to its
 backing collection, whose contract directly supplies those observations, but
 does not delegate `count()`: `Collection.size()` clamps above
 `Integer.MAX_VALUE`, while `count()` returns an exact `long`.
+
+## Settled: validation
+
+Public `Seq` and `SeqStream` methods validate functional, count and index
+arguments before obtaining their spliterator, so an invalid intermediate
+operation does not claim a stream. `Split` algorithms assume their caller has
+performed argument validation. The checks that remain in `Split` protect its
+own internal contracts: deferred suppliers, functions and returned
+spliterators must be non-null, and custom spliterators must reject a null
+`tryAdvance` action.
+
+Secondary `Iterable` and `Stream` arguments are likewise checked before the
+receiver's spliterator is obtained. Static `concat` validates every source
+before obtaining any spliterators; its `SeqStream` form then claims all known
+input streams immediately while deferring their traversal.
+
+`flatten` follows `flatMap`: a null inner source contributes no elements. Its
+outer source is still a direct argument and is rejected immediately when null.
+
+A null functional argument is rejected eagerly, matching the JDK, including
+the combiners accepted by the inherited three-argument `reduce` and `collect`
+signatures. Internal null sentinels implement natural-order `sorted()` and the
+throw-on-duplicate `toMap` overloads, but cannot be supplied through the
+corresponding public argument-taking overloads.
+`collect(Collector)` checks only the collector itself, not the methods it
+bundles.
+
+Negative counts and indexes are rejected eagerly. For fixed-size
+combinatorics, a negative `k` throws, while `permutations(k)` and
+`combinations(k)` return an empty result when `k` exceeds the source length.
+
+## Settled: deferred whole-source operations
+
+The eleven whole-source `SeqStream` intermediate operations are lazy:
+`sorted()`, `sorted(Comparator)`, `reversed()`, `rotated(distance)`,
+`shuffled(random)`, `permutations()`, `permutations(k)`, `allPermutations()`,
+`combinations(k)`, `allCombinations()` and `power(k)`. They validate arguments
+and claim the upstream stream when called, but defer reading it until the
+result is traversed. Obtaining the result's `iterator()` or `spliterator()`
+does not read the source; advancing it does.
+
+`Split.defer` implements this by initializing a delegate spliterator on first
+advance. Its array-operation overloads defer both buffering the input and
+constructing either the transformed array spliterator or combinatorial
+generator. The array algorithms themselves are shared with eager `Seq`, which
+can adopt their result without an additional copy. Failed initialization is
+not retried; a later advance reports that the deferred computation failed.
+
+`product(that, mapper)` still buffers `that` when called. Deferring that work
+would be consistent but remains optional and outside this change.
 
 ## Settled: consumer sinks
 
@@ -118,49 +171,6 @@ lambdas. No benchmark was taken, so whether escape analysis had already
 removed the old allocations is unknown.
 
 ## Contract and robustness
-
-- **Combinatoric range messages remain mechanical.** The fixed-size operations
-  now consistently take `k`, but `k 3 was greater than length 2` may still read
-  less naturally than `cannot choose 3 from 2 elements`.
-- **`combinations` is the one count that throws rather than clamps** when the
-  argument exceeds the data, where `limit`, `skip`, `limitLast` and `skipLast`
-  all return what is present. Guava's `Sets.combinations` throws too, so this
-  is defensible, but it should be a decision rather than an accident.
-- **A null functional argument is rejected eagerly**, matching the JDK: on an
-  empty stream `Stream.filter`, `map`, `forEach`, `reduce`, `collect`, `min`,
-  `max`, the three `*Match` methods and `sorted(Comparator)` all throw. The
-  checks live in `Split`, where one covers both `Seq` and `SeqStream`. The one
-  deliberate exception is `toMap`'s `mergeFunction`, where null means "throw
-  on duplicate". `Collectors.toMap` does not check its mappers; `Split.toMap`
-  does, since it is a named operation rather than a composed `Collector`.
-  `collect(Collector)` checks only the collector itself, as `ReduceOps.makeRef`
-  does, and not the four methods it bundles. `Split.sorted(Spliterator)` passes
-  `Comparator.naturalOrder()` to the checked overload, as `SortedOps.OfRef`
-  does; `Arrays.sort`'s null comparator would take a separate code path for the
-  same cost, but would need the check bypassed. Methods that only
-  delegate add no check of their own, since the delegate's contract already
-  requires the argument: `forEach`, `forEachOrdered` and `peek` to
-  `Spliterator.forEachRemaining`, `mapToInt` and the other primitive
-  conversions to `Stream`, and both `flatMap`s to `Function.andThen`.
-
-- **Eleven `SeqStream` intermediate operations traverse the source when they
-  are called**, not when the result is first advanced: `sorted()`,
-  `sorted(Comparator)`, `reversed()`, `rotated(distance)`, `shuffled(random)`,
-  `permutations()`, `permutations(k)`, `allPermutations()`, `combinations(k)`,
-  `allCombinations()` and `power(k)`. A `peek` counter on a source with no
-  terminal operation shows each consuming every element. Every one of them
-  needs the whole source before it can yield a first element, so the work is
-  unavoidable; only its timing is wrong. The two `sorted` overloads are the
-  contract break, since they override `Stream` and carry `{@inheritDoc}`,
-  which republishes `Stream.sorted()`'s promise that a `ClassCastException`
-  "may be thrown when the terminal operation is executed" — ours throws it
-  from the `sorted()` call. The other nine are seqly's own, but the class
-  javadoc still advertises "lazy versions of most other `Seq` methods".
-  Decided: defer the traversal in a later commit with one shared
-  `Split.lazy(Supplier<Spliterator<E>>)` that materializes on first advance,
-  rather than documenting the deviation. That also moves the consumed-stream
-  `IllegalStateException` from the call to the terminal operation, which is
-  what `Stream` does.
 
 - **Three overflow policies for one concept.** `count()` returns `long`,
   `size()` clamps to `Integer.MAX_VALUE` per the `Collection` javadoc, and

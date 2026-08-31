@@ -34,6 +34,46 @@ public class SpliteratorTest {
     }
 
     @Test
+    public void testDeferredSpliteratorComputesOnFirstAdvance() {
+        int[] computations = new int[1];
+        Spliterator<Integer> spliterator = Split.defer(() -> {
+            computations[0]++;
+            return ordered(0, 1);
+        }, ORDERED | SIZED | SUBSIZED);
+
+        assertThat(computations[0], equalTo(0));
+        assertOnlyOrdered(spliterator);
+        assertThat(spliterator.estimateSize(), equalTo(Long.MAX_VALUE));
+        assertThrows(NullPointerException.class,
+                () -> spliterator.tryAdvance((Consumer<Integer>) null));
+        assertThat(computations[0], equalTo(0));
+
+        List<Integer> elements = new ArrayList<>();
+        assertTrue(spliterator.tryAdvance(elements::add));
+        assertThat(computations[0], equalTo(1));
+        spliterator.forEachRemaining(elements::add);
+        assertThat(computations[0], equalTo(1));
+        assertThat(elements, contains(0, 1));
+    }
+
+    @Test
+    public void testDeferredSpliteratorDoesNotRetryFailedComputation() {
+        int[] computations = new int[1];
+        Spliterator<Integer> spliterator = Split.defer(() -> {
+            computations[0]++;
+            throw new ClassCastException("first failure");
+        }, ORDERED);
+
+        assertThrows(ClassCastException.class, "first failure",
+                () -> spliterator.tryAdvance(element -> {}));
+        assertThat(computations[0], equalTo(1));
+        assertThrows(IllegalStateException.class,
+                "deferred computation previously failed",
+                () -> spliterator.tryAdvance(element -> {}));
+        assertThat(computations[0], equalTo(1));
+    }
+
+    @Test
     public void testCollectionViewRequiresOrder() {
         assertThrows(IllegalArgumentException.class,
                 "collection spliterator was not ORDERED",
@@ -78,6 +118,10 @@ public class SpliteratorTest {
         assertFalse(Split.union(ordered(0), unordered(1))
                 .hasCharacteristics(ORDERED));
 
+        assertOnlyOrdered(Split.concat(ordered(0), ordered(1)));
+        assertFalse(Split.concat(ordered(0), unordered(1))
+                .hasCharacteristics(ORDERED));
+
         assertFalse(Split.product(
                 unordered(0), new Object[]{1}, Integer::sum)
                 .hasCharacteristics(ORDERED));
@@ -100,7 +144,7 @@ public class SpliteratorTest {
 
         Spliterator<Integer> sorted = SeqStream.viewOf(unordered(1, 0))
                 .sorted().spliterator();
-        assertTrue(sorted.hasCharacteristics(ORDERED | SIZED | SUBSIZED));
+        assertOnlyOrdered(sorted);
     }
 
     @Test
