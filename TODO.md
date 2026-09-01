@@ -1,7 +1,5 @@
 # TODO
 
-- Consider adding Spotless.
-
 ## Rename off `org.bitbucket.seqly`
 
 New GitHub org per project, verify `io.github.<org>` on the Central Portal.
@@ -240,7 +238,6 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
   erases the same.
 - **Numeric terminals** — summing means `seq.stream().mapToInt(...).sum()`.
   Want `sum(ToIntFunction)`, `average`, or `mapToInt` on `Seq` itself.
-- **`min()`/`max()` natural-order overloads**, as `sorted()` already has.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
 - **Factories** — consider `SeqStream.builder()`, `repeat(e, n)`, the bounded
   JDK `iterate` form, `generate`, `rangeClosed`, and `long` versions of `range`

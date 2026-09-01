@@ -799,11 +799,25 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#min()}.
+     */
+    default Optional<E> min() {
+        return Split.min(spliterator());
+    }
+
+    /**
      * {@inheritDoc}
      */
     default Optional<E> min(Comparator<? super E> comparator) {
         requireNonNull(comparator);
         return Split.min(spliterator(), comparator);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#max()}.
+     */
+    default Optional<E> max() {
+        return Split.max(spliterator());
     }
 
     /**

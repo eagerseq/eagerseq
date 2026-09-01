@@ -295,8 +295,16 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().collect(collector);
     }
 
+    default Optional<E> min() {
+        return stream().min();
+    }
+
     default Optional<E> min(Comparator<? super E> comparator) {
         return stream().min(comparator);
+    }
+
+    default Optional<E> max() {
+        return stream().max();
     }
 
     default Optional<E> max(Comparator<? super E> comparator) {

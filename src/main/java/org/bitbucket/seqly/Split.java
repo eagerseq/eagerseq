@@ -913,6 +913,10 @@ final class Split {
                 spliterator, collector.supplier(), collector.accumulator()));
     }
 
+    static <E> Optional<E> min(Spliterator<E> spliterator) {
+        return min(spliterator, naturalOrder());
+    }
+
     static <E> Optional<E> min(
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
@@ -926,10 +930,21 @@ final class Split {
         return Optional.of(min);
     }
 
+    static <E> Optional<E> max(Spliterator<E> spliterator) {
+        return max(spliterator, naturalOrder());
+    }
+
     static <E> Optional<E> max(
             Spliterator<E> spliterator,
             Comparator<? super E> comparator) {
         return min(spliterator, reverseOrder(comparator));
+    }
+
+    private static <E> Comparator<? super E> naturalOrder() {
+        // as unchecked as the natural ordering of Arrays.sort(array, null)
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Comparator<? super E> order = (Comparator) Comparator.naturalOrder();
+        return order;
     }
 
     static <E> boolean noneMatch(

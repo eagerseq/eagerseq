@@ -1002,6 +1002,12 @@ public class SeqTest {
     @Test
     public void testMin() {
         assertThat(
+                this.<Integer>seqOf().min(),
+                equalTo(Optional.empty()));
+        assertThat(
+                seqOf(2, 3, 1, 4, 9, 7).min(),
+                equalTo(Optional.of(1)));
+        assertThat(
                 this.<Integer>seqOf().min(naturalOrder()),
                 equalTo(Optional.empty()));
         assertThat(
@@ -1015,6 +1021,12 @@ public class SeqTest {
 
     @Test
     public void testMax() {
+        assertThat(
+                this.<Integer>seqOf().max(),
+                equalTo(Optional.empty()));
+        assertThat(
+                seqOf(2, 3, 1, 4, 9, 7).max(),
+                equalTo(Optional.of(9)));
         assertThat(
                 this.<Integer>seqOf().max(naturalOrder()),
                 equalTo(Optional.empty()));
@@ -1251,8 +1263,11 @@ public class SeqTest {
         assertNullRejected(() -> empty.toMap(identity(), identity(), null));
         assertNullRejected(() -> empty.zip(empty, null));
         assertNullRejected(() -> empty.product(empty, null));
-        // sorted() is a separate overload that takes no comparator.
+        // sorted(), min() and max() are separate overloads that take no
+        // comparator.
         assertThat(empty.sorted(), empty());
+        assertThat(empty.min(), equalTo(Optional.empty()));
+        assertThat(empty.max(), equalTo(Optional.empty()));
     }
 
     @Test

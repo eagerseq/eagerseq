@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
 import java.util.function.BiFunction;
@@ -536,8 +537,11 @@ public class SeqStreamTest {
                 () -> emptyStream().toMap(identity(), identity(), null));
         assertNullRejected(() -> emptyStream().zip(emptyStream(), null));
         assertNullRejected(() -> emptyStream().product(emptyStream(), null));
-        // sorted() is a separate overload that takes no comparator.
+        // sorted(), min() and max() are separate overloads that take no
+        // comparator.
         assertTrue(emptyStream().sorted().isEmpty());
+        assertThat(emptyStream().min(), equalTo(Optional.empty()));
+        assertThat(emptyStream().max(), equalTo(Optional.empty()));
     }
 
     @Test

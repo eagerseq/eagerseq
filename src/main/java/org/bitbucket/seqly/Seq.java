@@ -987,11 +987,25 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
+     * Equivalent of {@link Stream#min(Comparator)} with natural ordering.
+     */
+    default Optional<E> min() {
+        return Split.min(spliterator());
+    }
+
+    /**
      * Equivalent of {@link Stream#min(Comparator)}.
      */
     default Optional<E> min(Comparator<? super E> comparator) {
         requireNonNull(comparator);
         return Split.min(spliterator(), comparator);
+    }
+
+    /**
+     * Equivalent of {@link Stream#max(Comparator)} with natural ordering.
+     */
+    default Optional<E> max() {
+        return Split.max(spliterator());
     }
 
     /**
