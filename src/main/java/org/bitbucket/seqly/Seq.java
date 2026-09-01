@@ -100,6 +100,19 @@ import static java.util.Objects.requireNonNull;
  *     seq.findSingle();
  * }</pre>
  *
+ * <h2>Grouping</h2>
+ *
+ * <p>{@code groupBy()} replaces
+ * {@code collect(Collectors.groupingBy(...))} and makes each group a
+ * {@code Seq}. An overload applies a reduction to each group.
+ *
+ * <pre>{@code
+ *     Map<Integer, Seq<String>> wordsByLength =
+ *             words.groupBy(String::length);
+ *     Map<Integer, Integer> wordCountByLength =
+ *             words.groupBy(String::length, Seq::size);
+ * }</pre>
+ *
  * <h2>Streams</h2>
  *
  * <p>When laziness is desired, {@link Seq#stream()}
@@ -881,7 +894,33 @@ public interface Seq<E> extends Collection<E> {
      */
     default Seq<E> distinctBy(Function<? super E, ?> keyMapper) {
         requireNonNull(keyMapper);
-        return copyOf(Split.distinct(spliterator(), keyMapper));
+        return copyOf(Split.distinctBy(spliterator(), keyMapper));
+    }
+
+    /**
+     * Equivalent to {@link #groupBy(Function, Function) groupBy(keyMapper, group -> group)}.
+     */
+    default <K> Map<K, Seq<E>> groupBy(
+            Function<? super E, ? extends K> keyMapper) {
+        requireNonNull(keyMapper);
+        return Split.groupBy(spliterator(), keyMapper, Seq::viewOf);
+    }
+
+    /**
+     * Returns an unmodifiable map from each mapped key to the result of
+     * applying the given function to the elements sharing that key.
+     * Both the keys and the elements of each group are in encounter order.
+     * A group is a {@code Seq} rather than a {@code Collector} result, so
+     * the whole of this interface is available to the function, and any
+     * {@code Collector} remains usable as {@code group -> group.collect(...)}.
+     */
+    default <K, V> Map<K, V> groupBy(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super Seq<E>, ? extends V> valueMapper) {
+        requireNonNull(keyMapper);
+        requireNonNull(valueMapper);
+        return Split.groupBy(spliterator(), keyMapper,
+                valueMapper.compose(Seq::viewOf));
     }
 
     /**

@@ -595,7 +595,28 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> distinctBy(Function<? super E, ?> keyMapper) {
         requireNonNull(keyMapper);
-        return viewOf(Split.distinct(spliterator(), keyMapper));
+        return viewOf(Split.distinctBy(spliterator(), keyMapper));
+    }
+
+    /**
+     * See {@link Seq#groupBy(Function)}.
+     */
+    default <K> Map<K, Seq<E>> groupBy(
+            Function<? super E, ? extends K> keyMapper) {
+        requireNonNull(keyMapper);
+        return Split.groupBy(spliterator(), keyMapper, Seq::viewOf);
+    }
+
+    /**
+     * See {@link Seq#groupBy(Function, Function)}.
+     */
+    default <K, V> Map<K, V> groupBy(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super Seq<E>, ? extends V> valueMapper) {
+        requireNonNull(keyMapper);
+        requireNonNull(valueMapper);
+        return Split.groupBy(spliterator(), keyMapper,
+                valueMapper.compose(Seq::viewOf));
     }
 
     /**

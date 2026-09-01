@@ -240,6 +240,17 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().distinctBy(keyMapper).toSeq();
     }
 
+    default <K> Map<K, Seq<E>> groupBy(
+            Function<? super E, ? extends K> keyMapper) {
+        return stream().groupBy(keyMapper);
+    }
+
+    default <K, V> Map<K, V> groupBy(
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super Seq<E>, ? extends V> valueMapper) {
+        return stream().groupBy(keyMapper, valueMapper);
+    }
+
     default Seq<E> sorted() {
         return stream().sorted().toSeq();
     }

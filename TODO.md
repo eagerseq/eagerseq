@@ -190,6 +190,25 @@ removed the old allocations is unknown.
   `close()` silently succeeds while registering a handler fails — and
   `unordered()` is the only one of the five that does actual work, so
   it is the only one whose current behaviour is clearly right.
+- **`Split`'s dependencies on the rest of the package are unreviewed.**
+  `Split` is meant to be the algorithm floor, defined over `Spliterator` and
+  arrays, which is why it returns `E[]` and lets `Seq`/`SeqStream` adopt the
+  result. It is not actually self-contained. `SeqBuilder` is used in
+  `emptySpliterator` (via `SeqBuilder.EMPTY`), both `toArray` overloads, the
+  `limitLast`/`skipLast` queues and `groupBy`; `toStream` takes a `SeqStream`
+  parameter outright, which is a straight inversion of the layering. Decide
+  what the floor is allowed to know about.
+  For `SeqBuilder` specifically the case is decent — it is a growable array
+  builder, not a `Seq` concept, its `trim()` hands back a bare `E[]`, and it
+  is what lets a buffer be "sized from the data" rather than from a claimed
+  size (the `limitLast` comment). But it is a second growth policy alongside
+  `ArrayList`, which `toList` uses, and no benchmark says the no-copy
+  adoption pays for that. Options: keep it and say so; move it to a neutral
+  package-private array builder that `SeqBuilder` itself wraps; or drop it
+  from `Split` in favour of `ArrayList` and accept a copy per result.
+  `toStream` is the separate and clearer problem — it exists only to let
+  `SeqStream` bounce off `StreamSupport`, and probably belongs on
+  `SeqStream`.
 
 ## Settled: index and count conventions
 
@@ -229,13 +248,6 @@ which is where it is weaker than `get`.
 
 Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 
-- **Grouping** — no `groupBy` and no multimap, so
-  `collect(Collectors.groupingBy(...))` is the only route. At least as common
-  as `map`/`filter`. A `grouped` existed once (09a0281). Maybe
-  `Map<K, Seq<E>> groupBy(keyMapper)` plus a per-group
-  `Function<Seq<E>, D>` rather than a downstream `Collector`, since the groups
-  arrive rich. That rules out a `(keyMapper, valueMapper)` overload, which
-  erases the same.
 - **Numeric terminals** — summing means `seq.stream().mapToInt(...).sum()`.
   Want `sum(ToIntFunction)`, `average`, or `mapToInt` on `Seq` itself.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**

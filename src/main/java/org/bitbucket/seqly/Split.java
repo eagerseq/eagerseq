@@ -810,10 +810,10 @@ final class Split {
     }
 
     static <E> Spliterator<E> distinct(Spliterator<E> spliterator) {
-        return distinct(spliterator, null);
+        return distinctBy(spliterator, null);
     }
 
-    static <E> Spliterator<E> distinct(
+    static <E> Spliterator<E> distinctBy(
             Spliterator<E> spliterator,
             Function<? super E, ?> keyMapper) {
         // null is an internal identity sentinel for private use only
@@ -832,6 +832,20 @@ final class Split {
                 return false;
             }
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    static <E, K, V> Map<K, V> groupBy(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends K> keyMapper,
+            Function<? super E[], ? extends V> valueMapper) {
+        Map<K, Object> map = new LinkedHashMap<>();
+        spliterator.forEachRemaining(e -> ((SeqBuilder<E>) map
+                .computeIfAbsent(keyMapper.apply(e), key -> new SeqBuilder<>())
+                ).accept(e));
+        map.replaceAll((key, builder) -> valueMapper.apply(
+                ((SeqBuilder<E>) builder).trim()));
+        return (Map<K, V>) Collections.unmodifiableMap(map);
     }
 
     static <E> E[] sorted(Spliterator<E> spliterator) {

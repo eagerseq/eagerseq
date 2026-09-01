@@ -278,8 +278,8 @@ public class SeqTest {
                         s -> s, s -> s, (a, b) -> a),
                 allOf(hasEntry("zero", "zero"), hasEntry((Object) null, null)));
         assertThat(
-                Seq.copyOf(seqOf("zero", "one", "zebra").toMap(
-                        s -> s.charAt(0), s -> s, (a, b) -> b).keySet()),
+                seqOf("zero", "one", "zebra").toMap(
+                        s -> s.charAt(0), s -> s, (a, b) -> b).keySet(),
                 contains('z', 'o'));
         assertThrows(() -> seqOf("zero")
                 .toMap(s -> s, s -> s, (a, b) -> a).put("one", "one"));
@@ -941,6 +941,33 @@ public class SeqTest {
     }
 
     @Test
+    public void testGroupBy() {
+        Seq<String> words = seqOf("three", "two", "one", "four", null, "six");
+        Function<String, Integer> length = word -> word == null ? null
+                : word.length();
+        assertThat(
+                words.groupBy(length).keySet(),
+                contains(5, 3, 4, null));
+        assertThat(
+                words.groupBy(length),
+                hasEntry(3, seqOf("two", "one", "six")));
+        assertThat(
+                words.groupBy(length),
+                hasEntry(null, seqOf((String) null)));
+        assertThat(
+                words.groupBy(length, Seq::size),
+                hasEntry(3, 3));
+        assertThat(
+                words.groupBy(length, group -> group.collect(toList())),
+                hasEntry(5, Arrays.asList("three")));
+        assertThat(
+                this.<String>seqOf().groupBy(length),
+                equalTo(Collections.emptyMap()));
+        assertThrows(() -> words.groupBy(length).put(0, Seq.of()));
+        assertThrows(() -> words.groupBy(length, Seq::size).put(0, 0));
+    }
+
+    @Test
     public void testSorted() {
         assertThat(seqOf(2, 3, 1, 0, 4).sorted(),
                 contains(0, 1, 2, 3, 4));
@@ -1247,6 +1274,9 @@ public class SeqTest {
         assertNullRejected(() -> empty.forEach(null));
         assertNullRejected(() -> empty.forEachOrdered(null));
         assertNullRejected(() -> empty.distinctBy(null));
+        assertNullRejected(() -> empty.groupBy(null));
+        assertNullRejected(() -> empty.groupBy(null, Seq::size));
+        assertNullRejected(() -> empty.groupBy(e -> e, null));
         assertNullRejected(() -> empty.sorted(null));
         assertNullRejected(() -> empty.shuffled(null));
         assertNullRejected(() -> empty.min(null));

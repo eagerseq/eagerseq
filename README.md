@@ -88,6 +88,19 @@ seq.findLast();
 seq.findSingle();
 ```
 
+## Grouping
+
+`groupBy()` replaces
+`collect(Collectors.groupingBy(...))` and makes each group a
+`Seq`. An overload applies a reduction to each group.
+
+```java
+Map<Integer, Seq<String>> wordsByLength =
+        words.groupBy(String::length);
+Map<Integer, Integer> wordCountByLength =
+        words.groupBy(String::length, Seq::size);
+```
+
 ## Streams
 
 When laziness is desired, `Seq.stream()`
