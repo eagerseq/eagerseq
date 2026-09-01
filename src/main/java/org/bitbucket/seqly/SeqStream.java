@@ -591,6 +591,14 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#distinctBy(Function)}.
+     */
+    default SeqStream<E> distinctBy(Function<? super E, ?> keyMapper) {
+        requireNonNull(keyMapper);
+        return viewOf(Split.distinct(spliterator(), keyMapper));
+    }
+
+    /**
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {

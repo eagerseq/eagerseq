@@ -500,6 +500,7 @@ public class SeqStreamTest {
         assertNullRejected(() -> emptyStream().peek(null));
         assertNullRejected(() -> emptyStream().forEach(null));
         assertNullRejected(() -> emptyStream().forEachOrdered(null));
+        assertNullRejected(() -> emptyStream().distinctBy(null));
         assertNullRejected(() -> emptyStream().sorted(null));
         assertNullRejected(() -> emptyStream().shuffled(null));
         assertNullRejected(() -> emptyStream().min(null));

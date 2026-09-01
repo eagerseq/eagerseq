@@ -810,12 +810,21 @@ final class Split {
     }
 
     static <E> Spliterator<E> distinct(Spliterator<E> spliterator) {
+        return distinct(spliterator, null);
+    }
+
+    static <E> Spliterator<E> distinct(
+            Spliterator<E> spliterator,
+            Function<? super E, ?> keyMapper) {
+        // null is an internal identity sentinel for private use only
         return new UnknownSizeSpliterator<E>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
-            private Set<E> seen = new HashSet<>();
+            private Set<Object> seen = new HashSet<>();
             boolean advance(Consumer<? super E> action) {
                 while (spliterator.tryAdvance(next)) {
-                    if (seen.add(next.value)) {
+                    if (seen.add(keyMapper == null
+                            ? next.value
+                            : keyMapper.apply(next.value))) {
                         action.accept(next.value);
                         return true;
                     }

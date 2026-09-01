@@ -876,6 +876,15 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
+     * Equivalent of {@link #distinct()}
+     * except elements are compared by mapped keys.
+     */
+    default Seq<E> distinctBy(Function<? super E, ?> keyMapper) {
+        requireNonNull(keyMapper);
+        return copyOf(Split.distinct(spliterator(), keyMapper));
+    }
+
+    /**
      * Equivalent of {@link Stream#sorted()}.
      */
     default Seq<E> sorted() {

@@ -934,6 +934,13 @@ public class SeqTest {
     }
 
     @Test
+    public void testDistinctBy() {
+        assertThat(seqOf("three", "two", "one", "four", null, "six")
+                .distinctBy(word -> word == null ? null : word.length()),
+                contains("three", "two", "four", null));
+    }
+
+    @Test
     public void testSorted() {
         assertThat(seqOf(2, 3, 1, 0, 4).sorted(),
                 contains(0, 1, 2, 3, 4));
@@ -1239,6 +1246,7 @@ public class SeqTest {
         assertNullRejected(() -> empty.peek(null));
         assertNullRejected(() -> empty.forEach(null));
         assertNullRejected(() -> empty.forEachOrdered(null));
+        assertNullRejected(() -> empty.distinctBy(null));
         assertNullRejected(() -> empty.sorted(null));
         assertNullRejected(() -> empty.shuffled(null));
         assertNullRejected(() -> empty.min(null));

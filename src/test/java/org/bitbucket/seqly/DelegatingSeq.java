@@ -236,6 +236,10 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().distinct().toSeq();
     }
 
+    default Seq<E> distinctBy(Function<? super E, ?> keyMapper) {
+        return stream().distinctBy(keyMapper).toSeq();
+    }
+
     default Seq<E> sorted() {
         return stream().sorted().toSeq();
     }
