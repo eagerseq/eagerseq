@@ -841,8 +841,8 @@ final class Split {
             Function<? super E[], ? extends V> valueMapper) {
         Map<K, Object> map = new LinkedHashMap<>();
         spliterator.forEachRemaining(e -> ((SeqBuilder<E>) map
-                .computeIfAbsent(keyMapper.apply(e), key -> new SeqBuilder<>())
-                ).accept(e));
+                .computeIfAbsent(keyMapper.apply(e), key -> new SeqBuilder<>()))
+                .accept(e));
         map.replaceAll((key, builder) -> valueMapper.apply(
                 ((SeqBuilder<E>) builder).trim()));
         return (Map<K, V>) Collections.unmodifiableMap(map);
