@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,8 +30,8 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import static io.github.eagerseq.Split.toStream;
 import static java.util.Objects.requireNonNull;
-import static org.bitbucket.seqly.Split.toStream;
 
 /**
  * <p>The subtype of {@code Stream} returned by

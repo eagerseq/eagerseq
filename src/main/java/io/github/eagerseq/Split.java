@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -13,15 +13,15 @@ public class ReadmeGenerator {
 
     /** The source file whose class comment README.md is derived from. */
     static final Path SOURCE = Paths
-            .get("src/main/java/org/bitbucket/seqly/Seq.java");
+            .get("src/main/java/io/github/eagerseq/Seq.java");
     static final Path README = Paths.get("README.md");
 
     private static String prefix = "## Maven\n"
             + "\n"
             + "```\n"
             + "<dependency>\n"
-            + "    <groupId>org.bitbucket.seqly</groupId>\n"
-            + "    <artifactId>seqly</artifactId>\n"
+            + "    <groupId>io.github.eagerseq</groupId>\n"
+            + "    <artifactId>eagerseq</artifactId>\n"
             + "    <version>x.y.z</version>\n"
             + "</dependency>\n"
             + "```\n"
@@ -29,7 +29,7 @@ public class ReadmeGenerator {
             + "## Gradle\n"
             + "\n"
             + "```\n"
-            + "implementation 'org.bitbucket.seqly:seqly:x.y.z'\n"
+            + "implementation 'io.github.eagerseq:eagerseq:x.y.z'\n"
             + "```\n"
             + "\n"
             + "## Introduction\n"

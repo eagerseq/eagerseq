@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import org.junit.Test;
 
@@ -18,8 +18,8 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static io.github.eagerseq.SeqTest.assertThrows;
 import static java.util.function.Function.identity;
-import static org.bitbucket.seqly.SeqTest.assertThrows;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;

@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.bitbucket.seqly</groupId>
-    <artifactId>seqly</artifactId>
-    <version>0.5.0</version>
-    <name>Seqly</name>
+    <groupId>io.github.eagerseq</groupId>
+    <artifactId>eagerseq</artifactId>
+    <version>0.6.0</version>
+    <name>EagerSeq</name>
     <description>A small collection library.</description>
-    <url>https://github.com/jancellor/seqly</url>
+    <url>https://github.com/eagerseq/eagerseq</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -17,13 +17,13 @@
         <developer>
             <name>James Chancellor</name>
             <email>jancellor@users.noreply.github.com</email>
-            <organizationUrl>https://github.com/jancellor</organizationUrl>
+            <organizationUrl>https://github.com/eagerseq</organizationUrl>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/jancellor/seqly.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/jancellor/seqly.git</developerConnection>
-        <url>https://github.com/jancellor/seqly</url>
+        <connection>scm:git:https://github.com/eagerseq/eagerseq.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/eagerseq/eagerseq.git</developerConnection>
+        <url>https://github.com/eagerseq/eagerseq</url>
     </scm>
     <!--
         No distributionManagement is needed: OSSRH (oss.sonatype.org) was shut
@@ -104,7 +104,7 @@
                 <configuration>
                     <archive>
                         <manifestEntries>
-                            <Automatic-Module-Name>org.bitbucket.seqly</Automatic-Module-Name>
+                            <Automatic-Module-Name>io.github.eagerseq</Automatic-Module-Name>
                         </manifestEntries>
                     </archive>
                 </configuration>

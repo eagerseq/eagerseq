@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import org.junit.Test;
 
@@ -14,10 +14,10 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
+import static io.github.eagerseq.SeqTest.assertThrows;
 import static java.util.Spliterator.ORDERED;
 import static java.util.Spliterator.SIZED;
 import static java.util.Spliterator.SUBSIZED;
-import static org.bitbucket.seqly.SeqTest.assertThrows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;

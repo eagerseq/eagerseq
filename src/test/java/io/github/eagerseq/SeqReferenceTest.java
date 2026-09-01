@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

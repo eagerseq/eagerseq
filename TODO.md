@@ -1,23 +1,14 @@
 # TODO
 
-## Rename off `org.bitbucket.seqly`
+## Done: renamed to `io.github.eagerseq`
 
-New GitHub org per project, verify `io.github.<org>` on the Central Portal.
-artifactId stays `seq`; package matches groupId exactly.
+Coordinates are `io.github.eagerseq:eagerseq`, package and
+`Automatic-Module-Name` both `io.github.eagerseq`. Namespace verified on the
+Central Portal on 2026-09-01. `org.bitbucket.seqly:seqly:0.5.0` stays up under
+the old coordinates; there is no compatibility shim.
 
-Free as of 2026-08-05 (`seq`, `seqly`, `seqlib` are taken):
-
-- `seqjava` — claims nothing, can't age badly
-- `seqcollection` — accurate now, but `SeqStream` isn't a `Collection`
-- `seqcollections` — reads best, overclaims (public API is just `Seq`,
-  `SeqStream`, `AbstractSeq`)
-
-Touches: pom coordinates + `Automatic-Module-Name`, package move, README,
-`ReadmeGenerator`. Verify namespace before first release; 0.5.0 stays up under
-the old coordinates.
-
-The factory renames described under "Settled: factories" are already made;
-include them in the same breaking release as the package move.
+The factory renames described under "Settled: factories" ship in the same
+breaking release, 0.6.0.
 
 ## Settled: factories
 

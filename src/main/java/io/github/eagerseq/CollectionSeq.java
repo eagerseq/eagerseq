@@ -1,4 +1,4 @@
-package org.bitbucket.seqly;
+package io.github.eagerseq;
 
 import java.util.Collection;
 import java.util.Spliterator;

@@ -2,8 +2,8 @@
 
 ```
 <dependency>
-    <groupId>org.bitbucket.seqly</groupId>
-    <artifactId>seqly</artifactId>
+    <groupId>io.github.eagerseq</groupId>
+    <artifactId>eagerseq</artifactId>
     <version>x.y.z</version>
 </dependency>
 ```
@@ -11,7 +11,7 @@
 ## Gradle
 
 ```
-implementation 'org.bitbucket.seqly:seqly:x.y.z'
+implementation 'io.github.eagerseq:eagerseq:x.y.z'
 ```
 
 ## Introduction
