@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.Spliterators.AbstractIntSpliterator;
+import java.util.Spliterators.AbstractLongSpliterator;
 import java.util.Spliterators.AbstractSpliterator;
 import java.util.StringJoiner;
 import java.util.function.BiConsumer;
@@ -29,8 +30,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
+import java.util.function.LongConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collector;
 import java.util.stream.IntStream;
@@ -412,11 +417,54 @@ final class Split {
     }
 
     static Spliterator.OfInt range(int from, int to) {
+        return range(from, to, 0);
+    }
+
+    static Spliterator.OfLong range(long from, long to) {
+        return range(from, to, 0);
+    }
+
+    static Spliterator.OfInt rangeClosed(int from, int to) {
+        return range(from, to, from <= to ? 1 : 0);
+    }
+
+    static Spliterator.OfLong rangeClosed(long from, long to) {
+        return range(from, to, from <= to ? 1 : 0);
+    }
+
+    private static Spliterator.OfInt range(
+            int from, int to, int pendingLast) {
         return new UnknownSizeIntSpliterator(ORDERED) {
             private int index = from;
+            private int last = pendingLast;
             boolean advance(IntConsumer action) {
                 if (index < to) {
                     action.accept(index++);
+                    return true;
+                }
+                if (last > 0) {
+                    last = 0;
+                    action.accept(index);
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    private static Spliterator.OfLong range(
+            long from, long to, int pendingLast) {
+        return new UnknownSizeLongSpliterator(ORDERED) {
+            private long index = from;
+            private int last = pendingLast;
+            boolean advance(LongConsumer action) {
+                if (index < to) {
+                    action.accept(index++);
+                    return true;
+                }
+                if (last > 0) {
+                    last = 0;
+                    action.accept(index);
                     return true;
                 }
                 return false;
@@ -936,6 +984,60 @@ final class Split {
                 spliterator, collector.supplier(), collector.accumulator()));
     }
 
+    static <E> int sumOfInt(
+            Spliterator<E> spliterator,
+            ToIntFunction<? super E> mapper) {
+        int[] sum = new int[1];
+        spliterator.forEachRemaining(
+                e -> sum[0] += mapper.applyAsInt(e));
+        return sum[0];
+    }
+
+    static <E> long sumOfLong(
+            Spliterator<E> spliterator,
+            ToLongFunction<? super E> mapper) {
+        long[] sum = new long[1];
+        spliterator.forEachRemaining(
+                e -> sum[0] += mapper.applyAsLong(e));
+        return sum[0];
+    }
+
+    static <E> double sumOfDouble(
+            Spliterator<E> spliterator,
+            ToDoubleFunction<? super E> mapper) {
+        double[] sum = new double[1];
+        spliterator.forEachRemaining(
+                e -> sum[0] += mapper.applyAsDouble(e));
+        return sum[0];
+    }
+
+    static <E> int productOfInt(
+            Spliterator<E> spliterator,
+            ToIntFunction<? super E> mapper) {
+        int[] product = {1};
+        spliterator.forEachRemaining(
+                e -> product[0] *= mapper.applyAsInt(e));
+        return product[0];
+    }
+
+    static <E> long productOfLong(
+            Spliterator<E> spliterator,
+            ToLongFunction<? super E> mapper) {
+        long[] product = {1L};
+        spliterator.forEachRemaining(
+                e -> product[0] *= mapper.applyAsLong(e));
+        return product[0];
+    }
+
+    static <E> double productOfDouble(
+            Spliterator<E> spliterator,
+            ToDoubleFunction<? super E> mapper) {
+        double[] product = {1.0};
+        spliterator.forEachRemaining(
+                e -> product[0] *= mapper.applyAsDouble(e));
+        return product[0];
+    }
+
     static <E> Optional<E> min(Spliterator<E> spliterator) {
         return min(spliterator, naturalOrder());
     }
@@ -1190,6 +1292,22 @@ final class Split {
         }
 
         abstract boolean advance(IntConsumer action);
+    }
+
+    private abstract static class UnknownSizeLongSpliterator
+            extends
+                AbstractLongSpliterator {
+
+        @SuppressWarnings("MagicConstant")
+        UnknownSizeLongSpliterator(int characteristics) {
+            super(Long.MAX_VALUE, characteristics & ~(SIZED | SUBSIZED));
+        }
+
+        public final boolean tryAdvance(LongConsumer action) {
+            return advance(requireNonNull(action));
+        }
+
+        abstract boolean advance(LongConsumer action);
     }
 
     private static class Box<E> implements Consumer<E> {

@@ -130,6 +130,9 @@ public class SpliteratorTest {
     @Test
     public void testOperationsThatEstablishOrder() {
         assertOnlyOrdered(Split.range(0, 2));
+        assertOnlyOrdered(Split.range(0L, 2L));
+        assertOnlyOrdered(Split.rangeClosed(0, 2));
+        assertOnlyOrdered(Split.rangeClosed(0L, 2L));
         assertOnlyOrdered(Split.indexesOf(unordered(0, 0), 0));
         assertOnlyOrdered(Split.indexesOfSlice(
                 unordered(0, 0), unordered(0)));

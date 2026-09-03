@@ -239,18 +239,19 @@ which is where it is weaker than `get`.
 
 Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 
-- **Numeric terminals** — summing means `seq.stream().mapToInt(...).sum()`.
-  Want `sum(ToIntFunction)`, `average`, or `mapToInt` on `Seq` itself.
+- **Numeric averages and statistics** — mapper-based primitive sums and
+  products are direct terminals; averages and summary statistics still require
+  dropping into a primitive stream.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
 - **Factories** — consider `SeqStream.builder()`, `repeat(e, n)`, the bounded
-  JDK `iterate` form, `generate`, `rangeClosed`, and `long` versions of `range`
-  and `rangeClosed`. Value-producing factories should generally be symmetrical
-  between `Seq` and `SeqStream`, unless their semantics give a specific reason
-  not to be. Which potentially non-terminating factories belong on eager `Seq`
-  is TBD; so is a bounded `generate(supplier, n)`. The `copyOf`/`viewOf`
-  conversion factories need not be symmetrical because ownership and one-pass
-  sources differ between the two types. Unbounded `iterate` exists only on
-  `SeqStream`, since eager `Seq` cannot contain its result.
+  JDK `iterate` form, and `generate`. Value-producing factories should
+  generally be symmetrical between `Seq` and `SeqStream`, unless their
+  semantics give a specific reason not to be. Which potentially non-terminating
+  factories belong on eager `Seq` is TBD; so is a bounded
+  `generate(supplier, n)`. The `copyOf`/`viewOf` conversion factories need not
+  be symmetrical because ownership and one-pass sources differ between the two
+  types. Unbounded `iterate` exists only on `SeqStream`, since eager `Seq`
+  cannot contain its result.
 - **Positional copy-modify** — `updated(i, e)` and friends, the immutable
   answer to the `List` mutators `Seq` inherits only to throw, currently
   spelled `slice`/`sum`; Scala has `updated`/`patch`, but undecided.

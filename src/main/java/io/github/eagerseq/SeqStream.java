@@ -108,6 +108,27 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#range(long, long)}.
+     */
+    static SeqStream<Long> range(long from, long to) {
+        return viewOf(Split.range(from, to));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#rangeClosed(int, int)}.
+     */
+    static SeqStream<Integer> rangeClosed(int from, int to) {
+        return viewOf(Split.rangeClosed(from, to));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#rangeClosed(long, long)}.
+     */
+    static SeqStream<Long> rangeClosed(long from, long to) {
+        return viewOf(Split.rangeClosed(from, to));
+    }
+
+    /**
      * Returns an infinite ordered {@code SeqStream} produced by repeatedly
      * applying {@code operator} to {@code seed}. The first element is
      * {@code seed}, the second is {@code operator.apply(seed)}, and so on.
@@ -825,6 +846,54 @@ public interface SeqStream<E> extends Stream<E> {
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         requireNonNull(collector);
         return Split.collect(spliterator(), collector);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#sumOfInt(ToIntFunction)}.
+     */
+    default int sumOfInt(ToIntFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.sumOfInt(spliterator(), mapper);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#sumOfLong(ToLongFunction)}.
+     */
+    default long sumOfLong(ToLongFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.sumOfLong(spliterator(), mapper);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#sumOfDouble(ToDoubleFunction)}.
+     */
+    default double sumOfDouble(ToDoubleFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.sumOfDouble(spliterator(), mapper);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#productOfInt(ToIntFunction)}.
+     */
+    default int productOfInt(ToIntFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.productOfInt(spliterator(), mapper);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#productOfLong(ToLongFunction)}.
+     */
+    default long productOfLong(ToLongFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.productOfLong(spliterator(), mapper);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#productOfDouble(ToDoubleFunction)}.
+     */
+    default double productOfDouble(ToDoubleFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.productOfDouble(spliterator(), mapper);
     }
 
     /**

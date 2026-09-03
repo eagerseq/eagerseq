@@ -16,6 +16,9 @@ import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 import java.util.stream.Collector;
 
 /**
@@ -308,6 +311,30 @@ public interface DelegatingSeq<E> extends Seq<E> {
 
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         return stream().collect(collector);
+    }
+
+    default int sumOfInt(ToIntFunction<? super E> mapper) {
+        return stream().sumOfInt(mapper);
+    }
+
+    default long sumOfLong(ToLongFunction<? super E> mapper) {
+        return stream().sumOfLong(mapper);
+    }
+
+    default double sumOfDouble(ToDoubleFunction<? super E> mapper) {
+        return stream().sumOfDouble(mapper);
+    }
+
+    default int productOfInt(ToIntFunction<? super E> mapper) {
+        return stream().productOfInt(mapper);
+    }
+
+    default long productOfLong(ToLongFunction<? super E> mapper) {
+        return stream().productOfLong(mapper);
+    }
+
+    default double productOfDouble(ToDoubleFunction<? super E> mapper) {
+        return stream().productOfDouble(mapper);
     }
 
     default Optional<E> min() {

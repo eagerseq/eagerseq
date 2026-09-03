@@ -54,6 +54,27 @@ public class SeqStreamTest {
         assertTrue(SeqStream.range(4, 7).listEquals(streamOf(4, 5, 6)));
         assertTrue(SeqStream.range(7, 4).isEmpty());
         assertTrue(SeqStream.range(-12, -10).listEquals(streamOf(-12, -11)));
+        assertTrue(SeqStream.range(4L, 7L).listEquals(streamOf(4L, 5L, 6L)));
+        assertTrue(SeqStream.range(7L, 4L).isEmpty());
+        assertTrue(SeqStream.range(-12L, -10L)
+                .listEquals(streamOf(-12L, -11L)));
+    }
+
+    @Test
+    public void testRangeClosed() {
+        assertTrue(SeqStream.rangeClosed(4, 7)
+                .listEquals(streamOf(4, 5, 6, 7)));
+        assertTrue(SeqStream.rangeClosed(4, 4).listEquals(streamOf(4)));
+        assertTrue(SeqStream.rangeClosed(7, 4).isEmpty());
+        assertTrue(SeqStream.rangeClosed(Integer.MAX_VALUE - 1,
+                Integer.MAX_VALUE).listEquals(
+                        streamOf(Integer.MAX_VALUE - 1, Integer.MAX_VALUE)));
+        assertTrue(SeqStream.rangeClosed(4L, 7L)
+                .listEquals(streamOf(4L, 5L, 6L, 7L)));
+        assertTrue(SeqStream.rangeClosed(4L, 4L).listEquals(streamOf(4L)));
+        assertTrue(SeqStream.rangeClosed(7L, 4L).isEmpty());
+        assertTrue(SeqStream.rangeClosed(Long.MAX_VALUE - 1, Long.MAX_VALUE)
+                .listEquals(streamOf(Long.MAX_VALUE - 1, Long.MAX_VALUE)));
     }
 
     @Test(timeout = 5000)
@@ -525,6 +546,12 @@ public class SeqStreamTest {
         assertNullRejected(
                 () -> emptyStream().collect(ArrayList::new, List::add, null));
         assertNullRejected(() -> emptyStream().collect(null));
+        assertNullRejected(() -> emptyStream().sumOfInt(null));
+        assertNullRejected(() -> emptyStream().sumOfLong(null));
+        assertNullRejected(() -> emptyStream().sumOfDouble(null));
+        assertNullRejected(() -> emptyStream().productOfInt(null));
+        assertNullRejected(() -> emptyStream().productOfLong(null));
+        assertNullRejected(() -> emptyStream().productOfDouble(null));
         assertNullRejected(() -> emptyStream().anyMatch(null));
         assertNullRejected(() -> emptyStream().allMatch(null));
         assertNullRejected(() -> emptyStream().noneMatch(null));

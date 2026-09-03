@@ -21,6 +21,9 @@ import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -313,11 +316,38 @@ public interface Seq<E> extends Collection<E> {
 
     /**
      * Returns a {@code Seq} containing consecutive integers
-     * from the first argument (inclusive) to the second argument (exclusive)
-     * if ascending, otherwise returns an empty {@code Seq}.
+     * from {@code from} (inclusive) to {@code to} (exclusive)
+     * if {@code from < to}, or an empty {@code Seq} otherwise.
      */
     static Seq<Integer> range(int from, int to) {
         return copyOf(Split.range(from, to));
+    }
+
+    /**
+     * Returns a {@code Seq} containing consecutive integers
+     * from {@code from} (inclusive) to {@code to} (exclusive)
+     * if {@code from < to}, or an empty {@code Seq} otherwise.
+     */
+    static Seq<Long> range(long from, long to) {
+        return copyOf(Split.range(from, to));
+    }
+
+    /**
+     * Returns a {@code Seq} containing consecutive integers
+     * from {@code from} (inclusive) to {@code to} (inclusive)
+     * if {@code from <= to}, or an empty {@code Seq} otherwise.
+     */
+    static Seq<Integer> rangeClosed(int from, int to) {
+        return copyOf(Split.rangeClosed(from, to));
+    }
+
+    /**
+     * Returns a {@code Seq} containing consecutive integers
+     * from {@code from} (inclusive) to {@code to} (inclusive)
+     * if {@code from <= to}, or an empty {@code Seq} otherwise.
+     */
+    static Seq<Long> rangeClosed(long from, long to) {
+        return copyOf(Split.rangeClosed(from, to));
     }
 
     /**
@@ -1032,6 +1062,66 @@ public interface Seq<E> extends Collection<E> {
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         requireNonNull(collector);
         return Split.collect(spliterator(), collector);
+    }
+
+    /**
+     * Returns the sum of the {@code int} values produced by applying the
+     * given mapper to the elements in encounter order. Equivalent to
+     * {@code stream().mapToInt(mapper).reduce(0, Integer::sum)}.
+     */
+    default int sumOfInt(ToIntFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.sumOfInt(spliterator(), mapper);
+    }
+
+    /**
+     * Returns the sum of the {@code long} values produced by applying the
+     * given mapper to the elements in encounter order. Equivalent to
+     * {@code stream().mapToLong(mapper).reduce(0L, Long::sum)}.
+     */
+    default long sumOfLong(ToLongFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.sumOfLong(spliterator(), mapper);
+    }
+
+    /**
+     * Returns the sum of the {@code double} values produced by applying the
+     * given mapper to the elements in encounter order. Equivalent to
+     * {@code stream().mapToDouble(mapper).reduce(0.0, Double::sum)}.
+     */
+    default double sumOfDouble(ToDoubleFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.sumOfDouble(spliterator(), mapper);
+    }
+
+    /**
+     * Returns the product of the {@code int} values produced by applying the
+     * given mapper to the elements in encounter order. Equivalent to
+     * {@code stream().mapToInt(mapper).reduce(1, (a, b) -> a * b)}.
+     */
+    default int productOfInt(ToIntFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.productOfInt(spliterator(), mapper);
+    }
+
+    /**
+     * Returns the product of the {@code long} values produced by applying the
+     * given mapper to the elements in encounter order. Equivalent to
+     * {@code stream().mapToLong(mapper).reduce(1L, (a, b) -> a * b)}.
+     */
+    default long productOfLong(ToLongFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.productOfLong(spliterator(), mapper);
+    }
+
+    /**
+     * Returns the product of the {@code double} values produced by applying
+     * the given mapper to the elements in encounter order. Equivalent to
+     * {@code stream().mapToDouble(mapper).reduce(1.0, (a, b) -> a * b)}.
+     */
+    default double productOfDouble(ToDoubleFunction<? super E> mapper) {
+        requireNonNull(mapper);
+        return Split.productOfDouble(spliterator(), mapper);
     }
 
     /**

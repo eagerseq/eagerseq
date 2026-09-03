@@ -180,6 +180,26 @@ public class SeqTest {
         assertThat(Seq.range(4, 7), contains(4, 5, 6));
         assertThat(Seq.range(7, 4), empty());
         assertThat(Seq.range(-12, -10), contains(-12, -11));
+        assertThat(Seq.range(4L, 7L), contains(4L, 5L, 6L));
+        assertThat(Seq.range(7L, 4L), empty());
+        assertThat(Seq.range(-12L, -10L), contains(-12L, -11L));
+    }
+
+    @Test
+    public void testRangeClosed() {
+        assertThat(Seq.rangeClosed(4, 7), contains(4, 5, 6, 7));
+        assertThat(Seq.rangeClosed(4, 4), contains(4));
+        assertThat(Seq.rangeClosed(7, 4), empty());
+        assertThat(Seq.rangeClosed(-12, -10), contains(-12, -11, -10));
+        assertThat(Seq.rangeClosed(Integer.MAX_VALUE - 1, Integer.MAX_VALUE),
+                contains(Integer.MAX_VALUE - 1, Integer.MAX_VALUE));
+        assertThat(Seq.rangeClosed(4L, 7L), contains(4L, 5L, 6L, 7L));
+        assertThat(Seq.rangeClosed(4L, 4L), contains(4L));
+        assertThat(Seq.rangeClosed(7L, 4L), empty());
+        assertThat(Seq.rangeClosed(-12L, -10L),
+                contains(-12L, -11L, -10L));
+        assertThat(Seq.rangeClosed(Long.MAX_VALUE - 1, Long.MAX_VALUE),
+                contains(Long.MAX_VALUE - 1, Long.MAX_VALUE));
     }
 
     @Test
@@ -352,6 +372,69 @@ public class SeqTest {
         assertThat(
                 seqOf(0, 1, 2).collect(ArrayList::new, ArrayList::add),
                 contains(0, 1, 2));
+    }
+
+    @Test
+    public void testSumOfInt() {
+        assertThat(this.<String>seqOf().sumOfInt(String::length), equalTo(0));
+        assertThat(seqOf("one", "three").sumOfInt(s -> s.length()),
+                equalTo(8));
+        assertThat(seqOf(Integer.MAX_VALUE, 1).sumOfInt(n -> n),
+                equalTo(Integer.MIN_VALUE));
+    }
+
+    @Test
+    public void testSumOfLong() {
+        assertThat(this.<String>seqOf().sumOfLong(String::length), equalTo(0L));
+        assertThat(seqOf("one", "three").sumOfLong(s -> s.length()),
+                equalTo(8L));
+        assertThat(seqOf(Integer.MAX_VALUE, 1).sumOfLong(n -> n),
+                equalTo((long) Integer.MAX_VALUE + 1));
+        assertThat(seqOf(Long.MAX_VALUE, 1L).sumOfLong(n -> n),
+                equalTo(Long.MIN_VALUE));
+    }
+
+    @Test
+    public void testSumOfDouble() {
+        assertThat(this.<String>seqOf().sumOfDouble(String::length),
+                equalTo(0.0));
+        assertThat(seqOf("one", "three").sumOfDouble(s -> s.length()),
+                equalTo(8.0));
+        // Addition is an encounter-order reduction, without compensation.
+        assertThat(seqOf(1e16, 1.0, 1.0).sumOfDouble(n -> n),
+                equalTo(1e16));
+        assertTrue(Double.isNaN(seqOf(Double.POSITIVE_INFINITY,
+                Double.NEGATIVE_INFINITY).sumOfDouble(n -> n)));
+    }
+
+    @Test
+    public void testProductOfInt() {
+        assertThat(this.<String>seqOf().productOfInt(String::length),
+                equalTo(1));
+        assertThat(seqOf("one", "three").productOfInt(s -> s.length()),
+                equalTo(15));
+        assertThat(seqOf(Integer.MAX_VALUE, 2).productOfInt(n -> n),
+                equalTo(-2));
+    }
+
+    @Test
+    public void testProductOfLong() {
+        assertThat(this.<String>seqOf().productOfLong(String::length),
+                equalTo(1L));
+        assertThat(seqOf("one", "three").productOfLong(s -> s.length()),
+                equalTo(15L));
+        assertThat(seqOf(Long.MAX_VALUE, 2L).productOfLong(n -> n),
+                equalTo(-2L));
+    }
+
+    @Test
+    public void testProductOfDouble() {
+        assertThat(this.<String>seqOf().productOfDouble(String::length),
+                equalTo(1.0));
+        assertThat(seqOf("one", "three").productOfDouble(s -> s.length()),
+                equalTo(15.0));
+        assertTrue(Double.isNaN(seqOf(Double.POSITIVE_INFINITY, 0.0)
+                .productOfDouble(n -> n)));
     }
 
     @Test
@@ -1289,6 +1372,12 @@ public class SeqTest {
         assertNullRejected(() -> empty.collect(ArrayList::new, null));
         assertNullRejected(() -> empty.<List<Integer>>collect(null, List::add));
         assertNullRejected(() -> empty.collect(null));
+        assertNullRejected(() -> empty.sumOfInt(null));
+        assertNullRejected(() -> empty.sumOfLong(null));
+        assertNullRejected(() -> empty.sumOfDouble(null));
+        assertNullRejected(() -> empty.productOfInt(null));
+        assertNullRejected(() -> empty.productOfLong(null));
+        assertNullRejected(() -> empty.productOfDouble(null));
         assertNullRejected(() -> empty.anyMatch(null));
         assertNullRejected(() -> empty.allMatch(null));
         assertNullRejected(() -> empty.noneMatch(null));
