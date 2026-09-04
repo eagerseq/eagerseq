@@ -1019,10 +1019,10 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Stream equivalent of {@link Seq#findSingle()}.
+     * Stream equivalent of {@link Seq#findOnly()}.
      */
-    default Optional<E> findSingle() {
-        return Split.findSingle(spliterator());
+    default Optional<E> findOnly() {
+        return Split.findOnly(spliterator());
     }
 
     /**
@@ -1047,10 +1047,10 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
-     * Stream equivalent of {@link Seq#getSingle()}.
+     * Stream equivalent of {@link Seq#getOnly()}.
      */
-    default E getSingle() {
-        return Split.getSingle(spliterator());
+    default E getOnly() {
+        return Split.getOnly(spliterator());
     }
 
     /**

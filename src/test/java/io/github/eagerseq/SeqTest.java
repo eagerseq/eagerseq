@@ -853,17 +853,17 @@ public class SeqTest {
     }
 
     @Test
-    public void testFindSingle() {
-        assertThat(seqOf().findSingle(), equalTo(Optional.empty()));
-        assertThat(seqOf(0).findSingle(), equalTo(Optional.of(0)));
-        assertThat(seqOf(0, 1).findSingle(), equalTo(Optional.empty()));
+    public void testFindOnly() {
+        assertThat(seqOf().findOnly(), equalTo(Optional.empty()));
+        assertThat(seqOf(0).findOnly(), equalTo(Optional.of(0)));
+        assertThat(seqOf(0, 1).findOnly(), equalTo(Optional.empty()));
     }
 
     @Test
     public void testToOptional() {
         assertThat(seqOf().toOptional(), equalTo(Optional.empty()));
         assertThat(seqOf(0).toOptional(), equalTo(Optional.of(0)));
-        // unlike findSingle, does not silently discard the extra elements,
+        // unlike findOnly, does not silently discard the extra elements,
         // and throws as toMap does for a duplicate key rather than
         // NoSuchElementException, there being no missing element
         assertThrows(IllegalStateException.class,
@@ -895,16 +895,16 @@ public class SeqTest {
     }
 
     @Test
-    public void testGetSingle() {
-        assertThat(seqOf(0).getSingle(), equalTo(0));
-        assertThat(seqOf(new Integer[]{null}).getSingle(), nullValue());
-        // the throwing partner of findSingle, so empty and more than one
+    public void testGetOnly() {
+        assertThat(seqOf(0).getOnly(), equalTo(0));
+        assertThat(seqOf(new Integer[]{null}).getOnly(), nullValue());
+        // the throwing partner of findOnly, so empty and more than one
         // fail alike, unlike toOptional which distinguishes them
         String message = "sequence does not contain exactly one element";
         assertThrows(NoSuchElementException.class, message,
-                () -> seqOf().getSingle());
+                () -> seqOf().getOnly());
         assertThrows(NoSuchElementException.class, message,
-                () -> seqOf(0, 1).getSingle());
+                () -> seqOf(0, 1).getOnly());
     }
 
     @Test

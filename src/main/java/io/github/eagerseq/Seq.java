@@ -101,7 +101,7 @@ import static java.util.Objects.requireNonNull;
  *     seq.toArray(String[]::new);
  *     seq.findFirst();
  *     seq.findLast();
- *     seq.findSingle();
+ *     seq.findOnly();
  * }</pre>
  *
  * <h2>Grouping</h2>
@@ -444,7 +444,7 @@ public interface Seq<E> extends Collection<E> {
      * throws {@code IllegalStateException} if it has multiple elements,
      * or throws {@code NullPointerException} if its only element is null.
      * See also
-     * {@link #findFirst()}, {@link #findLast()} and {@link #findSingle()}.
+     * {@link #findFirst()}, {@link #findLast()} and {@link #findOnly()}.
      */
     default Optional<E> toOptional() {
         return Split.toOptional(spliterator());
@@ -1233,8 +1233,8 @@ public interface Seq<E> extends Collection<E> {
      * otherwise returns an empty {@code Optional}.
      * See also {@link #toOptional()}.
      */
-    default Optional<E> findSingle() {
-        return Split.findSingle(spliterator());
+    default Optional<E> findOnly() {
+        return Split.findOnly(spliterator());
     }
 
     /**
@@ -1268,8 +1268,8 @@ public interface Seq<E> extends Collection<E> {
      * contains exactly one element,
      * otherwise throws {@code NoSuchElementException}.
      */
-    default E getSingle() {
-        return Split.getSingle(spliterator());
+    default E getOnly() {
+        return Split.getOnly(spliterator());
     }
 
     /**

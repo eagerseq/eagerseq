@@ -73,10 +73,10 @@ rejected: `Optional<Integer>` boxes, `OptionalInt` will not chain, `-1` is
 |---|---|---|
 | `getFirst()` have | `getFirst(p)` **add** | *degenerate* |
 | `getLast()` have | `getLast(p)` **add** | *degenerate* |
-| `getSingle()` have | `getSingle(p)` **add** | *degenerate* |
+| `getOnly()` have | `getOnly(p)` **add** | *degenerate* |
 | `findFirst()` have | `findFirst(p)` **add** | *degenerate* |
 | `findLast()` have | `findLast(p)` **add** | *degenerate* |
-| `findSingle()` have | `findSingle(p)` **add** | *degenerate* |
+| `findOnly()` have | `findOnly(p)` **add** | *degenerate* |
 | `get(i)` have | — | — |
 | `find(i)` **add** | — | — |
 
@@ -141,7 +141,7 @@ rediscovered.
 Without predicates: `lastIndex()`, `find(i)`, `countOf(o)`.
 
 With predicates: `index(p)`, `lastIndex(p)`, `indexes(p)` (gate 1);
-`findFirst(p)`, `getFirst(p)`, `findSingle(p)`, `getSingle(p)` (gate 2);
+`findFirst(p)`, `getFirst(p)`, `findOnly(p)`, `getOnly(p)` (gate 2);
 `findLast(p)`, `getLast(p)` (weaker); `count(p)` (convention).
 
 The smallest defensible set is the first seven predicate methods plus the

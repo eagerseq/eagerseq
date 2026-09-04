@@ -44,7 +44,7 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
         return array[array.length - 1];
     }
 
-    public E getSingle() {
+    public E getOnly() {
         if (array.length != 1) throw Split.notExactlyOne();
         return array[0];
     }
@@ -59,7 +59,7 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
                 : Optional.of(array[array.length - 1]);
     }
 
-    public Optional<E> findSingle() {
+    public Optional<E> findOnly() {
         return array.length == 1 ? Optional.of(array[0]) : Optional.empty();
     }
 

@@ -273,8 +273,8 @@ final class Split {
         return Box.asOptional(lastBox(spliterator));
     }
 
-    static <E> Optional<E> findSingle(Spliterator<E> spliterator) {
-        return Box.asOptional(singleBox(spliterator));
+    static <E> Optional<E> findOnly(Spliterator<E> spliterator) {
+        return Box.asOptional(onlyBox(spliterator));
     }
 
     static <E> E getFirst(Spliterator<E> spliterator) {
@@ -285,8 +285,8 @@ final class Split {
         return Box.orThrow(lastBox(spliterator), Split::emptySequence);
     }
 
-    static <E> E getSingle(Spliterator<E> spliterator) {
-        return Box.orThrow(singleBox(spliterator), Split::notExactlyOne);
+    static <E> E getOnly(Spliterator<E> spliterator) {
+        return Box.orThrow(onlyBox(spliterator), Split::notExactlyOne);
     }
 
     static <E> Optional<E> toOptional(Spliterator<E> spliterator) {
@@ -320,8 +320,8 @@ final class Split {
     }
 
     // Unlike toOptional, an empty source and one with more than one element
-    // are both absent, so that findSingle and getSingle agree on both.
-    private static <E> Box<E> singleBox(Spliterator<E> spliterator) {
+    // are both absent, so that findOnly and getOnly agree on both.
+    private static <E> Box<E> onlyBox(Spliterator<E> spliterator) {
         Box<E> next = new Box<>();
         return spliterator.tryAdvance(next)
                 && !spliterator.tryAdvance(e -> {}) ? next : null;

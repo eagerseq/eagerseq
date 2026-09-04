@@ -88,7 +88,7 @@ Beyond that, three findings from the Guava comparison.
    it.
 
 2. **Guava independently validates several operations that otherwise look like
-   `Seq`'s idiosyncratic tail.** `getSingle`/`findSingle` is
+   `Seq`'s idiosyncratic tail.** `getOnly`/`findOnly` is
    `Iterables.getOnlyElement` and `MoreCollectors.onlyElement`.
    `containsMultiset` is `Multisets.containsOccurrences`. Multiset
    `intersection`/`difference`/`union`/`sum` are the four `Multisets` statics,
@@ -192,7 +192,7 @@ makes unreachable" below.
 | first / last element | `getFirst`, `getLast` | `head`, `last` | `s[0]`, `s[-1]` | `getFirst`, `getLast`, `findFirst`, `findLast` | yes |
 | first match | `Iterables.find`, `tryFind` | `find` | `next(...)` | `filter(p).findFirst()` | comp. |
 | last match | `Streams.findLast` | `findLast` | — | `filter(p).findLast()` | comp. |
-| exactly-one element | `getOnlyElement` | — | — | `findSingle`, `getSingle` | yes |
+| exactly-one element | `getOnlyElement` | — | — | `findOnly`, `getOnly` | yes |
 | subsequence search | — | — | — | `indexOfSlice`, `containsSlice`, `lastIndexOfSlice`, `indexesOfSlice` | yes |
 | starts / ends with | — | — | `str` only | `startsWith`, `endsWith` | yes |
 | elements equal | `Iterables.elementsEqual` | `isEqual` | `==` | `listEquals` | yes |

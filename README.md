@@ -85,7 +85,7 @@ seq.toArray(new String[5]);
 seq.toArray(String[]::new);
 seq.findFirst();
 seq.findLast();
-seq.findSingle();
+seq.findOnly();
 ```
 
 ## Grouping

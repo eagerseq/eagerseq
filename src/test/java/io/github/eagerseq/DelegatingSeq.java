@@ -373,8 +373,8 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().findFirst();
     }
 
-    default Optional<E> findSingle() {
-        return stream().findSingle();
+    default Optional<E> findOnly() {
+        return stream().findOnly();
     }
 
     default E getFirst() {
@@ -385,8 +385,8 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().getLast();
     }
 
-    default E getSingle() {
-        return stream().getSingle();
+    default E getOnly() {
+        return stream().getOnly();
     }
 
     default Optional<E> findLast() {
