@@ -78,6 +78,61 @@ public class SeqStreamTest {
     }
 
     @Test(timeout = 5000)
+    public void testRepeat() {
+        Spliterator<String> spliterator = SeqStream.repeat("a").spliterator();
+        assertTrue(spliterator.hasCharacteristics(Spliterator.ORDERED));
+        assertFalse(spliterator.hasCharacteristics(Spliterator.SIZED));
+
+        assertThat(SeqStream.repeat("a").limit(3).toSeq(),
+                equalTo(Seq.of("a", "a", "a")));
+        assertThat(SeqStream.repeat("a", 3).toSeq(),
+                equalTo(Seq.of("a", "a", "a")));
+        assertTrue(SeqStream.repeat("a", 0).isEmpty());
+        assertThat(SeqStream.repeat(null, 2).toSeq(),
+                equalTo(Seq.of(null, null)));
+        assertThrows(IllegalArgumentException.class,
+                () -> SeqStream.repeat("a", -1));
+    }
+
+    @Test(timeout = 5000)
+    public void testGenerate() {
+        int[] calls = new int[1];
+        assertThat(SeqStream.generate(() -> calls[0]++).limit(3).toSeq(),
+                equalTo(Seq.of(0, 1, 2)));
+        assertThat(calls[0], equalTo(3));
+
+        calls[0] = 0;
+        SeqStream<Integer> deferred = SeqStream.generate(() -> calls[0]++, 3);
+        assertThat(calls[0], equalTo(0));
+        assertThat(deferred.toSeq(), equalTo(Seq.of(0, 1, 2)));
+        assertThat(calls[0], equalTo(3));
+
+        assertTrue(SeqStream.generate(() -> "a", 0).isEmpty());
+        assertThrows(() -> SeqStream.generate(null));
+        assertThrows(() -> SeqStream.generate(null, 1));
+        assertThrows(IllegalArgumentException.class,
+                () -> SeqStream.generate(() -> "a", -1));
+    }
+
+    @Test(timeout = 5000)
+    public void testIterateWithHasNext() {
+        assertThat(SeqStream.iterate(1, n -> n < 20, n -> n * 2).toSeq(),
+                equalTo(Seq.of(1, 2, 4, 8, 16)));
+        assertTrue(SeqStream.iterate(1, n -> false, n -> n * 2).isEmpty());
+
+        Spliterator<Integer> spliterator = SeqStream
+                .iterate(0, n -> n < 1, n -> n + 1).spliterator();
+        assertTrue(spliterator.hasCharacteristics(Spliterator.ORDERED));
+        assertFalse(spliterator.hasCharacteristics(Spliterator.SIZED));
+        assertTrue(spliterator.tryAdvance(e -> {}));
+        assertFalse(spliterator.tryAdvance(e -> {}));
+        assertFalse(spliterator.tryAdvance(e -> {}));
+
+        assertThrows(() -> SeqStream.iterate(0, null, n -> n));
+        assertThrows(() -> SeqStream.iterate(0, n -> true, null));
+    }
+
+    @Test(timeout = 5000)
     public void testIterate() {
         Spliterator<Integer> spliterator = SeqStream.iterate(0, n -> n + 1)
                 .spliterator();

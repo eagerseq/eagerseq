@@ -472,6 +472,33 @@ final class Split {
         };
     }
 
+    static <E> Spliterator<E> repeat(E element) {
+        return new UnknownSizeSpliterator<E>(ORDERED) {
+            boolean advance(Consumer<? super E> action) {
+                action.accept(element);
+                return true;
+            }
+        };
+    }
+
+    static <E> Spliterator<E> repeat(E element, int count) {
+        return limit(repeat(element), count);
+    }
+
+    static <E> Spliterator<E> generate(Supplier<? extends E> supplier) {
+        return new UnknownSizeSpliterator<E>(ORDERED) {
+            boolean advance(Consumer<? super E> action) {
+                action.accept(supplier.get());
+                return true;
+            }
+        };
+    }
+
+    static <E> Spliterator<E> generate(
+            Supplier<? extends E> supplier, int count) {
+        return limit(generate(supplier), count);
+    }
+
     static <E> Spliterator<E> iterate(
             E seed, UnaryOperator<E> operator) {
         return new UnknownSizeSpliterator<E>(ORDERED) {
@@ -484,6 +511,11 @@ final class Split {
                 return true;
             }
         };
+    }
+
+    static <E> Spliterator<E> iterate(
+            E seed, Predicate<? super E> hasNext, UnaryOperator<E> next) {
+        return takeWhile(iterate(seed, next), hasNext);
     }
 
     static Spliterator.OfInt indexes(Spliterator<?> spliterator) {

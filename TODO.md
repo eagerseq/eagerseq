@@ -122,6 +122,53 @@ Negative counts and indexes are rejected eagerly. For fixed-size
 combinatorics, a negative `k` throws, while `permutations(k)` and
 `combinations(k)` return an empty result when `k` exceeds the source length.
 
+## Settled: value factories
+
+`repeat`, `generate` and the bounded JDK `iterate` form now exist on both
+types, along with unbounded `repeat` and `generate` on `SeqStream`:
+
+| | `Seq` | `SeqStream` |
+|---|---|---|
+| `repeat(e, n)` | yes | yes |
+| `repeat(e)` | — | yes |
+| `generate(s, n)` | yes | yes |
+| `generate(s)` | — | yes |
+| `iterate(seed, hasNext, next)` | yes | yes |
+| `iterate(seed, op)` | — | yes |
+
+Two rules generate that table. A trailing count is what bounds a factory, and
+bounded factories are symmetrical between the two types; an unbounded one
+exists only on `SeqStream`, since eager `Seq` cannot contain its result.
+`iterate` is bounded by a predicate rather than a count because it is the only
+stateful source — `hasNext` tests the candidate element, which is meaningful
+only when successive elements are related. It follows the JDK exactly,
+including testing `seed` first, so rejecting the seed gives an empty result.
+There is no `iterate(seed, op, n)`; `limit` covers it.
+
+The `copyOf`/`viewOf` conversion factories remain asymmetrical, because
+ownership and one-pass sources differ between the two types.
+
+`repeat(e, n)` is specified as the same reference `n` times, so it is not
+merely `generate(() -> e, n)`. Both report `ORDERED`, deviating from
+`Stream.generate`, which is documented unordered; the deviation is forced,
+since every `Seq` reports `ORDERED` and splitting the pair for JDK parity
+would buy nothing.
+
+`Split` holds the algorithms and both interfaces just validate and wrap, as
+with `range`. Only `repeat(e)`, `generate(s)` and `iterate(seed, op)` are new
+spliterators; the bounded forms delegate — `repeat(e, n)` and
+`generate(s, n)` through the existing `Split.limit`, which keeps
+`generate(s, n)` lazy rather than calling the supplier `n` times when the
+factory is called, and `iterate(seed, hasNext, next)` through
+`takeWhile(iterate(seed, next), hasNext)`, which reuses that spliterator's
+existing terminal latch and applies `next` exactly as often as a hand-rolled
+version would.
+
+Rejected: folding `repeat(e)` into `generate(() -> e)`. It saves six lines and
+adds an interface call on a call site shared with every other `generate`
+caller, in the pull path, where a plain field read is today. Nothing here was
+benchmarked.
+
 ## Settled: deferred whole-source operations
 
 The eleven whole-source `SeqStream` intermediate operations are lazy:
@@ -204,7 +251,7 @@ removed the old allocations is unknown.
 ## Settled: index and count conventions
 
 Decided while fixing `slice`, and worth applying to anything new that takes a
-number (`chunked`, `windowed`, `rangeClosed`, `repeat(e, n)`). The combinatoric
+number (`chunked`, `windowed`). The combinatoric
 operations use an `int k` consistently.
 
 - **`int` unless the JDK forces `long`.** `count`, `limit` and `skip` are
@@ -243,15 +290,8 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
   products are direct terminals; averages and summary statistics still require
   dropping into a primitive stream.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
-- **Factories** — consider `SeqStream.builder()`, `repeat(e, n)`, the bounded
-  JDK `iterate` form, and `generate`. Value-producing factories should
-  generally be symmetrical between `Seq` and `SeqStream`, unless their
-  semantics give a specific reason not to be. Which potentially non-terminating
-  factories belong on eager `Seq` is TBD; so is a bounded
-  `generate(supplier, n)`. The `copyOf`/`viewOf` conversion factories need not
-  be symmetrical because ownership and one-pass sources differ between the two
-  types. Unbounded `iterate` exists only on `SeqStream`, since eager `Seq`
-  cannot contain its result.
+- **Factories** — `SeqStream.builder()` is the one still missing; see
+  "Settled: value factories" for what shipped.
 - **Positional copy-modify** — `updated(i, e)` and friends, the immutable
   answer to the `List` mutators `Seq` inherits only to throw, currently
   spelled `slice`/`sum`; Scala has `updated`/`patch`, but undecided.

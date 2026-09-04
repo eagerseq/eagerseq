@@ -129,6 +129,42 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Returns an infinite ordered {@code SeqStream} containing the given
+     * element repeated indefinitely.
+     */
+    static <E> SeqStream<E> repeat(E element) {
+        return viewOf(Split.repeat(element));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#repeat(Object, int)}.
+     */
+    static <E> SeqStream<E> repeat(E element, int count) {
+        Split.requireNonNegativeArgument("count", count);
+        return viewOf(Split.repeat(element, count));
+    }
+
+    /**
+     * Returns an infinite ordered {@code SeqStream} containing the results of
+     * calling {@code supplier}, which is called once for each element as the
+     * result is traversed.
+     */
+    static <E> SeqStream<E> generate(Supplier<? extends E> supplier) {
+        requireNonNull(supplier);
+        return viewOf(Split.generate(supplier));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#generate(Supplier, int)}.
+     */
+    static <E> SeqStream<E> generate(
+            Supplier<? extends E> supplier, int count) {
+        requireNonNull(supplier);
+        Split.requireNonNegativeArgument("count", count);
+        return viewOf(Split.generate(supplier, count));
+    }
+
+    /**
      * Returns an infinite ordered {@code SeqStream} produced by repeatedly
      * applying {@code operator} to {@code seed}. The first element is
      * {@code seed}, the second is {@code operator.apply(seed)}, and so on.
@@ -137,6 +173,17 @@ public interface SeqStream<E> extends Stream<E> {
             E seed, UnaryOperator<E> operator) {
         requireNonNull(operator);
         return viewOf(Split.iterate(seed, operator));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#iterate(Object, Predicate,
+     * UnaryOperator)}.
+     */
+    static <E> SeqStream<E> iterate(
+            E seed, Predicate<? super E> hasNext, UnaryOperator<E> next) {
+        requireNonNull(hasNext);
+        requireNonNull(next);
+        return viewOf(Split.iterate(seed, hasNext, next));
     }
 
     /**

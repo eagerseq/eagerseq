@@ -235,9 +235,12 @@ so it moves from "not worth adding" to Tier 3.
 |---|---|---|---|---|
 | range | `ContiguousSet.create(Range…)` | `range` | `range(a, b)` | `range(from, to)` |
 | range with step | — | `range(a,b,step)` | `range(a, b, k)` | — |
-| inclusive range | `Range.closed` | — | — | — |
-| repeat element n times | `Collections.nCopies` (JDK) | `times`, `fill` | `[x] * n` | — |
-| unbounded generate | `Iterables.cycle` | — | `count`, `cycle` | — |
+| inclusive range | `Range.closed` | — | — | `rangeClosed(from, to)` |
+| repeat element n times | `Collections.nCopies` (JDK) | `fill` | `[x] * n` | `repeat(e, n)` |
+| n results of a function | — | `times` | comp. | `generate(s, n)` |
+| bounded recurrence | — | — | — | `iterate(seed, hasNext, next)` |
+| unbounded generate | `Iterables.cycle` | — | `count`, `cycle` | `SeqStream.generate(s)` |
+| unbounded repeat | `Iterables.cycle` | — | `repeat(x)` | `SeqStream.repeat(e)` |
 | builder | `ImmutableList.Builder` | — | — | `Seq.builder()` |
 | collector | `ImmutableList.toImmutableList` | — | — | `Seq.toSeq()` |
 
@@ -245,9 +248,13 @@ Guava's `Range` is a different and larger idea — a first-class interval type
 with `RangeSet` and `RangeMap` — and is out of scope. Its existence is not
 evidence that `Seq` needs `rangeClosed`; Python and lodash are.
 
-The unbounded factories only make sense on `SeqStream`. It has `iterate`, so it
-can express recurrence-based infinite sources, but it still has no `generate`,
-`cycle` or unbounded `repeat`.
+lodash's `times(n, f)` passes the index to its iteratee, so it belongs with
+`generate`, not with `repeat`; `fill` is the constant-element one.
+
+The unbounded factories only make sense on `SeqStream`, which now has
+`generate`, `repeat` and both forms of `iterate`. Only `cycle` is missing, and
+it is a different operation — it repeats a whole sequence rather than one
+element.
 
 ## What Java's type system makes unreachable
 
@@ -341,8 +348,8 @@ respect:
 - `greatest(k, Comparator)` / `least(k, ...)` — top-k without a full sort.
   Guava and `heapq` both have it; a naive `sorted().limit(k)` already works, so
   this is a performance affordance, not an expressiveness one.
-- `range` with step; `rangeClosed`; `repeat(e, n)`.
-- `generate`, `cycle`, unbounded `repeat` on `SeqStream`.
+- `range` with step.
+- `cycle` on `SeqStream`.
 - `slice` with step.
 
 **Not worth adding.** `flattenDeep`, `unzip`, `starmap`, `zipObject`,

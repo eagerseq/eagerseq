@@ -24,6 +24,7 @@ import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -348,6 +349,37 @@ public interface Seq<E> extends Collection<E> {
      */
     static Seq<Long> rangeClosed(long from, long to) {
         return copyOf(Split.rangeClosed(from, to));
+    }
+
+    /**
+     * Returns a {@code Seq} containing the given element {@code count} times.
+     */
+    static <E> Seq<E> repeat(E element, int count) {
+        Split.requireNonNegativeArgument("count", count);
+        return copyOf(Split.repeat(element, count));
+    }
+
+    /**
+     * Returns a {@code Seq} containing the results of calling
+     * {@code supplier} {@code count} times.
+     */
+    static <E> Seq<E> generate(Supplier<? extends E> supplier, int count) {
+        requireNonNull(supplier);
+        Split.requireNonNegativeArgument("count", count);
+        return copyOf(Split.generate(supplier, count));
+    }
+
+    /**
+     * Returns a {@code Seq} containing {@code seed}, {@code next.apply(seed)},
+     * and so on, up to but excluding the first element for which
+     * {@code hasNext} returns false.
+     * The result is empty if {@code hasNext} rejects {@code seed}.
+     */
+    static <E> Seq<E> iterate(
+            E seed, Predicate<? super E> hasNext, UnaryOperator<E> next) {
+        requireNonNull(hasNext);
+        requireNonNull(next);
+        return copyOf(Split.iterate(seed, hasNext, next));
     }
 
     /**

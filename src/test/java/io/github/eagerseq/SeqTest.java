@@ -203,6 +203,48 @@ public class SeqTest {
     }
 
     @Test
+    public void testRepeat() {
+        assertThat(Seq.repeat("a", 3), contains("a", "a", "a"));
+        assertThat(Seq.repeat("a", 0), empty());
+        assertThat(Seq.repeat(null, 2), contains(null, null));
+        Object element = new Object();
+        for (Object e : Seq.repeat(element, 3)) {
+            assertThat(e, sameInstance(element));
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> Seq.repeat("a", -1));
+    }
+
+    @Test
+    public void testGenerate() {
+        int[] calls = new int[1];
+        assertThat(Seq.generate(() -> calls[0]++, 3), contains(0, 1, 2));
+        assertThat(calls[0], equalTo(3));
+        assertThat(Seq.generate(() -> "a", 0), empty());
+        assertThat(Seq.generate(() -> null, 2), contains(null, null));
+        assertThrows(() -> Seq.generate(null, 1));
+        assertThrows(IllegalArgumentException.class,
+                () -> Seq.generate(() -> "a", -1));
+    }
+
+    @Test
+    public void testIterate() {
+        assertThat(Seq.iterate(1, n -> n < 20, n -> n * 2),
+                contains(1, 2, 4, 8, 16));
+        assertThat(Seq.iterate(1, n -> false, n -> n * 2), empty());
+        assertThat(Seq.iterate(null, Objects::isNull, n -> "next"),
+                contains((String) null));
+        int[] applications = new int[1];
+        assertThat(Seq.iterate(1, n -> n < 5, n -> {
+            applications[0]++;
+            return n + 1;
+        }), contains(1, 2, 3, 4));
+        assertThat(applications[0], equalTo(4));
+        assertThrows(() -> Seq.iterate(0, null, n -> n));
+        assertThrows(() -> Seq.iterate(0, n -> true, null));
+    }
+
+    @Test
     public void testConcat() {
         assertThat(Seq.concat(), empty());
         assertThat(
