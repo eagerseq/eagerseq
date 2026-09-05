@@ -359,6 +359,43 @@ public class SeqStreamTest {
         assertThat(traversed[0], equalTo(7));
     }
 
+    @Test(timeout = 1000)
+    public void testWindowAndScanLaziness() {
+        for (boolean sliding : new boolean[]{false, true}) {
+            int[] reads = {0};
+            SeqStream<Integer> source = SeqStream.iterate(0, i -> i + 1)
+                    .peek(i -> reads[0]++);
+            SeqStream<Seq<Integer>> result = sliding
+                    ? source.windowSliding(3)
+                    : source.windowFixed(3);
+            assertThrows(IllegalStateException.class, source::spliterator);
+            Iterator<Seq<Integer>> iterator = result.iterator();
+            assertThat(reads[0], equalTo(0));
+            assertThat(iterator.next(), equalTo(Seq.of(0, 1, 2)));
+            assertThat(reads[0], equalTo(3));
+            assertThat(iterator.next(), equalTo(sliding
+                    ? Seq.of(1, 2, 3)
+                    : Seq.of(3, 4, 5)));
+            assertThat(reads[0], equalTo(sliding ? 4 : 6));
+        }
+        int[] calls = {0, 0};
+        SeqStream<Integer> source = SeqStream.iterate(1, i -> i + 1);
+        SeqStream<Integer> result = source.scan(() -> {
+            calls[0]++;
+            return 0;
+        }, (a, b) -> {
+            calls[1]++;
+            return a + b;
+        });
+        assertArrayEquals(new int[]{1, 0}, calls);
+        assertThrows(IllegalStateException.class, source::spliterator);
+        Spliterator<Integer> cursor = result.spliterator();
+        assertArrayEquals(new int[]{1, 0}, calls);
+        assertThat(SeqStream.viewOf(cursor).limit(3).toSeq(),
+                equalTo(Seq.of(1, 3, 6)));
+        assertArrayEquals(new int[]{1, 3}, calls);
+    }
+
     @Test
     public void testWholeSourceIntermediateOperationsAreLazy() {
         for (DeferredOperation operation : deferredOperations()) {
@@ -645,6 +682,20 @@ public class SeqStreamTest {
         assertTrue(emptyStream().sorted().isEmpty());
         assertThat(emptyStream().min(), equalTo(Optional.empty()));
         assertThat(emptyStream().max(), equalTo(Optional.empty()));
+    }
+
+    @Test
+    public void testWindowAndScanValidationDoesNotClaimSource() {
+        SeqStream<Integer> source = SeqStream.of(1, 2);
+        assertThrows(IllegalArgumentException.class,
+                () -> source.windowFixed(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> source.windowSliding(-1));
+        assertThrows(NullPointerException.class,
+                () -> source.scan(null, Integer::sum));
+        assertThrows(NullPointerException.class,
+                () -> source.scan(() -> 0, null));
+        assertThat(source.toSeq(), equalTo(Seq.of(1, 2)));
     }
 
     @Test

@@ -393,6 +393,19 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().findLast();
     }
 
+    default Seq<Seq<E>> windowFixed(int size) {
+        return stream().windowFixed(size).toSeq();
+    }
+
+    default Seq<Seq<E>> windowSliding(int size) {
+        return stream().windowSliding(size).toSeq();
+    }
+
+    default <R> Seq<R> scan(Supplier<R> initial,
+            BiFunction<? super R, ? super E, ? extends R> scanner) {
+        return stream().scan(initial, scanner).toSeq();
+    }
+
     default Seq<E> peek(Consumer<? super E> action) {
         // only delegate because this is for testing
         return stream().peek(action).toSeq();

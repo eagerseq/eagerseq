@@ -168,6 +168,27 @@ public class SpliteratorTest {
     }
 
     @Test
+    public void testWindowAndScanSpliteratorContracts() {
+        for (boolean ordered : new boolean[]{false, true}) {
+            for (int operation = 0; operation < 3; operation++) {
+                SeqStream<Integer> source = SeqStream.of(1, 2, 3);
+                if (!ordered) source = source.unordered();
+                Spliterator<?> cursor = (operation == 0 ? source.windowFixed(2)
+                        : operation == 1 ? source.windowSliding(2)
+                                : source.scan(() -> 0, Integer::sum))
+                        .spliterator();
+                assertThat(cursor.characteristics(),
+                        equalTo(ordered ? Spliterator.ORDERED : 0));
+                assertThrows(NullPointerException.class,
+                        () -> cursor.tryAdvance(null));
+                cursor.forEachRemaining(value -> {});
+                assertFalse(cursor.tryAdvance(value -> fail("exhausted")));
+                assertFalse(cursor.tryAdvance(value -> fail("exhausted")));
+            }
+        }
+    }
+
+    @Test
     public void testNullActionIsRejectedWhenEmptyOrExhausted() {
         Spliterator<Integer> empty = Split.filter(ordered(), n -> true);
         assertThrows(NullPointerException.class,

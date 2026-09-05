@@ -1274,6 +1274,38 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
+     * Returns fixed windows according to
+     * {@code Gatherers.windowFixed(int)}.
+     */
+    default Seq<Seq<E>> windowFixed(int size) {
+        Split.requirePositiveArgument("size", size);
+        return copyOf(Split.map(
+                Split.windowFixed(spliterator(), size), Seq::viewOf));
+    }
+
+    /**
+     * Returns sliding windows according to
+     * {@code Gatherers.windowSliding(int)}.
+     */
+    default Seq<Seq<E>> windowSliding(int size) {
+        Split.requirePositiveArgument("size", size);
+        return copyOf(Split.map(
+                Split.windowSliding(spliterator(), size), Seq::viewOf));
+    }
+
+    /**
+     * Returns successive accumulations according to
+     * {@code Gatherers.scan(Supplier, BiFunction)}.
+     */
+    default <R> Seq<R> scan(
+            Supplier<R> initial,
+            BiFunction<? super R, ? super E, ? extends R> scanner) {
+        requireNonNull(initial);
+        requireNonNull(scanner);
+        return copyOf(Split.scan(spliterator(), initial, scanner));
+    }
+
+    /**
      * Eager equivalent of {@link Stream#peek(Consumer)}.
      */
     default Seq<E> peek(Consumer<? super E> action) {

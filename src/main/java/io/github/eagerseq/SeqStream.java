@@ -1061,6 +1061,36 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#windowFixed(int)}.
+     */
+    default SeqStream<Seq<E>> windowFixed(int size) {
+        Split.requirePositiveArgument("size", size);
+        return viewOf(Split.map(
+                Split.windowFixed(spliterator(), size), Seq::viewOf));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#windowSliding(int)}.
+     */
+    default SeqStream<Seq<E>> windowSliding(int size) {
+        Split.requirePositiveArgument("size", size);
+        return viewOf(Split.map(
+                Split.windowSliding(spliterator(), size), Seq::viewOf));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#scan(Supplier, BiFunction)}.
+     * The initial supplier is invoked immediately.
+     */
+    default <R> SeqStream<R> scan(
+            Supplier<R> initial,
+            BiFunction<? super R, ? super E, ? extends R> scanner) {
+        requireNonNull(initial);
+        requireNonNull(scanner);
+        return viewOf(Split.scan(spliterator(), initial, scanner));
+    }
+
+    /**
      * {@inheritDoc}
      */
     default SeqStream<E> peek(Consumer<? super E> action) {

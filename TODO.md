@@ -255,7 +255,7 @@ removed the old allocations is unknown.
 ## Settled: index and count conventions
 
 Decided while fixing `slice`, and worth applying to anything new that takes a
-number (`chunked`, `windowed`). The combinatoric
+number (`windowFixed`, `windowSliding`). The combinatoric
 operations use an `int k` consistently.
 
 - **`int` unless the JDK forces `long`.** `count`, `limit` and `skip` are
@@ -286,6 +286,26 @@ always finds a match, but it is not necessarily at `from` — the invariant is
 "the result is a genuine slice of this `Seq`", not "the slice at `from`",
 which is where it is weaker than `get`.
 
+## Settled: windowing and prefix scans
+
+`windowFixed(windowSize)`, `windowSliding(windowSize)` and
+`scan(initial, scanner)` follow the JDK `Gatherers` names and semantics on
+both `Seq` and `SeqStream`, with shared spliterator algorithms in `Split`.
+The implementation remains compatible with Java 8.
+
+Windows are reusable `Seq` snapshots. Fixed windows retain a partial final
+window; sliding windows advance by one and produce a partial window only
+when the entire nonempty source is shorter than the window size. Empty
+sources produce no windows, and window sizes below one are rejected before
+claiming the source. Buffers grow from actual input rather than allocating
+the requested window size up front.
+
+`scan` obtains its initial accumulator from a supplier, then emits each
+successive accumulation without emitting the seed. Results are not copied.
+The `SeqStream` forms claim their source immediately but defer traversal;
+`scan` invokes its supplier immediately, including for an empty source.
+These operations preserve the source's `ORDERED` flag.
+
 ## API gaps
 
 Each forces users back into the `Stream` verbosity `Seq` exists to remove.
@@ -293,7 +313,7 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 - **Numeric averages and statistics** — mapper-based primitive sums and
   products are direct terminals; averages and summary statistics still require
   dropping into a primitive stream.
-- **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
+- **`partition(Predicate)`, `sortedBy(Function)`.**
 - **Factories** — none missing; `SeqStream.builder()` shipped alongside
   `Seq.builder()`, see "Settled: value factories" for the rest.
 - **`withIndex()`** — pairs each element with its index, returning

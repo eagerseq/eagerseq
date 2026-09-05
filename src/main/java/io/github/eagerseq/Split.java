@@ -1127,6 +1127,77 @@ final class Split {
         return noneMatch(spliterator, predicate.negate());
     }
 
+    static <E> Spliterator<E[]> windowFixed(
+            Spliterator<E> spliterator, int size) {
+        return window(spliterator, size, size);
+    }
+
+    static <E> Spliterator<E[]> windowSliding(
+            Spliterator<E> spliterator, int size) {
+        return window(spliterator, size, 1);
+    }
+
+    static <E> Spliterator<E[]> window(
+            Spliterator<E> spliterator, int size, int step) {
+        // step >= 1
+        return new UnknownSizeSpliterator<E[]>(ordered(spliterator)) {
+            private final Box<E> next = new Box<>();
+            private E[] window;
+            private boolean finished;
+            boolean advance(Consumer<? super E[]> action) {
+                if (finished) {
+                    return false;
+                } else if (window == null) {
+                    // fill window from scratch
+                    ArrayBuilder<E> builder = new ArrayBuilder<>();
+                    int index = 0;
+                    while (index < size && spliterator.tryAdvance(builder)) {
+                        index++;
+                    }
+                    finished = index < size;
+                    if (index == 0) return false;
+                    window = builder.buildArray();
+                } else {
+                    // fill from previous
+                    int from = Math.min(window.length, step);
+                    window = Arrays.copyOfRange(window, from,
+                            from + window.length);
+                    int retained = window.length - from;
+                    int index = window.length - step;
+                    while (index < window.length
+                            && spliterator.tryAdvance(next)) {
+                        if (index >= 0) window[index] = next.value;
+                        index++;
+                    }
+                    if (index < window.length) {
+                        finished = true;
+                        // the short window is dropped unless the source
+                        // added to the elements retained from the last
+                        if (index <= retained) return false;
+                        window = Arrays.copyOf(window, index);
+                    }
+                }
+                action.accept(window);
+                return true;
+            }
+        };
+    }
+
+    static <E, R> Spliterator<R> scan(
+            Spliterator<E> spliterator, Supplier<R> initial,
+            BiFunction<? super R, ? super E, ? extends R> scanner) {
+        return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
+            private final Box<E> next = new Box<>();
+            private R accumulated = initial.get();
+            boolean advance(Consumer<? super R> action) {
+                if (!spliterator.tryAdvance(next)) return false;
+                accumulated = scanner.apply(accumulated, next.value);
+                action.accept(accumulated);
+                return true;
+            }
+        };
+    }
+
     static <E> Spliterator<E> peek(
             Spliterator<E> spliterator,
             Consumer<? super E> peeker) {
@@ -1157,6 +1228,13 @@ final class Split {
         StringJoiner joiner = new StringJoiner(delimiter, prefix, suffix);
         spliterator.forEachRemaining(e -> joiner.add(String.valueOf(e)));
         return joiner.toString();
+    }
+
+    static void requirePositiveArgument(String name, int value) {
+        if (value < 1) {
+            throw new IllegalArgumentException(
+                    name + " " + value + " was not positive");
+        }
     }
 
     static void requireNonNegativeArgument(String name, long value) {

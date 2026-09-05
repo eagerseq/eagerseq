@@ -1235,6 +1235,67 @@ public class SeqTest {
     }
 
     @Test
+    public void testWindowFixed() {
+        checkWindows(false);
+    }
+
+    @Test
+    public void testWindowSliding() {
+        checkWindows(true);
+    }
+
+    private void checkWindows(boolean sliding) {
+        for (int length = 0; length <= 8; length++) {
+            Integer[] values = new Integer[length];
+            for (int i = 0; i < length; i++) values[i] = i % 3 == 0 ? null : i;
+            for (int size : new int[]{1, 2, 3, 4, 8, 9, Integer.MAX_VALUE}) {
+                List<Seq<Integer>> expected = new ArrayList<>();
+                for (int start = 0; start < length;) {
+                    int end = (int) Math.min((long) start + size, length);
+                    if (sliding && start > 0 && end - start < size) break;
+                    expected.add(Seq
+                            .copyOf(Arrays.asList(values).subList(start, end)));
+                    if (size > length) break;
+                    start += sliding ? 1 : size;
+                }
+                Seq<Integer> source = seqOf(values);
+                Seq<Seq<Integer>> actual = sliding
+                        ? source.windowSliding(size)
+                        : source.windowFixed(size);
+                assertThat(actual.toList(), equalTo(expected));
+                assertThat(actual.toList(), equalTo(expected));
+            }
+        }
+        for (int size : new int[]{-1, 0, Integer.MIN_VALUE}) {
+            assertThrows(IllegalArgumentException.class, () -> {
+                if (sliding) seqOf().windowSliding(size);
+                else seqOf().windowFixed(size);
+            });
+        }
+    }
+
+    @Test
+    public void testScan() {
+        int[] initialCalls = {0};
+        assertThat(seqOf(1, 2, 3).scan(() -> {
+            initialCalls[0]++;
+            return "";
+        }, (a, b) -> a + b), equalTo(Seq.of("1", "12", "123")));
+        assertThat(initialCalls[0], equalTo(1));
+        assertTrue(seqOf().scan(() -> {
+            initialCalls[0]++;
+            return 0;
+        }, (a, b) -> a).isEmpty());
+        assertThat(initialCalls[0], equalTo(2));
+        assertThat(seqOf(1, null, 3).scan(() -> null, (a, b) -> b),
+                equalTo(Seq.of(1, null, 3)));
+        assertThrows(NullPointerException.class,
+                () -> seqOf(1).scan(null, Integer::sum));
+        assertThrows(NullPointerException.class,
+                () -> seqOf(1).scan(() -> 0, null));
+    }
+
+    @Test
     public void testPeek() {
         int[] total = new int[1];
         // eager, so each peek runs over every element before the next peek
