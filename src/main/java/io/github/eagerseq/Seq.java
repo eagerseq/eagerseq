@@ -203,7 +203,7 @@ public interface Seq<E> extends Collection<E> {
      * Returns an empty {@code Seq}.
      */
     static <E> Seq<E> of() {
-        return new ArraySeq<>(SeqBuilder.EMPTY);
+        return new ArraySeq<>(ArrayBuilder.EMPTY);
     }
 
     /**
@@ -310,9 +310,10 @@ public interface Seq<E> extends Collection<E> {
      * into a {@code Seq}.
      */
     static <E> Collector<E, ?, Seq<E>> toSeq() {
-        return Collector.<E, Builder<E>, Seq<E>>of(
-                Seq::builder, Builder::accept,
-                (b, c) -> b.addAll(c.build()), Builder::build);
+        return Collector.<E, ArrayBuilder<E>, Seq<E>>of(
+                ArrayBuilder::new, ArrayBuilder::accept,
+                ArrayBuilder::combine,
+                builder -> viewOf(builder.buildArray()));
     }
 
     /**
@@ -1411,7 +1412,8 @@ public interface Seq<E> extends Collection<E> {
 
         /**
          * Builds the {@link Seq} instance.
-         * May be called multiple times and interleaved with {@link #add}.
+         * An {@link IllegalStateException} is thrown on further attempts to
+         * operate on this builder.
          */
         Seq<E> build();
 
@@ -1420,14 +1422,6 @@ public interface Seq<E> extends Collection<E> {
          */
         default Builder<E> add(E element) {
             accept(element);
-            return this;
-        }
-
-        /**
-         * Adds all elements and returns {@code this}.
-         */
-        default Builder<E> addAll(Iterable<? extends E> iterable) {
-            iterable.forEach(this);
             return this;
         }
     }

@@ -99,7 +99,7 @@ final class Split {
     }
 
     private static <E> Spliterator<E> emptySpliterator(int characteristics) {
-        return Spliterators.spliterator(SeqBuilder.EMPTY, characteristics);
+        return Spliterators.spliterator(ArrayBuilder.EMPTY, characteristics);
     }
 
     static Object[] toArray(Iterable<?> iterable) {
@@ -112,17 +112,17 @@ final class Split {
     }
 
     static Object[] toArray(Spliterator<?> spliterator) {
-        SeqBuilder<Object> builder = new SeqBuilder<>();
+        ArrayBuilder<Object> builder = new ArrayBuilder<>();
         spliterator.forEachRemaining(builder);
-        return builder.trim();
+        return builder.buildArray();
     }
 
     @SuppressWarnings("unchecked")
     public static <E, A> A[] toArray(
             Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        SeqBuilder<A> builder = new SeqBuilder<>(generator);
-        spliterator.forEachRemaining((SeqBuilder<E>) builder);
-        return builder.trim();
+        ArrayBuilder<A> builder = new ArrayBuilder<>(generator);
+        spliterator.forEachRemaining((ArrayBuilder<E>) builder);
+        return builder.buildArray();
     }
 
     static <E, T> T[] toArray(
@@ -545,12 +545,12 @@ final class Split {
                     // fill by appending, so that the queue is sized from the
                     // data and not from size, and only then overwrite in
                     // place, by which point its length is settled
-                    SeqBuilder<E> builder = new SeqBuilder<>();
+                    ArrayBuilder<E> builder = new ArrayBuilder<>();
                     while (used < size
                             && spliterator.tryAdvance(builder)) {
                         used++;
                     }
-                    queue = builder.trim();
+                    queue = builder.buildArray();
                     // used reaches size only if the fill loop filled the
                     // queue rather than exhausting the source
                     if (used == size) {
@@ -585,12 +585,12 @@ final class Split {
                 if (!skipped) {
                     skipped = true;
                     // as limitLast, the queue is sized from the data
-                    SeqBuilder<E> builder = new SeqBuilder<>();
+                    ArrayBuilder<E> builder = new ArrayBuilder<>();
                     while (used < size
                             && spliterator.tryAdvance(builder)) {
                         used++;
                     }
-                    queue = builder.trim();
+                    queue = builder.buildArray();
                 }
                 if (used < size) return false;
                 if (!spliterator.tryAdvance(next)) return false;
@@ -920,11 +920,12 @@ final class Split {
             Function<? super E, ? extends K> keyMapper,
             Function<? super E[], ? extends V> valueMapper) {
         Map<K, Object> map = new LinkedHashMap<>();
-        spliterator.forEachRemaining(e -> ((SeqBuilder<E>) map
-                .computeIfAbsent(keyMapper.apply(e), key -> new SeqBuilder<>()))
+        spliterator.forEachRemaining(e -> ((ArrayBuilder<E>) map
+                .computeIfAbsent(keyMapper.apply(e),
+                        key -> new ArrayBuilder<>()))
                 .accept(e));
         map.replaceAll((key, builder) -> valueMapper.apply(
-                ((SeqBuilder<E>) builder).trim()));
+                ((ArrayBuilder<E>) builder).buildArray()));
         return (Map<K, V>) Collections.unmodifiableMap(map);
     }
 

@@ -49,7 +49,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static <E> SeqStream<E> of() {
         return new SpliteratorSeqStream<>(
-                Split.toSpliterator(SeqBuilder.EMPTY));
+                Split.toSpliterator(ArrayBuilder.EMPTY));
     }
 
     /**
@@ -98,6 +98,13 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static <E> SeqStream<E> viewOf(Stream<? extends E> stream) {
         return new SpliteratorSeqStream<>(stream.spliterator());
+    }
+
+    /**
+     * Returns a {@link Builder}.
+     */
+    static <E> Builder<E> builder() {
+        return new SeqStreamBuilder<>();
     }
 
     /**
@@ -1117,5 +1124,31 @@ public interface SeqStream<E> extends Stream<E> {
      * {@link SeqStream} does not support close. This method does nothing.
      */
     default void close() {
+    }
+
+    /**
+     * A builder for creating {@link SeqStream} instances.
+     */
+    interface Builder<E> extends Stream.Builder<E> {
+
+        /**
+         * Adds the element.
+         */
+        void accept(E element);
+
+        /**
+         * Builds the {@link SeqStream} instance.
+         * An {@link IllegalStateException} is thrown on further attempts to
+         * operate on this builder.
+         */
+        SeqStream<E> build();
+
+        /**
+         * Adds the element and returns {@code this}.
+         */
+        default Builder<E> add(E element) {
+            accept(element);
+            return this;
+        }
     }
 }

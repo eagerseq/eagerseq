@@ -193,9 +193,15 @@ would be consistent but remains optional and outside this change.
 
 `Seq.Builder` extends `Consumer<E>` following `Stream.Builder`: `accept` is the
 abstract insertion operation and `add` is the fluent default that delegates to
-it. `addAll` and internal spliterator sinks pass the builder directly as a
-consumer; fluent caller-facing uses remain `add`. `Consumer.andThen` therefore
-joins the builder surface and returns `Consumer<E>`, which is accepted.
+it. `SeqStream.Builder` mirrors it and extends `Stream.Builder<E>` directly, so
+the nested type it hides stays assignment-compatible; both are implemented by
+`ArrayBuilder` subclasses that add only a `build()` return type, and both
+follow `Stream.Builder`'s one-shot rule: building consumes the shared array
+builder, and later calls throw `IllegalStateException`. Internal spliterator
+sinks pass the builder directly as a consumer; fluent caller-facing uses remain
+`add`. `Seq.toSeq()` uses `ArrayBuilder` directly so its combiner can append a
+partial result in bulk. `Consumer.andThen` therefore joins the builder surface
+and returns `Consumer<E>`, which is accepted.
 
 `Split` does not create capturing consumers at repeated `tryAdvance` pull
 sites. Reference-valued pulls reuse `Box` fields on their returned
@@ -231,21 +237,19 @@ removed the old allocations is unknown.
 - **`Split`'s dependencies on the rest of the package are unreviewed.**
   `Split` is meant to be the algorithm floor, defined over `Spliterator` and
   arrays, which is why it returns `E[]` and lets `Seq`/`SeqStream` adopt the
-  result. It is not actually self-contained. `SeqBuilder` is used in
-  `emptySpliterator` (via `SeqBuilder.EMPTY`), both `toArray` overloads, the
-  `limitLast`/`skipLast` queues and `groupBy`; `toStream` takes a `SeqStream`
-  parameter outright, which is a straight inversion of the layering. Decide
-  what the floor is allowed to know about.
-  For `SeqBuilder` specifically the case is decent — it is a growable array
-  builder, not a `Seq` concept, its `trim()` hands back a bare `E[]`, and it
-  is what lets a buffer be "sized from the data" rather than from a claimed
-  size (the `limitLast` comment). But it is a second growth policy alongside
-  `ArrayList`, which `toList` uses, and no benchmark says the no-copy
-  adoption pays for that. Options: keep it and say so; move it to a neutral
-  package-private array builder that `SeqBuilder` itself wraps; or drop it
-  from `Split` in favour of `ArrayList` and accept a copy per result.
-  `toStream` is the separate and clearer problem — it exists only to let
-  `SeqStream` bounce off `StreamSupport`, and probably belongs on
+  result. The `SeqBuilder` half is now settled: every `Split` use called only
+  `accept` and `buildArray()`, never `build()`, so the growable array moved
+  to a neutral package-private `ArrayBuilder` and `SeqBuilder` shrank to the
+  `Seq`-returning `build()`. `Split` now names `ArrayBuilder` in
+  `emptySpliterator` (via `ArrayBuilder.EMPTY`), both `toArray` overloads,
+  the `limitLast`/`skipLast` queues and `groupBy`, none of which mention
+  `Seq`. Still open: it remains a second growth policy alongside `ArrayList`,
+  which `toList` uses, and no benchmark says the no-copy adoption pays for
+  that — the alternative is still to drop it from `Split` in favour of
+  `ArrayList` and accept a copy per result.
+  `toStream` is the separate and clearer problem — it takes a `SeqStream`
+  parameter outright, a straight inversion of the layering. It exists only to
+  let `SeqStream` bounce off `StreamSupport`, and probably belongs on
   `SeqStream`.
 
 ## Settled: index and count conventions
@@ -290,8 +294,8 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
   products are direct terminals; averages and summary statistics still require
   dropping into a primitive stream.
 - **`partition(Predicate)`, `chunked(n)`, `windowed(n)`, `sortedBy(Function)`.**
-- **Factories** — `SeqStream.builder()` is the one still missing; see
-  "Settled: value factories" for what shipped.
+- **Factories** — none missing; `SeqStream.builder()` shipped alongside
+  `Seq.builder()`, see "Settled: value factories" for the rest.
 - **`withIndex()`** — pairs each element with its index, returning
   `Seq<IndexedValue<E>>` or `Seq<Entry<Integer, E>>`. Kotlin's name and shape.
   `zip(indexes(), ...)` is equally general but cannot be used mid-chain, since

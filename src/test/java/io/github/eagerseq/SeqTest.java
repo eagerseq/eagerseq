@@ -152,16 +152,19 @@ public class SeqTest {
 
     @Test
     public void testBuilder() {
+        Seq.Builder<Integer> emptyBuilder = Seq.builder();
+        assertThat(emptyBuilder.build(), empty());
+        assertThrows(IllegalStateException.class, emptyBuilder::build);
+        assertThrows(IllegalStateException.class, () -> emptyBuilder.accept(0));
+        assertThrows(IllegalStateException.class, () -> emptyBuilder.add(0));
+
         Seq.Builder<Integer> builder = Seq.builder();
-        assertThat(builder.build(), empty());
-        assertThat(builder.build(), empty());
-        assertThat(builder.add(0).build(), contains(0));
-        assertThat(builder.add(1).build(), contains(0, 1));
-        assertThat(builder.add(null).build(), contains(0, 1, null));
-        assertThat(builder.add(3).build(), contains(0, 1, null, 3));
+        builder.add(0).add(1).add(null).add(3).add(4);
         Seq<Integer> built = builder.build();
-        Arrays.asList(4, 5, 6, 7).forEach(builder);
-        assertThat(built, contains(0, 1, null, 3));
+        assertThat(built, contains(0, 1, null, 3, 4));
+        assertThrows(IllegalStateException.class, builder::build);
+        assertThrows(IllegalStateException.class, () -> builder.accept(5));
+        assertThrows(IllegalStateException.class, () -> builder.add(5));
     }
 
     @Test
@@ -172,7 +175,7 @@ public class SeqTest {
                 contains(0, 1, 2, null));
         assertThat(Stream.of("").collect(toSeq()), contains(""));
         assertThat(IntStream.range(0, 1000).boxed().parallel()
-                .collect(toSeq()).size(), equalTo(1000));
+                .collect(toSeq()), equalTo(Seq.range(0, 1000)));
     }
 
     @Test

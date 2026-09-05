@@ -456,15 +456,32 @@ public class SeqStreamTest {
     }
 
     @Test
+    public void testBuilder() {
+        SeqStream.Builder<Integer> emptyBuilder = SeqStream.builder();
+        assertTrue(emptyBuilder.build().isEmpty());
+        assertThrows(IllegalStateException.class, emptyBuilder::build);
+        assertThrows(IllegalStateException.class, () -> emptyBuilder.accept(0));
+        assertThrows(IllegalStateException.class, () -> emptyBuilder.add(0));
+
+        SeqStream.Builder<Integer> builder = SeqStream.builder();
+        builder.add(0).add(1).add(null).add(3).add(4);
+        SeqStream<Integer> built = builder.build();
+        assertTrue(built.listEquals(streamOf(0, 1, null, 3, 4)));
+        assertThrows(IllegalStateException.class, builder::build);
+        assertThrows(IllegalStateException.class, () -> builder.accept(5));
+        assertThrows(IllegalStateException.class, () -> builder.add(5));
+    }
+
+    @Test
     public void testNextLength() {
-        assertThat(SeqBuilder.nextLength(Integer.MAX_VALUE / 4 * 3),
+        assertThat(ArrayBuilder.nextLength(Integer.MAX_VALUE / 4 * 3),
                 equalTo(Integer.MAX_VALUE - 8));
         try {
-            SeqBuilder.nextLength(Integer.MAX_VALUE - 4);
+            ArrayBuilder.nextLength(Integer.MAX_VALUE - 4);
             fail("expected OutOfMemoryError");
         } catch (OutOfMemoryError expected) {
             assertThat(expected.getMessage(),
-                    equalTo("Seq size exceeds the maximum array length"));
+                    equalTo("maximum array length exceeded"));
         }
     }
 
