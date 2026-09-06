@@ -15,6 +15,7 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1095,6 +1096,19 @@ public interface Seq<E> extends Collection<E> {
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         requireNonNull(collector);
         return Split.collect(spliterator(), collector);
+    }
+
+    /**
+     * Like {@link #collect(Supplier, BiConsumer)}, but stops when the
+     * accumulator returns {@code false}. Returns the accumulated result,
+     * including changes made by the stopping invocation.
+     */
+    default <U> U collectWhile(
+            Supplier<U> supplier,
+            BiPredicate<U, ? super E> accumulator) {
+        requireNonNull(supplier);
+        requireNonNull(accumulator);
+        return Split.collectWhile(spliterator(), supplier, accumulator);
     }
 
     /**

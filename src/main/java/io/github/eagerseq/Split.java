@@ -25,6 +25,7 @@ import java.util.Spliterators.AbstractSpliterator;
 import java.util.StringJoiner;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1015,6 +1016,18 @@ final class Split {
             Collector<? super E, A, R> collector) {
         return collector.finisher().apply(collect(
                 spliterator, collector.supplier(), collector.accumulator()));
+    }
+
+    static <E, R> R collectWhile(
+            Spliterator<E> spliterator,
+            Supplier<R> supplier,
+            BiPredicate<R, ? super E> accumulator) {
+        R acc = supplier.get();
+        Box<E> next = new Box<>();
+        while (spliterator.tryAdvance(next)) {
+            if (!accumulator.test(acc, next.value)) break;
+        }
+        return acc;
     }
 
     static <E> int sumOfInt(

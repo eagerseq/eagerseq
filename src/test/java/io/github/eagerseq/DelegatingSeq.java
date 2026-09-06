@@ -10,6 +10,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -311,6 +312,11 @@ public interface DelegatingSeq<E> extends Seq<E> {
 
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         return stream().collect(collector);
+    }
+
+    default <U> U collectWhile(Supplier<U> supplier,
+            BiPredicate<U, ? super E> accumulator) {
+        return stream().collectWhile(supplier, accumulator);
     }
 
     default int sumOfInt(ToIntFunction<? super E> mapper) {

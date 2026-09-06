@@ -420,6 +420,41 @@ public class SeqTest {
     }
 
     @Test
+    public void testCollectWhile() {
+        for (Seq<Integer> source : Arrays.asList(
+                this.<Integer>seqOf(), seqOf(0, null, 2))) {
+            for (int stop = 1; stop <= 4; stop++) {
+                int limit = stop;
+                int[] supplied = {0};
+                boolean[] stopped = {false};
+                List<Integer> result = new ArrayList<>();
+                assertThat(source.collectWhile(() -> {
+                    supplied[0]++;
+                    return result;
+                }, (acc, e) -> {
+                    assertFalse(stopped[0]);
+                    acc.add(e);
+                    boolean more = acc.size() < limit;
+                    stopped[0] = !more;
+                    return more;
+                }), sameInstance(result));
+                assertThat(result, equalTo(source.toList().subList(
+                        0, Math.min(limit, source.size()))));
+                assertThat(supplied[0], equalTo(1));
+            }
+        }
+
+        List<Integer> unchanged = new ArrayList<>();
+        assertThat(seqOf(0, 1).collectWhile(() -> unchanged,
+                (acc, e) -> false), sameInstance(unchanged));
+        assertThat(unchanged, empty());
+        assertThat(seqOf(0).collectWhile(() -> null, (acc, e) -> {
+            assertThat(acc, nullValue());
+            return false;
+        }), nullValue());
+    }
+
+    @Test
     public void testSumOfInt() {
         assertThat(this.<String>seqOf().sumOfInt(String::length), equalTo(0));
         assertThat(seqOf("one", "three").sumOfInt(s -> s.length()),
@@ -1478,6 +1513,9 @@ public class SeqTest {
         assertNullRejected(() -> empty.collect(ArrayList::new, null));
         assertNullRejected(() -> empty.<List<Integer>>collect(null, List::add));
         assertNullRejected(() -> empty.collect(null));
+        assertNullRejected(() -> empty.collectWhile(ArrayList::new, null));
+        assertNullRejected(
+                () -> empty.<List<Integer>>collectWhile(null, List::add));
         assertNullRejected(() -> empty.sumOfInt(null));
         assertNullRejected(() -> empty.sumOfLong(null));
         assertNullRejected(() -> empty.sumOfDouble(null));

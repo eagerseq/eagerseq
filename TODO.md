@@ -306,6 +306,21 @@ The `SeqStream` forms claim their source immediately but defer traversal;
 `scan` invokes its supplier immediately, including for an empty source.
 These operations preserve the source's `ORDERED` flag.
 
+## Settled: short-circuiting collection
+
+`collectWhile(supplier, accumulator)` is a terminal on both `Seq` and
+`SeqStream`, implemented in `Split`. It follows the raw-function `collect`
+shape with a `BiPredicate` accumulator: `true` requests another element,
+`false` stops without another pull. It returns the supplied state, including
+changes from the stopping invocation. The supplier runs once even on an empty
+source, and null functional arguments are rejected before claiming the source.
+As with `collect`, the supplied state is not required to be non-null.
+
+The separate name avoids ambiguity with existing void-compatible `collect`
+lambdas and method references. Uses include accumulating until a state-dependent
+condition is met, or retaining a count and value to find the second element of
+a `SeqStream`. This does not imply a family of specialized search terminals.
+
 ## API gaps
 
 Each forces users back into the `Stream` verbosity `Seq` exists to remove.
@@ -328,8 +343,7 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 
 ## Test depth
 
-Gaps that apply to the whole library, not to any one method, which is why
-neither remaining one is patched locally.
+Coverage and gaps that apply across the library, rather than to one method.
 
 - **Cross-checking is now exhaustive for the index arithmetic.**
   `SeqReferenceTest` compares every method that does index arithmetic, plus
@@ -358,6 +372,17 @@ neither remaining one is patched locally.
   operand is finite, including the empty-second-operand case. A `peek` counter
   verifies that a representative intermediate pipeline consumes nothing on
   construction and only the required source elements on traversal.
+  Terminal tests establish short-circuiting on infinite sources, but do not
+  systematically check exact input consumption: terminating successfully does
+  not prove that no extra element was read after the result was determined.
+
+- **Terminal validation and failure coverage is not systematic.** Null
+  functional arguments are tested on empty sources, but terminals are not
+  uniformly checked for validation before claiming the stream or invoking
+  callbacks. Exception propagation, stopping traversal after a callback fails,
+  and stream consumption after failure likewise lack coverage across terminals.
+  Address these as shared test concerns rather than adding dedicated tests for
+  each new operation in isolation.
 
 ## Docs and build
 

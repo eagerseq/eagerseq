@@ -14,6 +14,7 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -900,6 +901,17 @@ public interface SeqStream<E> extends Stream<E> {
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         requireNonNull(collector);
         return Split.collect(spliterator(), collector);
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#collectWhile(Supplier, BiPredicate)}.
+     */
+    default <U> U collectWhile(
+            Supplier<U> supplier,
+            BiPredicate<U, ? super E> accumulator) {
+        requireNonNull(supplier);
+        requireNonNull(accumulator);
+        return Split.collectWhile(spliterator(), supplier, accumulator);
     }
 
     /**

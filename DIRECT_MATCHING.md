@@ -4,11 +4,16 @@ Companion to `EQUALITY_AND_ORDERING.md`, covering only direct matching: one
 input searched against a query. Not equivalence classes (`distinct`, set
 operations) or ordering (`sorted`, `min`).
 
+This is conditional naming guidance, not an implementation plan. A coherent
+family does not establish demand for every member, and an empty cell is not
+necessarily an API gap. No predicate-search expansion is currently planned;
+counting is considered independently.
+
 ## The naming axis
 
 ```
 foo()          ==  foo(alwaysTrue())     // identity query, overloads the base name
-fooOf(object)  ==  foo(object::equals)   // equality query
+fooOf(object)  ==  foo(e -> Objects.equals(object, e)) // equality query
 ```
 
 The codebase already instantiates this: `indexOf`/`lastIndexOf`/`indexesOf`
@@ -33,7 +38,8 @@ the only two classes, so nothing else has to be made consistent.
 
 ## Tables
 
-Status: **have**, **add**, *reject* (fits the pattern, not worth a name),
+Status: **have**, **candidate** (possible shape, not a planned addition),
+*reject* (fits the pattern, not worth a name),
 n/a (degenerate or ill-formed).
 
 ### Boolean — the JDK-owned irregular block
@@ -53,15 +59,15 @@ expressible from `contains` at all.
 
 | identity | predicate | `Of` |
 |---|---|---|
-| `count()` have (`size()` is the `int` alias) | `count(p)` **add** | `countOf(o)` **add** |
+| `count()` have (`size()` returns an `int`) | `count(p)` **candidate** | `countOf(o)` **candidate** |
 
 ### Index (`int`, `-1`)
 
 | identity | predicate | `Of` |
 |---|---|---|
-| `index()` n/a — `isEmpty() ? -1 : 0`, a boolean spelled wrong | `index(p)` **add** | `indexOf(o)` have |
-| `lastIndex()` **add** — `size()-1`, lands on `-1` when empty | `lastIndex(p)` **add** | `lastIndexOf(o)` have |
-| `indexes()` have | `indexes(p)` **add** | `indexesOf(o)` have |
+| `index()` n/a — `isEmpty() ? -1 : 0`, a boolean spelled wrong | `index(p)` **candidate** | `indexOf(o)` have |
+| `lastIndex()` **candidate** — `size()-1`, lands on `-1` when empty | `lastIndex(p)` **candidate** | `lastIndexOf(o)` have |
+| `indexes()` have | `indexes(p)` **candidate** | `indexesOf(o)` have |
 
 `Optional` variants of the whole index family (`findIndex` and friends) are
 rejected: `Optional<Integer>` boxes, `OptionalInt` will not chain, `-1` is
@@ -71,21 +77,21 @@ rejected: `Optional<Integer>` boxes, `OptionalInt` will not chain, `-1` is
 
 | identity | predicate | `Of` |
 |---|---|---|
-| `getFirst()` have | `getFirst(p)` **add** | *degenerate* |
-| `getLast()` have | `getLast(p)` **add** | *degenerate* |
-| `getOnly()` have | `getOnly(p)` **add** | *degenerate* |
-| `findFirst()` have | `findFirst(p)` **add** | *degenerate* |
-| `findLast()` have | `findLast(p)` **add** | *degenerate* |
-| `findOnly()` have | `findOnly(p)` **add** | *degenerate* |
+| `getFirst()` have | `getFirst(p)` **candidate** | *degenerate* |
+| `getLast()` have | `getLast(p)` **candidate** | *degenerate* |
+| `getOnly()` have | `getOnly(p)` **candidate** | *degenerate* |
+| `findFirst()` have | `findFirst(p)` **candidate** | *degenerate* |
+| `findLast()` have | `findLast(p)` **candidate** | *degenerate* |
+| `findOnly()` have | `findOnly(p)` **candidate** | *degenerate* |
 | `get(i)` have | — | — |
-| `find(i)` **add** | — | — |
+| `find(i)` **candidate** | — | — |
 
 The `Of` column returns an element you already hold, up to equality.
 `findFirstOf` is the least degenerate, since equality is not identity, and
 still does not earn a name.
 
-`find(i)` is the only unambiguous hole here and is independent of every open
-question above: it concerns bounds, not matching.
+`find(i)` is independent of predicate matching: it concerns bounds. Its
+possible name and shape do not by themselves justify adding it.
 
 ### Sequence
 
@@ -95,29 +101,46 @@ question above: it concerns bounds, not matching.
 
 ## Is the predicate column justified?
 
-It applies to *every* terminal, so something has to gate it. Two properties do,
-and "avoids materialising an intermediate `Seq`" is not one of them — that is
-equally true of `min(p)`, `sum(p)` and the rest, which nobody wants.
+Avoiding an eager intermediate sequence is not sufficient justification for
+a specialized method. `seq.stream().filter(p).findFirst()` already avoids
+materializing the filter result and stops at the first match. The same lazy
+pipeline mechanism supports mapping, flat-mapping and combinations of stages;
+short-circuiting does not uniquely justify condensing a filter and terminal.
+Predicate `get`/`find` overloads could still earn a place as natural ways to
+express common queries, but that demand has not been established here.
 
-1. **Information loss.** `filter` destroys positions, so the index forms have
-   no clean composition at all. Airtight, and independent of performance.
-2. **Short-circuiting.** On eager `Seq`, `filter(p).findFirst()` is always
-   Θ(n) where the fused form is O(k). A complexity class, not a constant.
-   Covers `First` and `Single`; excludes anything Θ(n) either way.
+Predicate indexes have a distinct benefit: filtering loses original positions.
+They also cover searching projected values:
 
-So `index(p)` is the best-justified member, not an overreach. `findLast(p)` and
-`getLast(p)` pass only for indexed representations that can scan backwards.
-`count(p)` passes neither gate and is added on convention alone — the name is
-shared by Scala, Kotlin, LINQ, Ruby and Eclipse Collections.
+```java
+seq.index(e -> Objects.equals(f.apply(e), value)) // proposed API
+```
 
-Explicitly excluded, so the boundary is written down rather than remembered:
-`min(p)`, `max(p)`, `sum(p)`, `reduce(p, ...)`, `toList(p)`, `toSet(p)`,
-`sorted(p)`. All are exactly `filter(p).op()`.
+This expresses `seq.map(f).indexOf(value)` without materializing mapped
+values. Unlike filtering, mapping preserves positions. Predicate indexes
+therefore serve more than filter fusion, but preserving information does not
+establish how often callers need it. Indexes can identify match locations or
+feed `slice` without feeding `get`; these are valid uses, currently not enough
+to prioritize expanding the positional API.
 
-Bundling a *mapper* is never the same win: `map` preserves size and position,
-so `op(f)` always factors as `map(f).op()` or `op().map(f)`. Where a mapper is
-bundled — `groupBy(key, valueMapper)`, `toMap` — it applies to a result
-component, not to the matching.
+There is no planned family of predicate terminals such as `min(p)`, `max(p)`,
+`sum(p)`, `reduce(p, ...)`, `toList(p)`, `toSet(p)` or `sorted(p)`. Nor does
+the existence of a composition automatically rule out a method. The question
+is whether the operation naturally belongs in the library's everyday
+vocabulary, not whether a table can be completed or an intermediate avoided.
+
+## Counting is a separate candidate
+
+`count(p)` and `countOf(value)` directly name a requested summary. Their case
+is natural expression and consolidation, with avoiding intermediate storage
+as an additional benefit, not short-circuiting.
+
+`countBy(key)` belongs to keyed aggregation rather than direct matching, but
+should be considered alongside them. It would count occurrences per projected
+key, not matches to a predicate. `groupBy(key, Seq::size)` currently builds
+groups just to count them; a dedicated operation could accumulate `long`
+counts using storage proportional to the number of keys. These are candidates
+to assess independently, not commitments implied by the search tables.
 
 ## Footnote: the sentinel
 
@@ -138,11 +161,9 @@ rediscovered.
 
 ## Summary
 
-Without predicates: `lastIndex()`, `find(i)`, `countOf(o)`.
-
-With predicates: `index(p)`, `lastIndex(p)`, `indexes(p)` (gate 1);
-`findFirst(p)`, `getFirst(p)`, `findOnly(p)`, `getOnly(p)` (gate 2);
-`findLast(p)`, `getLast(p)` (weaker); `count(p)` (convention).
-
-The smallest defensible set is the first seven predicate methods plus the
-three above.
+No predicate-search expansion is currently planned. Retain the naming scheme
+for evaluating concrete proposals; predicate indexes are valid but currently
+unprioritized, and predicate `get`/`find` overloads are not justified solely
+by short-circuiting. Neither `lastIndex()` nor `find(i)` earns a place merely
+by filling a cell. Consider counting independently on natural expression,
+consolidation and storage benefits.

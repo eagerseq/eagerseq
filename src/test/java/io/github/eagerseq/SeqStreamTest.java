@@ -340,6 +340,11 @@ public class SeqStreamTest {
                 .startsWith(streamOf(0, 1, 2)));
         assertTrue(SeqStream.iterate(0, i -> i + 1)
                 .containsSlice(streamOf(4, 5, 6)));
+
+        assertThat(SeqStream.iterate(0, i -> i + 1)
+                .collectWhile(ArrayList<Integer>::new,
+                        (acc, e) -> acc.add(e) && acc.size() < 2),
+                equalTo(Arrays.asList(0, 1)));
     }
 
     @Test(timeout = 5000)
@@ -655,6 +660,11 @@ public class SeqStreamTest {
         assertNullRejected(
                 () -> emptyStream().collect(ArrayList::new, List::add, null));
         assertNullRejected(() -> emptyStream().collect(null));
+        assertNullRejected(
+                () -> emptyStream().collectWhile(ArrayList::new, null));
+        assertNullRejected(
+                () -> emptyStream().<List<Integer>>collectWhile(null,
+                        List::add));
         assertNullRejected(() -> emptyStream().sumOfInt(null));
         assertNullRejected(() -> emptyStream().sumOfLong(null));
         assertNullRejected(() -> emptyStream().sumOfDouble(null));

@@ -110,29 +110,35 @@ Searching one input against a fixed query is also direct matching. A
 `By` and comparator overloads are normally unnecessary:
 
 ```java
-indexWhere(person -> person.email().equals(email))
-indexWhere(e -> comparator.compare(e, query) == 0)
+index(person -> person.email().equals(email)) // proposed API
+index(e -> comparator.compare(e, query) == 0)
 ```
 
 This family has further axes and should be analysed separately rather than
-expanded mechanically:
+expanded mechanically. The following predicate index and count forms are
+candidates, not existing methods or planned additions; see
+`DIRECT_MATCHING.md` for the naming analysis and current priorities:
 
 | Equality-specific | Predicate form |
 |---|---|
 | `contains(value)` | `anyMatch(predicate)` |
-| `indexOf(value)` | `indexWhere(predicate)` |
-| `lastIndexOf(value)` | `lastIndexWhere(predicate)` |
-| `indexesOf(value)` | `indexesWhere(predicate)` |
+| `indexOf(value)` | `index(predicate)` |
+| `lastIndexOf(value)` | `lastIndex(predicate)` |
+| `indexesOf(value)` | `indexes(predicate)` |
 | frequency of a value | `count(predicate)` |
 | find an equal element | `filter(predicate).findFirst()` |
 
 The result may be a boolean, element, index, indexes, count or filtered
 sequence; it may find the first, last or all matches; and it may short-circuit
-or traverse everything. Consequently there is no universal predicate suffix:
-`Where` suits indexes, while `Match`, `find`, `filter` and `count` suit other
-results. Add a method only where its name and benefit are clearer than existing
-composition. Ordered or binary search is separate again because it introduces
-ordering and a sortedness precondition.
+or traverse everything. A coherent name does not establish demand. Existing
+composition does not disqualify a natural, useful operation either: assess
+whether it belongs in the library's everyday vocabulary. Avoiding an eager
+intermediate or enabling short-circuiting alone does not justify specialized
+terminals, since `stream()` provides lazy composition across arbitrary stages.
+Predicate indexes preserve information that filtering loses, but their demand
+remains a separate question. No predicate-search expansion is currently
+planned; counting is considered independently. Ordered or binary search is
+separate again because it introduces ordering and a sortedness precondition.
 
 ## Naming rule
 
