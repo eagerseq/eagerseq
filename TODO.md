@@ -331,15 +331,17 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 - **`partition(Predicate)`, `sortedBy(Function)`.**
 - **Factories** — none missing; `SeqStream.builder()` shipped alongside
   `Seq.builder()`, see "Settled: value factories" for the rest.
-- **`withIndex()`** — pairs each element with its index, returning
-  `Seq<IndexedValue<E>>` or `Seq<Entry<Integer, E>>`. Kotlin's name and shape.
-  `zip(indexes(), ...)` is equally general but cannot be used mid-chain, since
-  `indexes()` needs the stage named; the same objection applies to the offset
-  self-zip that `pairwise` would replace. Undecided: whether a new record beats
-  a boxed `Entry`.
 - **Positional copy-modify** — `updated(i, e)` and friends, the immutable
   answer to the `List` mutators `Seq` inherits only to throw, currently
   spelled `slice`/`sum`; Scala has `updated`/`patch`, but undecided.
+
+## Settled: indexed mapping
+
+- **`mapIndexed(mapper)` supplies the zero-based index first and value second.**
+  The mapper lets callers choose their result representation, including
+  `AbstractMap.SimpleEntry::new` on Java 8 and `Map::entry` on Java 9+, without
+  committing the library to an indexed-value type. A later `indexed()` can
+  still bless such a type if carrying indexes through a pipeline proves useful.
 
 ## Test depth
 

@@ -174,7 +174,7 @@ seq.flatMap(s -> s);
 seq.reduce(0, (len, str) -> len + str.length());
 seq.intersection(otherSeq);
 seq.shuffled(new Random());
-seq.zip(seq.indexes(), (elem, idx) -> idx + ": " + elem);
+seq.mapIndexed((index, element) -> index + ": " + element);
 seq.get(2);
 seq.indexesOf(element);
 seq.limitLast(3);

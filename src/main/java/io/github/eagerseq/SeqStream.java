@@ -589,6 +589,15 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#mapIndexed(BiFunction)}.
+     */
+    default <R> SeqStream<R> mapIndexed(
+            BiFunction<? super Integer, ? super E, ? extends R> mapper) {
+        requireNonNull(mapper);
+        return viewOf(Split.mapIndexed(spliterator(), mapper));
+    }
+
+    /**
      * {@inheritDoc}
      */
     default IntStream mapToInt(ToIntFunction<? super E> mapper) {

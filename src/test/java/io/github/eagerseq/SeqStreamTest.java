@@ -354,13 +354,14 @@ public class SeqStreamTest {
                 .peek(i -> traversed[0]++)
                 .filter(i -> i % 2 == 0)
                 .map(i -> i + 1)
+                .mapIndexed((index, i) -> index + i)
                 .flatMap(i -> SeqStream.of(i, i))
                 .distinct()
                 .skip(1)
                 .limit(3);
 
         assertThat(traversed[0], equalTo(0));
-        assertThat(result.toSeq(), equalTo(Seq.of(3, 5, 7)));
+        assertThat(result.toSeq(), equalTo(Seq.of(4, 7, 10)));
         assertThat(traversed[0], equalTo(7));
     }
 
@@ -622,6 +623,7 @@ public class SeqStreamTest {
     public void testNullFunctionalArgumentsAreRejectedOnAnEmptyStream() {
         assertNullRejected(() -> emptyStream().filter(null));
         assertNullRejected(() -> emptyStream().map(null));
+        assertNullRejected(() -> emptyStream().mapIndexed(null));
         assertNullRejected(() -> emptyStream().flatMap(null));
         assertNullRejected(() -> emptyStream().mapMulti(null));
         assertNullRejected(() -> emptyStream().mapToInt(null));

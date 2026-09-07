@@ -191,7 +191,7 @@ import static java.util.Objects.requireNonNull;
  *     seq.reduce(0, (len, str) -> len + str.length());
  *     seq.intersection(otherSeq);
  *     seq.shuffled(new Random());
- *     seq.zip(seq.indexes(), (elem, idx) -> idx + ": " + elem);
+ *     seq.mapIndexed((index, element) -> index + ": " + element);
  *     seq.get(2);
  *     seq.indexesOf(element);
  *     seq.limitLast(3);
@@ -943,6 +943,16 @@ public interface Seq<E> extends Collection<E> {
     default <R> Seq<R> map(Function<? super E, ? extends R> mapper) {
         requireNonNull(mapper);
         return copyOf(Split.map(spliterator(), mapper));
+    }
+
+    /**
+     * Returns a {@code Seq} containing the results of applying the given
+     * mapper to each element's index followed by the element itself.
+     */
+    default <R> Seq<R> mapIndexed(
+            BiFunction<? super Integer, ? super E, ? extends R> mapper) {
+        requireNonNull(mapper);
+        return copyOf(Split.mapIndexed(spliterator(), mapper));
     }
 
     /**

@@ -231,6 +231,11 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().<R>map(mapper).toSeq();
     }
 
+    default <R> Seq<R> mapIndexed(
+            BiFunction<? super Integer, ? super E, ? extends R> mapper) {
+        return stream().<R>mapIndexed(mapper).toSeq();
+    }
+
     default <R> Seq<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
         return stream().<R>mapMulti(mapper).toSeq();

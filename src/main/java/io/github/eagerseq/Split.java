@@ -863,6 +863,21 @@ final class Split {
         };
     }
 
+    static <E, R> Spliterator<R> mapIndexed(
+            Spliterator<E> spliterator,
+            BiFunction<? super Integer, ? super E, ? extends R> mapper) {
+        return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
+            private final Box<E> next = new Box<>();
+            private long index;
+            boolean advance(Consumer<? super R> action) {
+                if (!spliterator.tryAdvance(next)) return false;
+                action.accept(mapper.apply(
+                        Math.toIntExact(index++), next.value));
+                return true;
+            }
+        };
+    }
+
     static <E, R> Spliterator<R> flatMap(
             Spliterator<E> spliterator,
             Function<? super E, ? extends Spliterator<R>> mapper) {

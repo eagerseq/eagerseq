@@ -178,6 +178,19 @@ public class SeqReferenceTest {
     }
 
     @Test
+    public void testMapIndexed() {
+        forEachInput(input -> {
+            List<String> expected = new ArrayList<>();
+            for (int i = 0; i < input.size(); i++) {
+                expected.add(i + ":" + input.get(i));
+            }
+            assertThat(seq(input)
+                    .mapIndexed((index, element) -> index + ":" + element)
+                    .toList(), equalTo(expected));
+        });
+    }
+
+    @Test
     public void testIndexOf() {
         forEachInputAndElement((input, element) -> {
             List<Integer> expected = referenceIndexesOf(input, element);

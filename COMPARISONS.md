@@ -157,7 +157,7 @@ JDK static, or a manual loop.
 | distinct by key fn | — | `uniqBy` | — | — | **no** |
 | concat | `Iterables.concat` | `concat` | `s + t` | `concat`, `sum` | yes |
 | zip | `Streams.zip` | `zip` | `zip` | `zip(that, mapper)` | yes |
-| enumerate | `Streams.mapWithIndex` | — | `enumerate` | `zip(indexes(), f)` | comp. |
+| enumerate | `Streams.mapWithIndex` | — | `enumerate` | `mapIndexed` | yes |
 | shuffle | — | `shuffle` | `random.shuffle` | `shuffled` | yes |
 | rotate | — | — | — | `rotated` | yes |
 | chunk into blocks of n | `Lists.partition` | `chunk` | `batched` | — | **no** |

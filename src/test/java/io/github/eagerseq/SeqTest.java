@@ -5,6 +5,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1059,6 +1060,18 @@ public class SeqTest {
     }
 
     @Test
+    public void testMapIndexed() {
+        assertThat(seqOf().mapIndexed(SimpleEntry::new), empty());
+        assertThat(
+                seqOf("zero", null, "two").mapIndexed(SimpleEntry::new),
+                contains(new SimpleEntry<>(0, "zero"),
+                        new SimpleEntry<>(1, null),
+                        new SimpleEntry<>(2, "two")));
+        assertThat(seqOf(4, 5).filter(n -> n > 4)
+                .mapIndexed((index, value) -> index + value), contains(5));
+    }
+
+    @Test
     public void testFlatMap() {
         assertThat(
                 seqOf(seqOf(0, 1, 2), seqOf(null, 4))
@@ -1490,6 +1503,7 @@ public class SeqTest {
         Seq<Integer> empty = seqOf();
         assertNullRejected(() -> empty.filter(null));
         assertNullRejected(() -> empty.map(null));
+        assertNullRejected(() -> empty.mapIndexed(null));
         assertNullRejected(() -> empty.flatMap(null));
         assertNullRejected(() -> empty.mapMulti(null));
         assertNullRejected(() -> empty.takeWhile(null));

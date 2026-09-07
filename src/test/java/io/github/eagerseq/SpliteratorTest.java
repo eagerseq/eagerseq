@@ -248,6 +248,7 @@ public class SpliteratorTest {
         return Arrays.asList(
                 () -> Split.filter(source.get(), n -> true),
                 () -> Split.map(source.get(), n -> n),
+                () -> Split.mapIndexed(source.get(), (i, n) -> n),
                 () -> Split.mapMulti(source.get(), (n, sink) -> sink.accept(n)),
                 () -> Split.distinct(source.get()),
                 () -> Split.peek(source.get(), n -> {}),
