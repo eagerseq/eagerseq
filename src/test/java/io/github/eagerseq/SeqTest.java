@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,6 +22,7 @@ import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -1144,6 +1146,27 @@ public class SeqTest {
     }
 
     @Test
+    public void testPartitionBy() {
+        Seq<Integer> numbers = seqOf(1, 2, null, 3, 4);
+        Predicate<Integer> even = number -> number != null && number % 2 == 0;
+        Map<Boolean, Seq<Integer>> partitions = numbers.partitionBy(even);
+        assertThat(partitions.keySet(), contains(false, true));
+        assertThat(partitions, hasEntry(true, seqOf(2, 4)));
+        assertThat(partitions, hasEntry(false, seqOf(1, null, 3)));
+        assertThat(numbers.partitionBy(even, Seq::size),
+                allOf(hasEntry(true, 2), hasEntry(false, 3)));
+        assertThat(seqOf(2, 4).partitionBy(even),
+                hasEntry(false, seqOf()));
+        assertThat(this.<Integer>seqOf().partitionBy(even),
+                allOf(hasEntry(false, seqOf()), hasEntry(true, seqOf())));
+        assertThat(this.<Integer>seqOf().partitionBy(even, Seq::size),
+                allOf(hasEntry(false, 0), hasEntry(true, 0)));
+        assertThrows(() -> partitions.put(false, Seq.of()));
+        assertThrows(() -> numbers.partitionBy(even, Seq::size)
+                .put(false, 0));
+    }
+
+    @Test
     public void testSorted() {
         assertThat(seqOf(2, 3, 1, 0, 4).sorted(),
                 contains(0, 1, 2, 3, 4));
@@ -1515,6 +1538,9 @@ public class SeqTest {
         assertNullRejected(() -> empty.groupBy(null));
         assertNullRejected(() -> empty.groupBy(null, Seq::size));
         assertNullRejected(() -> empty.groupBy(e -> e, null));
+        assertNullRejected(() -> empty.partitionBy(null));
+        assertNullRejected(() -> empty.partitionBy(null, Seq::size));
+        assertNullRejected(() -> empty.partitionBy(e -> true, null));
         assertNullRejected(() -> empty.sorted(null));
         assertNullRejected(() -> empty.shuffled(null));
         assertNullRejected(() -> empty.min(null));

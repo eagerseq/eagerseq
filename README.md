@@ -101,6 +101,15 @@ Map<Integer, Integer> wordCountByLength =
         words.groupBy(String::length, Seq::size);
 ```
 
+`partitionBy()` similarly replaces
+`collect(Collectors.partitioningBy(...))`, makes each partition a
+`Seq` and always includes both Boolean keys.
+
+```java
+Map<Boolean, Seq<String>> longWords =
+        words.partitionBy(word -> word.length() > 3);
+```
+
 ## Streams
 
 When laziness is desired, `Seq.stream()`

@@ -61,8 +61,8 @@ semantics that lodash and Python's `set` both lack. In this half of the space
 `Stream`.
 
 Anything that reduces a sequence to a summary keyed or numbered by something —
-`sum`, `average`, `countBy`, `partition` — is largely absent. `groupBy` was the
-worst of these and is now filled; the rest are not exotic either. A user hitting
+`sum`, `average`, `countBy` — is largely absent. `groupBy` and `partitionBy`
+are now filled; the rest are not exotic either. A user hitting
 one of them today writes:
 
 ```java
@@ -128,7 +128,7 @@ JDK static, or a manual loop.
 | min/max by comparator | `Ordering.min/max` | `minBy` | `min(key=)` | `min(Comparator)` | yes |
 | min/max natural order | `Ordering.natural().min` | `min`, `max` | `min`, `max` | — | **no** |
 | top / bottom k | `Comparators.greatest` | — | `heapq.nlargest` | `sorted(c).limit(k)` | comp. |
-| partition on predicate | — | `partition` | — | — | **no** |
+| partition on predicate | — | `partition` | — | `partitionBy` | yes |
 | count matching | `Iterables.size(filter)` | — | `sum(1 for ...)` | `filter(p).size()` | comp. |
 | join to string | `Joiner` | `join` | `str.join` | `toString(...)` | yes |
 | fold / reduce | — | `reduce` | `reduce` | `reduce` | yes |
@@ -330,7 +330,6 @@ respect:
 
 - `frequencies()` / `countBy(Function)`. Guava dedicates a whole type
   (`Multiset`) to this.
-- `partition(Predicate)`.
 - `distinctBy(Function)`.
 - `find(Predicate)` / `findLast(Predicate)`. Guava has `Iterables.find`,
   `tryFind` and `Streams.findLast`; `filter(p).findFirst()` is already terse,

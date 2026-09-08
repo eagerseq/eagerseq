@@ -945,6 +945,20 @@ final class Split {
         return (Map<K, V>) Collections.unmodifiableMap(map);
     }
 
+    static <E, V> Map<Boolean, V> partitionBy(
+            Spliterator<E> spliterator,
+            Predicate<? super E> predicate,
+            Function<? super E[], ? extends V> valueMapper) {
+        ArrayBuilder<E> rejected = new ArrayBuilder<>();
+        ArrayBuilder<E> selected = new ArrayBuilder<>();
+        spliterator.forEachRemaining(
+                e -> (predicate.test(e) ? selected : rejected).accept(e));
+        Map<Boolean, V> map = new LinkedHashMap<>();
+        map.put(false, valueMapper.apply(rejected.buildArray()));
+        map.put(true, valueMapper.apply(selected.buildArray()));
+        return Collections.unmodifiableMap(map);
+    }
+
     static <E> E[] sorted(Spliterator<E> spliterator) {
         return sorted(spliterator, null);
     }

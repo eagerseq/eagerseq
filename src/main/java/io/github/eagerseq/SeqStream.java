@@ -705,6 +705,27 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * See {@link Seq#partitionBy(Predicate)}.
+     */
+    default Map<Boolean, Seq<E>> partitionBy(
+            Predicate<? super E> predicate) {
+        requireNonNull(predicate);
+        return Split.partitionBy(spliterator(), predicate, Seq::viewOf);
+    }
+
+    /**
+     * See {@link Seq#partitionBy(Predicate, Function)}.
+     */
+    default <V> Map<Boolean, V> partitionBy(
+            Predicate<? super E> predicate,
+            Function<? super Seq<E>, ? extends V> valueMapper) {
+        requireNonNull(predicate);
+        requireNonNull(valueMapper);
+        return Split.partitionBy(spliterator(), predicate,
+                valueMapper.compose(Seq::viewOf));
+    }
+
+    /**
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {

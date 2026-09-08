@@ -328,7 +328,7 @@ Each forces users back into the `Stream` verbosity `Seq` exists to remove.
 - **Numeric averages and statistics** — mapper-based primitive sums and
   products are direct terminals; averages and summary statistics still require
   dropping into a primitive stream.
-- **`partition(Predicate)`, `sortedBy(Function)`.**
+- **`sortedBy(Function)`.**
 - **Factories** — none missing; `SeqStream.builder()` shipped alongside
   `Seq.builder()`, see "Settled: value factories" for the rest.
 - **Positional copy-modify** — `updated(i, e)` and friends, the immutable

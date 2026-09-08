@@ -641,6 +641,9 @@ public class SeqStreamTest {
         assertNullRejected(() -> emptyStream().groupBy(null));
         assertNullRejected(() -> emptyStream().groupBy(null, Seq::size));
         assertNullRejected(() -> emptyStream().groupBy(e -> e, null));
+        assertNullRejected(() -> emptyStream().partitionBy(null));
+        assertNullRejected(() -> emptyStream().partitionBy(null, Seq::size));
+        assertNullRejected(() -> emptyStream().partitionBy(e -> true, null));
         assertNullRejected(() -> emptyStream().sorted(null));
         assertNullRejected(() -> emptyStream().shuffled(null));
         assertNullRejected(() -> emptyStream().min(null));

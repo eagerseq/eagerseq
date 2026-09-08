@@ -260,6 +260,17 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().groupBy(keyMapper, valueMapper);
     }
 
+    default Map<Boolean, Seq<E>> partitionBy(
+            Predicate<? super E> predicate) {
+        return stream().partitionBy(predicate);
+    }
+
+    default <V> Map<Boolean, V> partitionBy(
+            Predicate<? super E> predicate,
+            Function<? super Seq<E>, ? extends V> valueMapper) {
+        return stream().partitionBy(predicate, valueMapper);
+    }
+
     default Seq<E> sorted() {
         return stream().sorted().toSeq();
     }

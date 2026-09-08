@@ -118,6 +118,15 @@ import static java.util.Objects.requireNonNull;
  *             words.groupBy(String::length, Seq::size);
  * }</pre>
  *
+ * <p>{@code partitionBy()} similarly replaces
+ * {@code collect(Collectors.partitioningBy(...))}, makes each partition a
+ * {@code Seq} and always includes both Boolean keys.
+ *
+ * <pre>{@code
+ *     Map<Boolean, Seq<String>> longWords =
+ *             words.partitionBy(word -> word.length() > 3);
+ * }</pre>
+ *
  * <h2>Streams</h2>
  *
  * <p>When laziness is desired, {@link Seq#stream()}
@@ -972,7 +981,7 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Equivalent to {@link #groupBy(Function, Function) groupBy(keyMapper, group -> group)}.
+     * Equivalent to {@link #groupBy(Function, Function) groupBy(keyMapper, g -> g)}.
      */
     default <K> Map<K, Seq<E>> groupBy(
             Function<? super E, ? extends K> keyMapper) {
@@ -981,12 +990,8 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
-     * Returns an unmodifiable map from each mapped key to the result of
-     * applying the given function to the elements sharing that key.
-     * Both the keys and the elements of each group are in encounter order.
-     * A group is a {@code Seq} rather than a {@code Collector} result, so
-     * the whole of this interface is available to the function, and any
-     * {@code Collector} remains usable as {@code group -> group.collect(...)}.
+     * Groups elements by the mapped key, then maps each group.
+     * The returned map and each group preserve encounter order.
      */
     default <K, V> Map<K, V> groupBy(
             Function<? super E, ? extends K> keyMapper,
@@ -994,6 +999,29 @@ public interface Seq<E> extends Collection<E> {
         requireNonNull(keyMapper);
         requireNonNull(valueMapper);
         return Split.groupBy(spliterator(), keyMapper,
+                valueMapper.compose(Seq::viewOf));
+    }
+
+    /**
+     * Equivalent to
+     * {@link #partitionBy(Predicate, Function) partitionBy(predicate, v -> v)}.
+     */
+    default Map<Boolean, Seq<E>> partitionBy(
+            Predicate<? super E> predicate) {
+        requireNonNull(predicate);
+        return Split.partitionBy(spliterator(), predicate, Seq::viewOf);
+    }
+
+    /**
+     * Partitions elements by the predicate, then maps each partition.
+     * The returned map always contains {@code false} and {@code true}.
+     */
+    default <V> Map<Boolean, V> partitionBy(
+            Predicate<? super E> predicate,
+            Function<? super Seq<E>, ? extends V> valueMapper) {
+        requireNonNull(predicate);
+        requireNonNull(valueMapper);
+        return Split.partitionBy(spliterator(), predicate,
                 valueMapper.compose(Seq::viewOf));
     }
 
