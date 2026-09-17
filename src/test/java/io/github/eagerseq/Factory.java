@@ -16,7 +16,9 @@ interface Factory {
 
     <E> Seq<E> create(E[] elements);
 
-    /** Every factory, as JUnit {@code Parameterized} arguments. */
+    /**
+     * Every factory, as JUnit {@code Parameterized} arguments.
+     */
     static Iterable<Object[]> all() {
         return Seq.of(
                 parameters("DelegatingSeq", TestDelegatingSeq::new),

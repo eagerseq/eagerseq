@@ -40,7 +40,6 @@ import java.util.function.ToLongFunction;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collector;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Collections.reverseOrder;
@@ -52,12 +51,6 @@ final class Split {
 
     private Split() {
     }
-
-    static <E> Stream<E> toStream(SeqStream<E> stream) {
-        return StreamSupport.stream(stream.spliterator(), false);
-    }
-
-    // maybe inline the following conversions
 
     static <E> Spliterator<E> toSpliterator(Iterator<E> iterator) {
         return Spliterators.spliteratorUnknownSize(iterator, 0);
@@ -328,31 +321,68 @@ final class Split {
                 && !spliterator.tryAdvance(e -> {}) ? next : null;
     }
 
-    static <E> Spliterator<E> flatten(
-            Spliterator<? extends Spliterator<? extends E>> spliterators) {
-        return chain(spliterators, ordered(spliterators));
+    static <S, E> Spliterator<E> flatten(
+            Spliterator<? extends S> sources,
+            Function<? super S, ? extends Spliterator<? extends E>> toSpliterator) {
+        return flatten(sources, toSpliterator, ignored -> {}, ignored -> {});
+    }
+
+    static <S, E> Spliterator<E> flatten(
+            Spliterator<? extends S> sources,
+            Function<? super S, ? extends Spliterator<? extends E>> toSpliterator,
+            Consumer<? super S> close,
+            Consumer<Runnable> onClose) {
+        return new UnknownSizeSpliterator<E>(ordered(sources)) {
+            private final Box<S> currentSource = new Box<>();
+            private Spliterator<? extends E> current;
+            private boolean closed;
+            {
+                onClose.accept(() -> {
+                    closed = true;
+                    closeCurrent();
+                });
+            }
+            boolean advance(Consumer<? super E> action) {
+                if (closed) return false;
+                while (current == null || !current.tryAdvance(action)) {
+                    closeCurrent();
+                    if (!sources.tryAdvance(currentSource)) return false;
+                    S source = currentSource.value;
+                    current = source == null
+                            ? null
+                            : toSpliterator.apply(source);
+                }
+                return true;
+            }
+            private void closeCurrent() {
+                S source = currentSource.value;
+                currentSource.value = null;
+                current = null;
+                if (source == null) return;
+                close.accept(source);
+            }
+        };
     }
 
     @SafeVarargs
-    static <E> Spliterator<E> concat(
-            Spliterator<? extends E>... spliterators) {
+    static <S, E> Spliterator<E> concat(
+            Function<? super S, ? extends Spliterator<? extends E>> toSpliterator,
+            S... sources) {
+        @SuppressWarnings("unchecked")
+        Spliterator<? extends E>[] spliterators = new Spliterator[sources.length];
         int c = ORDERED;
-        for (Spliterator<?> s : spliterators) c &= ordered(s);
-        return chain(toSpliterator(spliterators), c);
-    }
-
-    private static <E> Spliterator<E> chain(
-            Spliterator<? extends Spliterator<? extends E>> spliterators,
-            int characteristics) {
-        return new UnknownSizeSpliterator<E>(characteristics) {
-            private final Box<Spliterator<? extends E>> current = new Box<>();
+        for (int i = 0; i < sources.length; i++) {
+            spliterators[i] = toSpliterator.apply(sources[i]);
+            c &= ordered(spliterators[i]);
+        }
+        return new UnknownSizeSpliterator<E>(c) {
+            private int index;
             boolean advance(Consumer<? super E> action) {
-                while (true) {
-                    if (current.value != null
-                            && current.value.tryAdvance(action))
-                        return true;
-                    if (!spliterators.tryAdvance(current)) return false;
+                while (index < spliterators.length) {
+                    if (spliterators[index].tryAdvance(action)) return true;
+                    index++;
                 }
+                return false;
             }
         };
     }
@@ -880,8 +910,25 @@ final class Split {
 
     static <E, R> Spliterator<R> flatMap(
             Spliterator<E> spliterator,
-            Function<? super E, ? extends Spliterator<R>> mapper) {
-        return flatten(map(spliterator, mapper));
+            Function<? super E, ? extends Spliterator<? extends R>> mapper) {
+        return flatMap(spliterator, mapper, value -> value);
+    }
+
+    static <E, S, R> Spliterator<R> flatMap(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends S> mapper,
+            Function<? super S, ? extends Spliterator<? extends R>> toSpliterator) {
+        return flatten(map(spliterator, mapper), toSpliterator);
+    }
+
+    static <E, S, R> Spliterator<R> flatMap(
+            Spliterator<E> spliterator,
+            Function<? super E, ? extends S> mapper,
+            Function<? super S, ? extends Spliterator<? extends R>> toSpliterator,
+            Consumer<? super S> close,
+            Consumer<Runnable> onClose) {
+        return flatten(
+                map(spliterator, mapper), toSpliterator, close, onClose);
     }
 
     static <E, R> Spliterator<R> mapMulti(
@@ -889,17 +936,18 @@ final class Split {
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
         return new UnknownSizeSpliterator<R>(ordered(spliterator)) {
             private final Box<E> next = new Box<>();
-            private ArrayList<R> buffer = new ArrayList<>();
-            private Consumer<R> sink = buffer::add;
+            @SuppressWarnings("unchecked")
+            private R[] buffer = (R[]) ArrayBuilder.EMPTY;
             private int index;
             boolean advance(Consumer<? super R> action) {
-                while (index == buffer.size()) {
-                    buffer.clear();
+                while (index == buffer.length) {
                     index = 0;
                     if (!spliterator.tryAdvance(next)) return false;
-                    mapper.accept(next.value, sink);
+                    ArrayBuilder<R> builder = new ArrayBuilder<>();
+                    mapper.accept(next.value, builder);
+                    buffer = builder.buildArray();
                 }
-                action.accept(buffer.get(index++));
+                action.accept(buffer[index++]);
                 return true;
             }
         };

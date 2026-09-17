@@ -80,7 +80,9 @@ public class ApiShapeTest {
                             .contains(method.getName())
                     // Gatherer does not exist before Java 24, so gather
                     // cannot be declared at all while targeting Java 8
-                    && !method.getName().equals("gather")) {
+                    && !method.getName().equals("gather")
+                    // deliberately returns a plain Stream
+                    && !method.getName().equals("toStream")) {
                 assertThat(method.getName(), method.getReturnType(),
                         equalTo(SeqStream.class));
             }

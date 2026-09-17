@@ -53,7 +53,9 @@ public class SeqReferenceTest {
     private static final List<List<String>> PAIR_INPUTS = inputs(
             MAX_PAIR_LENGTH);
 
-    /** Index expectations depend on lengths, not on the input values. */
+    /**
+     * Index expectations depend on lengths, not on the input values.
+     */
     private static final Map<String, List<List<Integer>>> INDEX_WORDS = new HashMap<>();
     private static final Map<String, List<List<Integer>>> INDEX_PERMUTATIONS = new HashMap<>();
     private static final Map<String, List<List<Integer>>> INDEX_COMBINATIONS = new HashMap<>();
@@ -464,7 +466,9 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** Those elements of the input present in {@code that}, earliest first. */
+    /**
+     * Those elements of the input present in {@code that}, earliest first.
+     */
     private static List<String> referenceIntersection(
             List<String> input, List<String> that) {
         List<String> remaining = new ArrayList<>(that);
@@ -475,7 +479,9 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** Those elements of the input absent from {@code that}, latest first. */
+    /**
+     * Those elements of the input absent from {@code that}, latest first.
+     */
     private static List<String> referenceDifference(
             List<String> input, List<String> that) {
         List<String> result = new ArrayList<>(input);
@@ -483,7 +489,9 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** Index words without repeated indexes, in lexical order. */
+    /**
+     * Index words without repeated indexes, in lexical order.
+     */
     private static List<List<Integer>> indexPermutations(
             int alphabetSize, int size) {
         String key = alphabetSize + ":" + size;
@@ -497,7 +505,9 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** Index words of the given alphabet and size, in lexical order. */
+    /**
+     * Index words of the given alphabet and size, in lexical order.
+     */
     private static List<List<Integer>> indexWords(
             int alphabetSize, int size) {
         String key = alphabetSize + ":" + size;
@@ -521,7 +531,9 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** Strictly increasing index words, in lexical order. */
+    /**
+     * Strictly increasing index words, in lexical order.
+     */
     private static List<List<Integer>> indexCombinations(
             int alphabetSize, int size) {
         String key = alphabetSize + ":" + size;
@@ -560,7 +572,9 @@ public class SeqReferenceTest {
         return result;
     }
 
-    /** Every sequence over {@link #ELEMENTS} up to the given length. */
+    /**
+     * Every sequence over {@link #ELEMENTS} up to the given length.
+     */
     private static List<List<String>> inputs(int maxLength) {
         List<List<String>> result = new ArrayList<>();
         result.add(new ArrayList<>());

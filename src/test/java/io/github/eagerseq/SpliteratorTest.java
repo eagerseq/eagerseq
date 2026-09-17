@@ -74,6 +74,24 @@ public class SpliteratorTest {
     }
 
     @Test
+    public void testScanDoesNotRetryFailedInitialization() {
+        int[] initializations = new int[1];
+        Spliterator<Integer> spliterator = SeqStream.of(0).scan(() -> {
+            initializations[0]++;
+            throw new ClassCastException("first failure");
+        }, Integer::sum).spliterator();
+        assertThat(initializations[0], equalTo(0));
+
+        assertThrows(ClassCastException.class, "first failure",
+                () -> spliterator.tryAdvance(element -> {}));
+        assertThat(initializations[0], equalTo(1));
+        assertThrows(IllegalStateException.class,
+                "deferred computation previously failed",
+                () -> spliterator.tryAdvance(element -> {}));
+        assertThat(initializations[0], equalTo(1));
+    }
+
+    @Test
     public void testCollectionViewRequiresOrder() {
         assertThrows(IllegalArgumentException.class,
                 "collection spliterator was not ORDERED",
@@ -94,7 +112,7 @@ public class SpliteratorTest {
     @Test
     public void testFlatMapUsesOuterOrder() {
         Spliterator<Integer> spliterator = Split.flatMap(
-                ordered(0, 1), ignored -> unordered(2, 3));
+                ordered(0, 1), ignored -> unordered(2, 3), value -> value);
         assertOnlyOrdered(spliterator);
     }
 
@@ -118,8 +136,10 @@ public class SpliteratorTest {
         assertFalse(Split.union(ordered(0), unordered(1))
                 .hasCharacteristics(ORDERED));
 
-        assertOnlyOrdered(Split.concat(ordered(0), ordered(1)));
-        assertFalse(Split.concat(ordered(0), unordered(1))
+        assertOnlyOrdered(Split.concat(value -> value,
+                ordered(0), ordered(1)));
+        assertFalse(Split.concat(value -> value,
+                ordered(0), unordered(1))
                 .hasCharacteristics(ORDERED));
 
         assertFalse(Split.product(
@@ -261,8 +281,8 @@ public class SpliteratorTest {
                 () -> Split.skipLast(source.get(), 1),
                 () -> Split.intersection(source.get(), ordered(0)),
                 () -> Split.difference(source.get(), ordered(2)),
-                () -> Split.flatten(Split.map(
-                        source.get(), SpliteratorTest::ordered)));
+                () -> Split.flatten(
+                        source.get(), SpliteratorTest::ordered));
     }
 
     @SafeVarargs

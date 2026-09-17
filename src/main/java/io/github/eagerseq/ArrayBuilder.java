@@ -21,6 +21,7 @@ class ArrayBuilder<E> implements Consumer<E> {
     private E[] array;
     private int size;
 
+    // Object[] backing: buildArray() must never reach a concrete E[]
     @SuppressWarnings("unchecked")
     ArrayBuilder() {
         this.generator = (IntFunction<E[]>) GENERATOR;

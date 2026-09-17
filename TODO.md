@@ -102,6 +102,19 @@ own internal contracts: deferred suppliers, functions and returned
 spliterators must be non-null, and custom spliterators must reject a null
 `tryAdvance` action.
 
+The source argument of every static factory is rejected eagerly with an
+explicit `requireNonNull`, whether or not the delegate would also reject it.
+Several would: `CollectionSeq` dereferences the collection to check `ORDERED`,
+`Split.concat` resolves each source's spliterator in its own loop, and
+`Spliterators.spliteratorUnknownSize` checks the iterator it wraps. Relying on
+that would make the public null contract depend on an implementation detail of
+the delegate, so `of`, `copyOf` and `viewOf` check their own arguments and the
+redundancy is deliberate. The checks that are load-bearing rather than
+redundant are `viewOf(E[])` and the `SeqStream.viewOf` spliterator overloads,
+which retain the argument without dereferencing it, `generate` at a count of
+zero, which never invokes the supplier, and the `next` operator of `iterate`,
+which is never applied when `hasNext` is false on the first element.
+
 Secondary `Iterable` and `Stream` arguments are likewise checked before the
 receiver's spliterator is obtained. Static `concat` validates every source
 before obtaining any spliterators; its `SeqStream` form then claims all known
@@ -186,8 +199,8 @@ generator. The underlying `Split` algorithms are shared with eager `Seq`, which
 can adopt array results without an additional copy. Failed initialization is
 not retried; a later advance reports that the deferred computation failed.
 
-`product(that, mapper)` still buffers `that` when called. Deferring that work
-would be consistent but remains optional and outside this change.
+`product(that, mapper)` now also defers buffering `that` until the result is
+first traversed. It still claims both streams when called.
 
 ## Settled: consumer sinks
 
@@ -221,19 +234,16 @@ removed the old allocations is unknown.
   it stays out, say so. Jackson is the other half: check what
   `ObjectMapper.writeValueAsString(seq)` does today (probably fine — `Seq` is a
   `Collection`) and whether reading one back needs a module.
-- **The five `BaseStream` methods are unreviewed as a group.**
-  `SeqStream` is single-threaded by design, so `isParallel()` returns
-  `false`, `sequential()` returns `this`, `parallel()` also returns `this`,
-  `unordered()` wraps the spliterator, `onClose` throws and `close()` does
-  nothing. The consequence is that `s.parallel().isParallel()` is `false`,
-  which contradicts `BaseStream.parallel`'s "returns an equivalent stream
-  that is parallel". Options: keep it and document the deviation, make
-  `parallel()` throw `UnsupportedOperationException` like `onClose`, or have
-  it hand back a real parallel `Stream` (which would have to leave
-  `SeqStream`). The `onClose`/`close` pair has the mirror-image question —
-  `close()` silently succeeds while registering a handler fails — and
-  `unordered()` is the only one of the five that does actual work, so
-  it is the only one whose current behaviour is clearly right.
+- **Settled: the five `BaseStream` methods.** Every stage derived from one
+  source now shares a `SeqStream.Pipeline`, implemented by
+  `SeqStreamPipeline`, holding whether the pipeline is closed, its close
+  handlers and its parallel mode, so `onClose`, `close`, `parallel`,
+  `sequential` and `isParallel` all act on the pipeline rather than on a
+  stage. `s.parallel().isParallel()` is `true`, so the flag survives
+  conversion to and from `Stream`, but no spliterator splits and evaluation
+  stays on the calling thread. `unordered()` still wraps the spliterator, and
+  is now an ordinary derived stage of the same pipeline. See
+  `STREAM_SEMANTICS.md`.
 - **`Split`'s dependencies on the rest of the package are unreviewed.**
   `Split` is meant to be the algorithm floor, defined over `Spliterator` and
   arrays, which is why it returns `E[]` and lets `Seq`/`SeqStream` adopt the
@@ -303,8 +313,8 @@ the requested window size up front.
 `scan` obtains its initial accumulator from a supplier, then emits each
 successive accumulation without emitting the seed. Results are not copied.
 The `SeqStream` forms claim their source immediately but defer traversal;
-`scan` invokes its supplier immediately, including for an empty source.
-These operations preserve the source's `ORDERED` flag.
+`scan` invokes its supplier on the first traversal attempt, including for
+an empty source. These operations preserve the source's `ORDERED` flag.
 
 ## Settled: short-circuiting collection
 

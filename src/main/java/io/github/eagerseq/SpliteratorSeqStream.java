@@ -2,24 +2,43 @@ package io.github.eagerseq;
 
 import java.util.Spliterator;
 
-import static java.util.Objects.requireNonNull;
-
 final class SpliteratorSeqStream<E> implements SeqStream<E> {
 
+    private final Pipeline pipeline;
     private Spliterator<E> spliterator;
 
-    @SuppressWarnings("unchecked")
     SpliteratorSeqStream(Spliterator<? extends E> spliterator) {
-        this.spliterator = (Spliterator<E>) requireNonNull(spliterator);
+        this(spliterator, new SeqStreamPipeline());
+    }
+
+    @SuppressWarnings("unchecked")
+    SpliteratorSeqStream(
+            Spliterator<? extends E> spliterator, Pipeline pipeline) {
+        this.pipeline = pipeline;
+        this.spliterator = (Spliterator<E>) spliterator;
+    }
+
+    public Pipeline pipeline() {
+        return pipeline;
     }
 
     public Spliterator<E> spliterator() {
-        Spliterator<E> source = spliterator;
-        if (source == null) {
+        requireUsable();
+        Spliterator<E> result = spliterator;
+        spliterator = null;
+        return result;
+    }
+
+    public SeqStream<E> onClose(Runnable closeHandler) {
+        requireUsable();
+        pipeline.onClose(closeHandler);
+        return this;
+    }
+
+    private void requireUsable() {
+        if (spliterator == null || pipeline.isClosed()) {
             throw new IllegalStateException(
                     "stream has already been operated upon or closed");
         }
-        spliterator = null;
-        return source;
     }
 }

@@ -1,11 +1,7 @@
 package io.github.eagerseq;
 
 /**
- * The extension point for custom {@link Seq} implementations. Implements
- * {@code equals}, {@code hashCode} and {@code toString} so that subclasses
- * only have to implement {@link Seq#spliterator()}.
- *
- * @param <E> the type of elements in this sequence
+ * Implements the value semantics shared by the library's {@link Seq}s.
  */
 public abstract class AbstractSeq<E> implements Seq<E> {
 

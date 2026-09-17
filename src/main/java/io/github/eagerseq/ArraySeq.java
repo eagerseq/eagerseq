@@ -8,6 +8,7 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
 
     private final E[] array;
 
+    // array may be a real E[]: read only, never write or escape as E[]
     @SuppressWarnings("unchecked")
     ArraySeq(Object[] array) {
         this.array = (E[]) array;

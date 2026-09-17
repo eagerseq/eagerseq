@@ -9,14 +9,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Spliterator;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import static io.github.eagerseq.SeqTest.assertThrows;
 import static java.util.function.Function.identity;
@@ -233,19 +236,33 @@ public class SeqStreamTest {
     @Test
     public void testIsParallel() {
         assertFalse(streamOf(0).isParallel());
-        assertFalse(streamOf(0).parallel().isParallel());
+        assertTrue(streamOf(0).parallel().isParallel());
+        assertFalse(streamOf(0).parallel().sequential().isParallel());
+        assertTrue(Seq.of(0).parallelStream().isParallel());
+
+        // the mode belongs to the pipeline, not to a stage boundary
+        SeqStream<Integer> source = streamOf(0);
+        SeqStream<Integer> derived = source.map(identity());
+        derived.parallel();
+        assertTrue(source.isParallel());
+        source.sequential();
+        assertFalse(derived.isParallel());
     }
 
     @Test
     public void testParallel() {
         SeqStream<Integer> stream = streamOf(0);
         assertThat(stream.parallel(), sameInstance(stream));
+        assertTrue(stream.isParallel());
+        // a parallel SeqStream is still evaluated sequentially
+        assertThat(stream.toSeq(), equalTo(Seq.of(0)));
     }
 
     @Test
     public void testSequential() {
-        SeqStream<Integer> stream = streamOf(0);
+        SeqStream<Integer> stream = streamOf(0).parallel();
         assertThat(stream.sequential(), sameInstance(stream));
+        assertFalse(stream.isParallel());
     }
 
     @Test
@@ -258,12 +275,429 @@ public class SeqStreamTest {
 
     @Test
     public void testOnClose() {
-        assertThrows(() -> streamOf().onClose(() -> {}));
+        List<String> closed = new ArrayList<>();
+        SeqStream<Integer> source = streamOf(0, 1);
+        assertThat(source.onClose(() -> closed.add("first")),
+                sameInstance(source));
+        SeqStream<Integer> derived = source.map(identity());
+        assertConsumed(() -> source.onClose(() -> {}));
+        assertThat(derived.onClose(() -> closed.add("second")),
+                sameInstance(derived));
+        assertThat(derived.toSeq(), equalTo(Seq.of(0, 1)));
+        assertTrue(closed.isEmpty());
+        assertConsumed(() -> derived.onClose(() -> {}));
+
+        // handlers belong to the pipeline and run in registration order
+        source.close();
+        assertThat(closed, equalTo(Arrays.asList("first", "second")));
+        derived.close();
+        assertThat(closed, equalTo(Arrays.asList("first", "second")));
+
+        assertNullRejected(() -> streamOf().onClose(null));
+
+        SeqStream<Integer> closedStream = streamOf(0);
+        closedStream.close();
+        assertConsumed(() -> closedStream.onClose(() -> {}));
+        assertConsumed(() -> closedStream.pipeline()
+                .onClose(() -> {}));
     }
 
     @Test
     public void testClose() {
         streamOf().close();
+
+        int[] closes = {0};
+        SeqStream<Integer> stream = streamOf(0).onClose(() -> closes[0]++);
+        stream.close();
+        stream.close();
+        assertThat(closes[0], equalTo(1));
+        assertConsumed(stream::toSeq);
+        assertConsumed(() -> stream.filter(e -> true));
+
+        // closing any stage closes every stage of the same pipeline
+        SeqStream<Integer> source = streamOf(0);
+        int[] pipelineCloses = {0};
+        SeqStream<Integer> derived = source.map(identity())
+                .onClose(() -> pipelineCloses[0]++);
+        source.close();
+        assertConsumed(derived::toSeq);
+        derived.close();
+        assertThat(pipelineCloses[0], equalTo(1));
+
+        // every handler runs; the first exception wins, the rest suppressed
+        RuntimeException first = new RuntimeException("first");
+        RuntimeException second = new RuntimeException("second");
+        int[] third = {0};
+        SeqStream<Integer> failing = streamOf(0)
+                .onClose(() -> {
+                    throw first;
+                })
+                .onClose(() -> {
+                    throw second;
+                })
+                .onClose(() -> third[0]++);
+        try {
+            failing.close();
+            fail("expected RuntimeException");
+        } catch (RuntimeException expected) {
+            assertThat(expected, sameInstance(first));
+            assertArrayEquals(new Throwable[]{second},
+                    expected.getSuppressed());
+        }
+        assertThat(third[0], equalTo(1));
+
+        // Errors and even sneakily thrown checked exceptions behave the same.
+        AssertionError error = new AssertionError("error");
+        Exception checked = new Exception("checked");
+        int[] afterFailures = {0};
+        SeqStream<Integer> failingWithError = streamOf(0)
+                .onClose(() -> {
+                    throw error;
+                })
+                .onClose(() -> SeqStreamTest
+                        .<RuntimeException>throwUnchecked(checked))
+                .onClose(() -> afterFailures[0]++);
+        try {
+            failingWithError.close();
+            fail("expected AssertionError");
+        } catch (AssertionError expected) {
+            assertThat(expected, sameInstance(error));
+            assertArrayEquals(new Throwable[]{checked},
+                    expected.getSuppressed());
+        }
+        assertThat(afterFailures[0], equalTo(1));
+
+        RuntimeException repeated = new RuntimeException("repeated");
+        SeqStream<Integer> failingTwice = streamOf(0)
+                .onClose(() -> {
+                    throw repeated;
+                })
+                .onClose(() -> {
+                    throw repeated;
+                });
+        try {
+            failingTwice.close();
+            fail("expected RuntimeException");
+        } catch (RuntimeException expected) {
+            assertThat(expected, sameInstance(repeated));
+            assertArrayEquals(new Throwable[0], expected.getSuppressed());
+        }
+    }
+
+    @Test
+    public void testPipeline() {
+        int[] closes = {0};
+        SeqStream<Integer> source = SeqStream
+                .viewOf(Arrays.asList(0, 1).spliterator())
+                .onClose(() -> closes[0]++);
+        SeqStream<Integer> derived = source.map(identity());
+        assertThat(derived.pipeline(), sameInstance(source.pipeline()));
+        assertConsumed(() -> source.onClose(() -> {}));
+
+        derived.parallel();
+        assertTrue(source.isParallel());
+        source.close();
+        assertThat(closes[0], equalTo(1));
+        assertConsumed(derived::toSeq);
+    }
+
+    @Test
+    public void testFlattenOwnsItsOuterStream() {
+        List<String> closes = new ArrayList<>();
+        SeqStream<Integer> flattened = SeqStream.flatten(
+                Stream.of(
+                        Stream.of(0, 1)
+                                .onClose(() -> closes.add("first")),
+                        Stream.<Integer>empty()
+                                .onClose(() -> closes.add("empty")))
+                        .onClose(() -> closes.add("outer")));
+        assertFalse(flattened.isParallel());
+        assertThat(flattened.toSeq(), equalTo(Seq.of(0, 1)));
+        assertThat(closes, equalTo(Arrays.asList("first", "empty")));
+        flattened.close();
+        assertThat(closes,
+                equalTo(Arrays.asList("first", "empty", "outer")));
+        flattened.close();
+        assertThat(closes,
+                equalTo(Arrays.asList("first", "empty", "outer")));
+
+        assertTrue(SeqStream
+                .flatten(Stream.of(Stream.of(0)).parallel()).isParallel());
+    }
+
+    @Test
+    public void testFlattenClosesCurrentInnerOnTheNextPullOrClose() {
+        int[] innerCloses = {0};
+        int[] outerCloses = {0};
+        SeqStream<Integer> flattened = SeqStream.flatten(
+                Stream.of(Stream.of(0, 1)
+                        .onClose(() -> innerCloses[0]++))
+                        .onClose(() -> outerCloses[0]++));
+        Spliterator<Integer> cursor = flattened.spliterator();
+
+        assertTrue(cursor.tryAdvance(i -> assertThat(i, equalTo(0))));
+        assertTrue(cursor.tryAdvance(i -> assertThat(i, equalTo(1))));
+        assertThat(innerCloses[0], equalTo(0));
+        assertFalse(cursor.tryAdvance(i -> {}));
+        assertThat(innerCloses[0], equalTo(1));
+        assertThat(outerCloses[0], equalTo(0));
+
+        flattened.close();
+        assertThat(innerCloses[0], equalTo(1));
+        assertThat(outerCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testFlattenCursorIsExhaustedOnceClosed() {
+        int[] innerCloses = {0};
+        int[] laterOpens = {0};
+        SeqStream<Integer> flattened = SeqStream.flatten(Stream.of(
+                Stream.of(0, 1, 2).onClose(() -> innerCloses[0]++),
+                Stream.of(3, 4).peek(i -> laterOpens[0]++)));
+        Spliterator<Integer> cursor = flattened.spliterator();
+
+        assertTrue(cursor.tryAdvance(i -> assertThat(i, equalTo(0))));
+        flattened.close();
+        assertThat(innerCloses[0], equalTo(1));
+
+        // neither the rest of the current inner stream nor any later inner
+        // stream, which nothing could close, is traversed after closing
+        assertFalse(cursor.tryAdvance(i -> fail()));
+        assertThat(laterOpens[0], equalTo(0));
+    }
+
+    @Test
+    public void testFlattenClosesAnInfiniteInnerWhenClosed() {
+        int[] reads = {0};
+        int[] innerCloses = {0};
+        int[] outerCloses = {0};
+        SeqStream<Integer> flattened = SeqStream.flatten(
+                Stream.of(Stream.generate(() -> reads[0]++)
+                        .onClose(() -> innerCloses[0]++))
+                        .onClose(() -> outerCloses[0]++));
+        Spliterator<Integer> cursor = flattened.spliterator();
+
+        assertTrue(cursor.tryAdvance(i -> assertThat(i, equalTo(0))));
+        assertTrue(cursor.tryAdvance(i -> assertThat(i, equalTo(1))));
+        assertThat(reads[0], equalTo(2));
+        assertThat(innerCloses[0], equalTo(0));
+
+        flattened.close();
+        assertThat(innerCloses[0], equalTo(1));
+        assertThat(outerCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testFlattenClosesCurrentInnerAfterTraversalFailureWhenClosed() {
+        RuntimeException traversal = new RuntimeException("traversal");
+        RuntimeException closing = new RuntimeException("closing");
+        int[] outerCloses = {0};
+        SeqStream<Integer> flattened = SeqStream.flatten(
+                Stream.of(Stream.<Integer>generate(() -> {
+                    throw traversal;
+                }).onClose(() -> {
+                    throw closing;
+                }))
+                        .onClose(() -> outerCloses[0]++));
+
+        try {
+            flattened.count();
+            fail("expected traversal failure");
+        } catch (RuntimeException expected) {
+            assertThat(expected, sameInstance(traversal));
+            assertArrayEquals(new Throwable[0], expected.getSuppressed());
+        }
+        try {
+            flattened.close();
+            fail("expected closing failure");
+        } catch (RuntimeException expected) {
+            assertThat(expected, sameInstance(closing));
+        }
+        assertThat(outerCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testFlattenClosesInnerAfterObtainingItsSpliteratorFails() {
+        int[] innerCloses = {0};
+        Stream<Integer> inner = Stream.of(0)
+                .onClose(() -> innerCloses[0]++);
+        inner.spliterator();
+        SeqStream<Integer> flattened = SeqStream.flatten(Stream.of(inner));
+
+        assertThrows(IllegalStateException.class, flattened::count);
+        assertThat(innerCloses[0], equalTo(0));
+        flattened.close();
+        assertThat(innerCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testFlatMapClosesMappedStreams() {
+        List<Integer> closed = new ArrayList<>();
+        assertThat(streamOf(0, 1, 2)
+                .flatMap(i -> i == 1 ? null
+                        : Stream.of(i)
+                                .onClose(() -> closed.add(i)))
+                .toSeq(),
+                equalTo(Seq.of(0, 2)));
+        assertThat(closed, equalTo(Arrays.asList(0, 2)));
+
+        int[] innerCloses = {0};
+        SeqStream<Integer> source = streamOf(0);
+        SeqStream<Integer> flattened = source
+                .flatMap(ignored -> Stream.generate(() -> 1)
+                        .onClose(() -> innerCloses[0]++));
+        assertTrue(flattened.spliterator().tryAdvance(i -> {}));
+        assertThat(innerCloses[0], equalTo(0));
+        source.close();
+        assertThat(innerCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testConcatOwnsItsInputs() {
+        List<String> closed = new ArrayList<>();
+        SeqStream<Integer> concatenated = SeqStream.concat(
+                Stream.of(0).onClose(() -> closed.add("first")),
+                Stream.of(1).onClose(() -> closed.add("second")));
+        assertFalse(concatenated.isParallel());
+        assertThat(concatenated.toSeq(), equalTo(Seq.of(0, 1)));
+        assertTrue(closed.isEmpty());
+        concatenated.close();
+        assertThat(closed, equalTo(Arrays.asList("first", "second")));
+
+        assertTrue(SeqStream
+                .concat(Stream.of(0), Stream.of(1).parallel()).isParallel());
+    }
+
+    @Test
+    public void testViewOfStreamOwnsItsSource() {
+        int[] closes = {0};
+        SeqStream<Integer> view = SeqStream.viewOf(
+                Stream.of(0, 1).onClose(() -> closes[0]++));
+        assertFalse(view.isParallel());
+        assertThat(view.toSeq(), equalTo(Seq.of(0, 1)));
+        assertThat(closes[0], equalTo(0));
+        view.close();
+        assertThat(closes[0], equalTo(1));
+
+        assertTrue(SeqStream.viewOf(Stream.of(0).parallel()).isParallel());
+    }
+
+    @Test
+    public void testToStream() {
+        SeqStream<Integer> source = streamOf(0, 1);
+        Stream<Integer> stream = source.toStream();
+        assertFalse(stream.isParallel());
+        assertThat(stream.collect(Collectors.toList()),
+                equalTo(Arrays.asList(0, 1)));
+        assertConsumed(source::toStream);
+
+        // takes the current parallel mode
+        assertTrue(streamOf(0).parallel().toStream().isParallel());
+
+        // closing the result closes this pipeline
+        int[] closes = {0};
+        SeqStream<Integer> closed = streamOf(0).onClose(() -> closes[0]++);
+        closed.toStream().close();
+        assertThat(closes[0], equalTo(1));
+    }
+
+    @Test
+    public void testCloses() {
+        int[] closes = {0};
+        Stream<Integer> owned = Stream.of(2, 3)
+                .onClose(() -> closes[0]++);
+        SeqStream<Integer> source = streamOf(0, 1);
+        assertThat(source.closes(owned), sameInstance(source));
+        assertThat(source.toSeq(), equalTo(Seq.of(0, 1)));
+        assertThat(closes[0], equalTo(0));
+        source.close();
+        source.close();
+        assertThat(closes[0], equalTo(1));
+
+        SeqStream<Integer> nullArgument = streamOf(0);
+        assertNullRejected(() -> nullArgument.closes(null));
+        assertThat(nullArgument.toSeq(), equalTo(Seq.of(0)));
+
+        SeqStream<Integer> consumed = streamOf(0);
+        consumed.count();
+        assertConsumed(() -> consumed.closes(Stream.empty()));
+    }
+
+    @Test
+    public void testOperationsAdoptTheirStreamArguments() {
+        List<BiConsumer<SeqStream<Integer>, Stream<Integer>>> operations = Arrays
+                .asList(
+                        (source, that) -> source.listEquals(that),
+                        (source, that) -> source.setEquals(that),
+                        (source, that) -> source.multisetEquals(that),
+                        (source, that) -> source.zip(that, Integer::sum),
+                        SeqStream::intersection,
+                        SeqStream::difference,
+                        SeqStream::union,
+                        SeqStream::sum,
+                        (source, that) -> source.containsMultiset(that),
+                        (source, that) -> source.product(that, Integer::sum),
+                        SeqStream::indexesOfSlice,
+                        (source, that) -> source.indexOfSlice(that),
+                        (source, that) -> source.lastIndexOfSlice(that),
+                        (source, that) -> source.containsSlice(that),
+                        (source, that) -> source.startsWith(that),
+                        (source, that) -> source.endsWith(that),
+                        (source, that) -> source.containsAll(that));
+
+        for (BiConsumer<SeqStream<Integer>, Stream<Integer>> operation : operations) {
+            int[] closes = {0};
+            SeqStream<Integer> source = streamOf(0, 1);
+            Stream<Integer> that = Stream.of(0, 1)
+                    .onClose(() -> closes[0]++);
+            operation.accept(source, that);
+            assertThat(closes[0], equalTo(0));
+            source.close();
+            that.close();
+            assertThat(closes[0], equalTo(1));
+        }
+
+        int[] invalidCloses = {0};
+        SeqStream<Integer> invalid = streamOf(0);
+        Stream<Integer> that = Stream.of(1)
+                .onClose(() -> invalidCloses[0]++);
+        assertNullRejected(() -> invalid.zip(that, null));
+        assertThat(invalid.toSeq(), equalTo(Seq.of(0)));
+        invalid.close();
+        assertThat(invalidCloses[0], equalTo(0));
+        that.close();
+        assertThat(invalidCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testProductAndIndexesOfSliceAreLazy() {
+        int[] reads = {0};
+        SeqStream<Integer> product = streamOf(0, 1)
+                .product(streamOf(2, 3).peek(i -> reads[0]++), Integer::sum);
+        assertThat(reads[0], equalTo(0));
+        assertThat(product.toSeq(), equalTo(Seq.of(2, 3, 3, 4)));
+        assertThat(reads[0], equalTo(2));
+
+        reads[0] = 0;
+        SeqStream<Integer> indexes = streamOf(0, 1, 0)
+                .indexesOfSlice(streamOf(1, 0).peek(i -> reads[0]++));
+        assertThat(reads[0], equalTo(0));
+        assertThat(indexes.toSeq(), equalTo(Seq.of(1)));
+        assertThat(reads[0], equalTo(2));
+    }
+
+    @Test
+    public void testPrimitiveStreamsCarryModeAndClose() {
+        int[] closes = {0};
+        IntStream ints = streamOf(0, 1)
+                .onClose(() -> closes[0]++)
+                .parallel()
+                .mapToInt(i -> i);
+        assertTrue(ints.isParallel());
+        assertArrayEquals(new int[]{0, 1}, ints.toArray());
+        assertThat(closes[0], equalTo(0));
+        ints.close();
+        assertThat(closes[0], equalTo(1));
     }
 
     @Test
@@ -393,10 +827,10 @@ public class SeqStreamTest {
             calls[1]++;
             return a + b;
         });
-        assertArrayEquals(new int[]{1, 0}, calls);
+        assertArrayEquals(new int[]{0, 0}, calls);
         assertThrows(IllegalStateException.class, source::spliterator);
         Spliterator<Integer> cursor = result.spliterator();
-        assertArrayEquals(new int[]{1, 0}, calls);
+        assertArrayEquals(new int[]{0, 0}, calls);
         assertThat(SeqStream.viewOf(cursor).limit(3).toSeq(),
                 equalTo(Seq.of(1, 3, 6)));
         assertArrayEquals(new int[]{1, 3}, calls);
@@ -611,8 +1045,15 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testViewOfRejectsNullSpliterator() {
-        assertThrows(() -> SeqStream.viewOf((Spliterator<Object>) null));
+    public void testNullSourceArgumentsAreRejectedByFactories() {
+        assertNullRejected(() -> SeqStream.of((Object[]) null));
+        assertNullRejected(() -> SeqStream.viewOf((Iterator<Object>) null));
+        assertNullRejected(() -> SeqStream.viewOf((Spliterator<Object>) null));
+        assertNullRejected(() -> SeqStream.viewOf(
+                (Spliterator<Object>) null, new SeqStreamPipeline()));
+        assertNullRejected(() -> SeqStream.viewOf(
+                Stream.empty().spliterator(), (SeqStream.Pipeline) null));
+        assertNullRejected(() -> SeqStream.viewOf((Stream<Object>) null));
     }
 
     /**
@@ -772,6 +1213,12 @@ public class SeqStreamTest {
             fail("expected IllegalStateException");
         } catch (IllegalStateException expected) {
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void throwUnchecked(
+            Throwable throwable) throws T {
+        throw (T) throwable;
     }
 
     @SafeVarargs

@@ -8,6 +8,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -107,6 +108,19 @@ public class SeqTest {
         elements[0] = 2;
         assertThat(seq, contains(0, 1));
         assertThrows(() -> Seq.of((Object[]) null));
+    }
+
+    @Test
+    public void testNullSourceArgumentsAreRejectedByFactories() {
+        assertNullRejected(() -> Seq.of((Object[]) null));
+        assertNullRejected(() -> Seq.copyOf((Object[]) null));
+        assertNullRejected(() -> Seq.copyOf((Iterable<Object>) null));
+        assertNullRejected(() -> Seq.copyOf((Optional<Object>) null));
+        assertNullRejected(() -> Seq.copyOf((Iterator<Object>) null));
+        assertNullRejected(() -> Seq.copyOf((Spliterator<Object>) null));
+        assertNullRejected(() -> Seq.copyOf((Stream<Object>) null));
+        assertNullRejected(() -> Seq.viewOf((Object[]) null));
+        assertNullRejected(() -> Seq.viewOf((Collection<Object>) null));
     }
 
     @Test
@@ -229,6 +243,7 @@ public class SeqTest {
         assertThat(Seq.generate(() -> "a", 0), empty());
         assertThat(Seq.generate(() -> null, 2), contains(null, null));
         assertThrows(() -> Seq.generate(null, 1));
+        assertNullRejected(() -> Seq.generate(null, 0));
         assertThrows(IllegalArgumentException.class,
                 () -> Seq.generate(() -> "a", -1));
     }
@@ -248,6 +263,7 @@ public class SeqTest {
         assertThat(applications[0], equalTo(4));
         assertThrows(() -> Seq.iterate(0, null, n -> n));
         assertThrows(() -> Seq.iterate(0, n -> true, null));
+        assertNullRejected(() -> Seq.iterate(0, n -> false, null));
     }
 
     @Test

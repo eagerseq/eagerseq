@@ -30,8 +30,8 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import static io.github.eagerseq.Split.toStream;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -42,6 +42,20 @@ import static java.util.Objects.requireNonNull;
  * {@code slice}, {@code intersection} and {@code zip}. Intermediate operations
  * return {@code SeqStream} so they can be chained and a no-args
  * {@code toSeq()} method converts back to {@code Seq}.
+ *
+ * <p>As in {@code Stream}, close handlers, whether the pipeline is closed
+ * and its parallel mode belong to a whole pipeline rather than to a single
+ * stage, so {@link #onClose}, {@link #close}, {@link #parallel} and
+ * {@link #sequential} affect every stage derived from the same source.
+ * A {@code SeqStream} is always evaluated sequentially; see
+ * {@link #parallel}.
+ *
+ * <p>An operation that takes another {@code Stream} directly, such as
+ * {@link #zip} or {@link #listEquals}, adopts that stream into this pipeline,
+ * which therefore closes it when it is closed. The operation itself does not
+ * close either stream merely because traversal completes. The inner streams
+ * of {@link #flatten} and {@link #flatMap} are temporary traversal resources
+ * and are closed as they are consumed, or when this pipeline is closed.
  */
 public interface SeqStream<E> extends Stream<E> {
 
@@ -67,7 +81,8 @@ public interface SeqStream<E> extends Stream<E> {
     @SafeVarargs
     static <E> SeqStream<E> of(E... elements) {
         return new SpliteratorSeqStream<>(
-                Split.toSpliterator(Arrays.copyOf(elements, elements.length)));
+                Split.toSpliterator(Arrays.copyOf(
+                        requireNonNull(elements), elements.length)));
     }
 
     /**
@@ -82,23 +97,38 @@ public interface SeqStream<E> extends Stream<E> {
      * Returns a {@code SeqStream} containing the given elements.
      */
     static <E> SeqStream<E> viewOf(Iterator<? extends E> iterator) {
-        return new SpliteratorSeqStream<>(Split.toSpliterator(iterator));
+        return new SpliteratorSeqStream<>(
+                Split.toSpliterator(requireNonNull(iterator)));
     }
 
     /**
      * Returns a {@code SeqStream} containing the given elements.
      */
     static <E> SeqStream<E> viewOf(Spliterator<? extends E> spliterator) {
-        return new SpliteratorSeqStream<>(spliterator);
+        return new SpliteratorSeqStream<>(requireNonNull(spliterator));
     }
 
     /**
-     * Returns a {@code SeqStream} containing the given elements.
-     * Note, {@code SeqStream} does not support {@link #close} and will not call
-     * any close handlers of the given {@code Stream}.
+     * Returns a {@code SeqStream} containing the given elements
+     * and using the given shared {@code Pipeline}.
+     */
+    static <E> SeqStream<E> viewOf(
+            Spliterator<? extends E> spliterator, Pipeline pipeline) {
+        requireNonNull(spliterator);
+        requireNonNull(pipeline);
+        return new SpliteratorSeqStream<>(spliterator, pipeline);
+    }
+
+    /**
+     * Returns a {@code SeqStream} containing the given elements. The result
+     * takes its initial parallel mode from {@code stream} and closes
+     * {@code stream} when the result is closed.
      */
     static <E> SeqStream<E> viewOf(Stream<? extends E> stream) {
-        return new SpliteratorSeqStream<>(stream.spliterator());
+        requireNonNull(stream);
+        SeqStream<E> result = viewOf(stream.spliterator());
+        result.closes(stream);
+        return stream.isParallel() ? result.parallel() : result;
     }
 
     /**
@@ -196,42 +226,60 @@ public interface SeqStream<E> extends Stream<E> {
 
     /**
      * Stream equivalent of {@link Seq#concat(Iterable...)}.
+     * As in {@link Stream#concat(Stream, Stream)}, the result is initially
+     * parallel if any input is, and closing it closes every input.
      */
     @SafeVarargs
     static <E> SeqStream<E> concat(
             Stream<? extends E>... streams) {
         requireNonNull(streams);
         Arrays.stream(streams).forEach(Objects::requireNonNull);
-        @SuppressWarnings("unchecked")
-        Spliterator<? extends E>[] spliterators = Arrays.stream(streams)
-                .map(Stream::spliterator)
-                .toArray(Spliterator[]::new);
-        return viewOf(Split.concat(spliterators));
+        SeqStream<E> result = viewOf(
+                Split.concat(Stream::spliterator, streams));
+        Arrays.stream(streams).forEach(result::closes);
+        return Arrays.stream(streams).anyMatch(Stream::isParallel)
+                ? result.parallel()
+                : result;
     }
 
     /**
      * Stream equivalent of {@link Seq#flatten(Iterable)}.
+     * The result takes its initial parallel mode from {@code streams} and
+     * closing it closes {@code streams} and any inner stream still open.
+     * Inner streams are also closed as they are consumed, but closing the
+     * result is the only way to close every inner stream in every case, so
+     * if inner streams hold resources it is enough, and necessary, to close
+     * the result.
      */
     static <E> SeqStream<E> flatten(
             Stream<? extends Stream<? extends E>> streams) {
         requireNonNull(streams);
-        return viewOf(Split.flatten(
-                Split.map(streams.spliterator(),
-                        stream -> stream == null
-                                ? null
-                                : stream.spliterator())));
+        Pipeline pipeline = new SeqStreamPipeline();
+        Spliterator<E> flattened = Split.flatten(
+                streams.spliterator(),
+                Stream::spliterator,
+                Stream::close,
+                pipeline::onClose);
+        SeqStream<E> result = viewOf(flattened, pipeline);
+        result.closes(streams);
+        return streams.isParallel() ? result.parallel() : result;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     Spliterator<E> spliterator();
+
+    /**
+     * Returns the state shared by every stage of this stream pipeline.
+     */
+    Pipeline pipeline();
+
+    SeqStream<E> onClose(Runnable closeHandler);
 
     /**
      * Stream equivalent of {@link Seq#listEquals(Iterable)}.
      */
     default boolean listEquals(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.listEquals(spliterator(), that.spliterator());
     }
 
@@ -240,6 +288,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean setEquals(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.setEquals(spliterator(), that.spliterator());
     }
 
@@ -248,6 +297,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean multisetEquals(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.multisetEquals(spliterator(), that.spliterator());
     }
 
@@ -259,14 +309,16 @@ public interface SeqStream<E> extends Stream<E> {
             BiFunction<? super E, ? super F, ? extends R> mapper) {
         requireNonNull(that);
         requireNonNull(mapper);
-        return viewOf(Split.zip(spliterator(), that.spliterator(), mapper));
+        closes(that);
+        return viewOf(Split.zip(spliterator(), that.spliterator(), mapper),
+                pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#indexes()}.
      */
     default SeqStream<Integer> indexes() {
-        return viewOf(Split.indexes(spliterator()));
+        return viewOf(Split.indexes(spliterator()), pipeline());
     }
 
     /**
@@ -274,7 +326,9 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> intersection(Stream<?> that) {
         requireNonNull(that);
-        return viewOf(Split.intersection(spliterator(), that.spliterator()));
+        closes(that);
+        return viewOf(Split.intersection(spliterator(), that.spliterator()),
+                pipeline());
     }
 
     /**
@@ -282,7 +336,9 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> difference(Stream<?> that) {
         requireNonNull(that);
-        return viewOf(Split.difference(spliterator(), that.spliterator()));
+        closes(that);
+        return viewOf(Split.difference(spliterator(), that.spliterator()),
+                pipeline());
     }
 
     /**
@@ -290,7 +346,9 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> union(Stream<? extends E> that) {
         requireNonNull(that);
-        return viewOf(Split.union(spliterator(), that.spliterator()));
+        closes(that);
+        return viewOf(Split.union(spliterator(), that.spliterator()),
+                pipeline());
     }
 
     /**
@@ -298,7 +356,9 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> sum(Stream<? extends E> that) {
         requireNonNull(that);
-        return viewOf(Split.concat(spliterator(), that.spliterator()));
+        closes(that);
+        return viewOf(Split.concat(Stream::spliterator, this, that),
+                pipeline());
     }
 
     /**
@@ -306,6 +366,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean containsMultiset(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.containsMultiset(spliterator(), that.spliterator());
     }
 
@@ -313,10 +374,10 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#permutations()}.
      */
     default SeqStream<Seq<E>> permutations() {
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.map(Split.defer(
-                () -> Split.<E>permutations(Split.toArray(source)),
-                Split.ordered(source)), Seq::viewOf));
+                () -> Split.<E>permutations(Split.toArray(spliterator)),
+                Split.ordered(spliterator)), Seq::viewOf), pipeline());
     }
 
     /**
@@ -324,20 +385,20 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Seq<E>> permutations(int k) {
         Split.requireNonNegativeArgument("k", k);
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.map(Split.defer(
-                () -> Split.<E>permutations(Split.toArray(source), k),
-                Split.ordered(source)), Seq::viewOf));
+                () -> Split.<E>permutations(Split.toArray(spliterator), k),
+                Split.ordered(spliterator)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#allPermutations()}.
      */
     default SeqStream<Seq<E>> allPermutations() {
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.map(Split.defer(
-                () -> Split.<E>allPermutations(Split.toArray(source)),
-                Split.ordered(source)), Seq::viewOf));
+                () -> Split.<E>allPermutations(Split.toArray(spliterator)),
+                Split.ordered(spliterator)), Seq::viewOf), pipeline());
     }
 
     /**
@@ -345,20 +406,20 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Seq<E>> combinations(int k) {
         Split.requireNonNegativeArgument("k", k);
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.map(Split.defer(
-                () -> Split.<E>combinations(Split.toArray(source), k),
-                Split.ordered(source)), Seq::viewOf));
+                () -> Split.<E>combinations(Split.toArray(spliterator), k),
+                Split.ordered(spliterator)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#allCombinations()}.
      */
     default SeqStream<Seq<E>> allCombinations() {
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.map(Split.defer(
-                () -> Split.<E>allCombinations(Split.toArray(source)),
-                Split.ordered(source)), Seq::viewOf));
+                () -> Split.<E>allCombinations(Split.toArray(spliterator)),
+                Split.ordered(spliterator)), Seq::viewOf), pipeline());
     }
 
     /**
@@ -366,23 +427,29 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Seq<E>> power(int k) {
         Split.requireNonNegativeArgument("k", k);
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.map(Split.defer(
-                () -> Split.<E>power(Split.toArray(source), k),
-                Split.ordered(source)), Seq::viewOf));
+                () -> Split.<E>power(Split.toArray(spliterator), k),
+                Split.ordered(spliterator)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#product(Iterable, BiFunction)}.
-     * The second operand is buffered and must be finite.
+     * The {@code Stream} argument must be finite.
+     * It is buffered when the result is first traversed.
      */
     default <F, R> SeqStream<R> product(
             Stream<? extends F> that,
             BiFunction<? super E, ? super F, ? extends R> mapper) {
         requireNonNull(that);
         requireNonNull(mapper);
-        return viewOf(Split.product(
-                spliterator(), that.toArray(), mapper));
+        closes(that);
+        Spliterator<E> first = spliterator();
+        Spliterator<? extends F> second = that.spliterator();
+        return viewOf(Split.defer(
+                () -> Split.<E, F, R>product(
+                        first, Split.toArray(second), mapper),
+                Split.ordered(first)), pipeline());
     }
 
     /**
@@ -391,15 +458,22 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> slice(int from, int to) {
         Split.requireNonNegativeIndex("from", from);
         Split.requireNonNegativeIndex("to", to);
-        return viewOf(Split.slice(spliterator(), from, to));
+        return viewOf(Split.slice(spliterator(), from, to), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#indexesOfSlice(Iterable)}.
+     * The {@code Stream} argument must be finite.
+     * It is buffered when the result is first traversed.
      */
     default SeqStream<Integer> indexesOfSlice(Stream<?> that) {
         requireNonNull(that);
-        return viewOf(Split.indexesOfSlice(spliterator(), that.spliterator()));
+        closes(that);
+        Spliterator<E> spliterator = spliterator();
+        Spliterator<?> slice = that.spliterator();
+        return viewOf(Split.defer(
+                () -> Split.indexesOfSlice(spliterator, slice),
+                Spliterator.ORDERED), pipeline());
     }
 
     /**
@@ -407,6 +481,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default int indexOfSlice(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.indexOfSlice(spliterator(), that.spliterator());
     }
 
@@ -415,6 +490,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default int lastIndexOfSlice(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.lastIndexOfSlice(spliterator(), that.spliterator());
     }
 
@@ -423,6 +499,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean containsSlice(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.containsSlice(spliterator(), that.spliterator());
     }
 
@@ -431,6 +508,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean startsWith(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.startsWith(spliterator(), that.spliterator());
     }
 
@@ -439,6 +517,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean endsWith(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.endsWith(spliterator(), that.spliterator());
     }
 
@@ -468,27 +547,28 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#indexesOf(Object)}.
      */
     default SeqStream<Integer> indexesOf(Object object) {
-        return viewOf(Split.indexesOf(spliterator(), object));
+        return viewOf(Split.indexesOf(spliterator(), object), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#reversed()}.
      */
     default SeqStream<E> reversed() {
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.defer(
-                () -> Split.toSpliterator(Split.reversed(source)),
-                Split.ordered(source)));
+                () -> Split.toSpliterator(Split.reversed(spliterator)),
+                Split.ordered(spliterator)), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#rotated(int)}.
      */
     default SeqStream<E> rotated(int distance) {
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.defer(
-                () -> Split.toSpliterator(Split.rotated(source, distance)),
-                Split.ordered(source)));
+                () -> Split.toSpliterator(
+                        Split.rotated(spliterator, distance)),
+                Split.ordered(spliterator)), pipeline());
     }
 
     /**
@@ -496,10 +576,11 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> shuffled(Random random) {
         requireNonNull(random);
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.defer(
-                () -> Split.toSpliterator(Split.shuffled(source, random)),
-                Split.ordered(source)));
+                () -> Split.toSpliterator(
+                        Split.shuffled(spliterator, random)),
+                Split.ordered(spliterator)), pipeline());
     }
 
     /**
@@ -536,6 +617,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean containsAll(Stream<?> that) {
         requireNonNull(that);
+        closes(that);
         return Split.containsAll(spliterator(), that.spliterator());
     }
 
@@ -544,7 +626,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> limitLast(long size) {
         Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.limitLast(spliterator(), size));
+        return viewOf(Split.limitLast(spliterator(), size), pipeline());
     }
 
     /**
@@ -552,7 +634,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> skipLast(long size) {
         Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.skipLast(spliterator(), size));
+        return viewOf(Split.skipLast(spliterator(), size), pipeline());
     }
 
     /**
@@ -560,7 +642,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> takeWhile(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return viewOf(Split.takeWhile(spliterator(), predicate));
+        return viewOf(Split.takeWhile(spliterator(), predicate), pipeline());
     }
 
     /**
@@ -568,7 +650,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> dropWhile(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return viewOf(Split.dropWhile(spliterator(), predicate));
+        return viewOf(Split.dropWhile(spliterator(), predicate), pipeline());
     }
 
     /**
@@ -576,7 +658,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> filter(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return viewOf(Split.filter(spliterator(), predicate));
+        return viewOf(Split.filter(spliterator(), predicate), pipeline());
     }
 
     /**
@@ -585,7 +667,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> map(
             Function<? super E, ? extends R> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.map(spliterator(), mapper));
+        return viewOf(Split.map(spliterator(), mapper), pipeline());
     }
 
     /**
@@ -594,7 +676,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> mapIndexed(
             BiFunction<? super Integer, ? super E, ? extends R> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.mapIndexed(spliterator(), mapper));
+        return viewOf(Split.mapIndexed(spliterator(), mapper), pipeline());
     }
 
     /**
@@ -602,7 +684,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default IntStream mapToInt(ToIntFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return toStream(this).mapToInt(mapper);
+        return toStream().mapToInt(mapper);
     }
 
     /**
@@ -610,7 +692,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default LongStream mapToLong(ToLongFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return toStream(this).mapToLong(mapper);
+        return toStream().mapToLong(mapper);
     }
 
     /**
@@ -619,17 +701,26 @@ public interface SeqStream<E> extends Stream<E> {
     default DoubleStream mapToDouble(
             ToDoubleFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return toStream(this).mapToDouble(mapper);
+        return toStream().mapToDouble(mapper);
     }
 
     /**
      * {@inheritDoc}
+     * As with {@link #flatten}, closing this pipeline closes any mapped
+     * stream still open. Mapped streams are also closed as they are
+     * consumed, but closing this pipeline is the only way to close every
+     * mapped stream in every case, so if mapped streams hold resources it
+     * is enough, and necessary, to close this pipeline. This differs from
+     * {@link Stream#flatMap}, which closes each mapped stream itself
+     * whether traversal completes, short-circuits, is abandoned or throws.
      */
     default <R> SeqStream<R> flatMap(
             Function<? super E, ? extends Stream<? extends R>> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.flatMap(spliterator(), mapper.andThen(
-                stream -> stream == null ? null : stream.spliterator())));
+        Pipeline pipeline = pipeline();
+        return viewOf(Split.flatMap(
+                spliterator(), mapper, Stream::spliterator, Stream::close,
+                pipeline::onClose), pipeline);
     }
 
     /**
@@ -638,7 +729,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.mapMulti(spliterator(), mapper));
+        return viewOf(Split.mapMulti(spliterator(), mapper), pipeline());
     }
 
     /**
@@ -647,7 +738,7 @@ public interface SeqStream<E> extends Stream<E> {
     default IntStream flatMapToInt(
             Function<? super E, ? extends IntStream> mapper) {
         requireNonNull(mapper);
-        return toStream(this).flatMapToInt(mapper);
+        return toStream().flatMapToInt(mapper);
     }
 
     /**
@@ -656,7 +747,7 @@ public interface SeqStream<E> extends Stream<E> {
     default LongStream flatMapToLong(
             Function<? super E, ? extends LongStream> mapper) {
         requireNonNull(mapper);
-        return toStream(this).flatMapToLong(mapper);
+        return toStream().flatMapToLong(mapper);
     }
 
     /**
@@ -665,14 +756,14 @@ public interface SeqStream<E> extends Stream<E> {
     default DoubleStream flatMapToDouble(
             Function<? super E, ? extends DoubleStream> mapper) {
         requireNonNull(mapper);
-        return toStream(this).flatMapToDouble(mapper);
+        return toStream().flatMapToDouble(mapper);
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> distinct() {
-        return viewOf(Split.distinct(spliterator()));
+        return viewOf(Split.distinct(spliterator()), pipeline());
     }
 
     /**
@@ -680,7 +771,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> distinctBy(Function<? super E, ?> keyMapper) {
         requireNonNull(keyMapper);
-        return viewOf(Split.distinctBy(spliterator(), keyMapper));
+        return viewOf(Split.distinctBy(spliterator(), keyMapper), pipeline());
     }
 
     /**
@@ -729,10 +820,10 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.defer(
-                () -> Split.toSpliterator(Split.sorted(source)),
-                Spliterator.ORDERED));
+                () -> Split.toSpliterator(Split.sorted(spliterator)),
+                Spliterator.ORDERED), pipeline());
     }
 
     /**
@@ -740,11 +831,11 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
         requireNonNull(comparator);
-        Spliterator<E> source = spliterator();
+        Spliterator<E> spliterator = spliterator();
         return viewOf(Split.defer(
                 () -> Split.toSpliterator(
-                        Split.sorted(source, comparator)),
-                Spliterator.ORDERED));
+                        Split.sorted(spliterator, comparator)),
+                Spliterator.ORDERED), pipeline());
     }
 
     /**
@@ -752,7 +843,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> limit(long size) {
         Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.limit(spliterator(), size));
+        return viewOf(Split.limit(spliterator(), size), pipeline());
     }
 
     /**
@@ -760,7 +851,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> skip(long size) {
         Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.skip(spliterator(), size));
+        return viewOf(Split.skip(spliterator(), size), pipeline());
     }
 
     /**
@@ -837,6 +928,17 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default Seq<E> toSeq() {
         return Seq.copyOf(spliterator());
+    }
+
+    /**
+     * Returns an ordinary {@code Stream} over the same elements, which
+     * supports parallel evaluation unlike this {@code SeqStream}. It takes
+     * this pipeline's current parallel mode and closes this pipeline when
+     * it is closed.
+     */
+    default Stream<E> toStream() {
+        return StreamSupport.stream(spliterator(), isParallel())
+                .onClose(this::close);
     }
 
     /**
@@ -1108,7 +1210,8 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<Seq<E>> windowFixed(int size) {
         Split.requirePositiveArgument("size", size);
         return viewOf(Split.map(
-                Split.windowFixed(spliterator(), size), Seq::viewOf));
+                Split.windowFixed(spliterator(), size), Seq::viewOf),
+                pipeline());
     }
 
     /**
@@ -1117,19 +1220,23 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<Seq<E>> windowSliding(int size) {
         Split.requirePositiveArgument("size", size);
         return viewOf(Split.map(
-                Split.windowSliding(spliterator(), size), Seq::viewOf));
+                Split.windowSliding(spliterator(), size), Seq::viewOf),
+                pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#scan(Supplier, BiFunction)}.
-     * The initial supplier is invoked immediately.
+     * The initial supplier is invoked when the result is first traversed.
      */
     default <R> SeqStream<R> scan(
             Supplier<R> initial,
             BiFunction<? super R, ? super E, ? extends R> scanner) {
         requireNonNull(initial);
         requireNonNull(scanner);
-        return viewOf(Split.scan(spliterator(), initial, scanner));
+        Spliterator<E> spliterator = spliterator();
+        return viewOf(Split.defer(
+                () -> Split.scan(spliterator, initial, scanner),
+                Split.ordered(spliterator)), pipeline());
     }
 
     /**
@@ -1137,7 +1244,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> peek(Consumer<? super E> action) {
         requireNonNull(action);
-        return viewOf(Split.peek(spliterator(), action));
+        return viewOf(Split.peek(spliterator(), action), pipeline());
     }
 
     /**
@@ -1149,53 +1256,83 @@ public interface SeqStream<E> extends Stream<E> {
         return Split.toString(spliterator(), delimiter, prefix, suffix);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     default Iterator<E> iterator() {
         return Spliterators.iterator(spliterator());
     }
 
-    /**
-     * Returns {@code false}.
-     */
     default boolean isParallel() {
-        return false;
+        return pipeline().isParallel();
     }
 
-    /**
-     * Returns {@code this}.
-     */
     default SeqStream<E> sequential() {
+        pipeline().setParallel(false);
         return this;
     }
 
     /**
-     * Returns {@code this}, which is <em>not</em> a parallel {@code Stream}.
+     * Puts this pipeline into parallel mode and returns {@code this}.
+     * {@code SeqStream} intentionally does not implement parallel
+     * evaluation: its own operations always run on the calling thread,
+     * whatever the mode. Parallel mode is tracked so that
+     * {@code isParallel()} is consistent and so that the mode survives
+     * conversion to and from {@code Stream}: {@link #toStream} and the
+     * primitive bridges such as {@link #mapToInt} hand off to an ordinary
+     * {@code Stream} pipeline, which does evaluate in parallel when the
+     * mode is parallel.
      */
     default SeqStream<E> parallel() {
+        pipeline().setParallel(true);
         return this;
     }
 
-    /**
-     * Returns an equivalent unordered {@code SeqStream}.
-     */
     default SeqStream<E> unordered() {
-        return viewOf(Split.unordered(spliterator()));
+        return viewOf(Split.unordered(spliterator()), pipeline());
     }
 
-    /**
-     * Throws {@code UnsupportedOperationException} unconditionally.
-     * See {@link #close}.
-     */
-    default SeqStream<E> onClose(Runnable closeHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@link SeqStream} does not support close. This method does nothing.
-     */
     default void close() {
+        pipeline().close();
+    }
+
+    /**
+     * Registers the given stream to be closed when this pipeline is closed
+     * and returns {@code this}. This method does not traverse or close the
+     * given stream.
+     */
+    default SeqStream<E> closes(Stream<?> stream) {
+        return onClose(stream::close);
+    }
+
+    /**
+     * State shared by all stages of one {@code SeqStream} pipeline. Each
+     * method here is the pipeline-wide operation behind the like-named
+     * {@code SeqStream} method and is documented there.
+     */
+    interface Pipeline {
+
+        /**
+         * See {@link SeqStream#isParallel}.
+         */
+        boolean isParallel();
+
+        /**
+         * See {@link SeqStream#parallel} and {@link SeqStream#sequential}.
+         */
+        void setParallel(boolean parallel);
+
+        /**
+         * Returns whether {@link SeqStream#close} has been called.
+         */
+        boolean isClosed();
+
+        /**
+         * See {@link SeqStream#onClose}.
+         */
+        void onClose(Runnable closeHandler);
+
+        /**
+         * See {@link SeqStream#close}.
+         */
+        void close();
     }
 
     /**

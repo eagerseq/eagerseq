@@ -11,7 +11,9 @@ import static java.util.regex.Pattern.MULTILINE;
 
 public class ReadmeGenerator {
 
-    /** The source file whose class comment README.md is derived from. */
+    /**
+     * The source file whose class comment README.md is derived from.
+     */
     static final Path SOURCE = Paths
             .get("src/main/java/io/github/eagerseq/Seq.java");
     static final Path README = Paths.get("README.md");
@@ -40,30 +42,34 @@ public class ReadmeGenerator {
         System.out.println("Generated " + README);
     }
 
-    /** Returns the full README text, ending with a newline. */
+    /**
+     * Returns the full README text, ending with a newline.
+     */
     public static String generate() throws IOException {
-        String lines = SeqStream.viewOf(Files.lines(SOURCE))
-                .takeWhile(line -> !line.startsWith(" */"))
-                .dropWhile(line -> !line.startsWith(" * "))
-                .toString("\n", "", "");
-        lines = Pattern.compile("^ \\* ?", MULTILINE)
-                .matcher(lines).replaceAll("");
-        lines = Pattern.compile("\\{@code ([^}]+)\\}", MULTILINE)
-                .matcher(lines).replaceAll("`$1`");
-        lines = Pattern.compile("\\{@link ([^} ]+ )?([^}]+)}", MULTILINE)
-                .matcher(lines).replaceAll("`$2`");
-        lines = Pattern.compile("(\\w+)#(\\w+)", MULTILINE)
-                .matcher(lines).replaceAll("$1.$2");
-        lines = Pattern.compile("<p>")
-                .matcher(lines).replaceAll("");
-        lines = Pattern.compile("<h2>(.*)</h2>", MULTILINE)
-                .matcher(lines).replaceAll("## $1");
-        lines = Pattern.compile("^    ", MULTILINE)
-                .matcher(lines).replaceAll("");
-        lines = Pattern.compile("<pre>\\{@code")
-                .matcher(lines).replaceAll("```java");
-        lines = Pattern.compile("}</pre>")
-                .matcher(lines).replaceAll("```");
-        return prefix + lines + "\n";
+        try (SeqStream<String> source = SeqStream.viewOf(Files.lines(SOURCE))) {
+            String lines = source
+                    .takeWhile(line -> !line.startsWith(" */"))
+                    .dropWhile(line -> !line.startsWith(" * "))
+                    .toString("\n", "", "");
+            lines = Pattern.compile("^ \\* ?", MULTILINE)
+                    .matcher(lines).replaceAll("");
+            lines = Pattern.compile("\\{@code ([^}]+)\\}", MULTILINE)
+                    .matcher(lines).replaceAll("`$1`");
+            lines = Pattern.compile("\\{@link ([^} ]+ )?([^}]+)}", MULTILINE)
+                    .matcher(lines).replaceAll("`$2`");
+            lines = Pattern.compile("(\\w+)#(\\w+)", MULTILINE)
+                    .matcher(lines).replaceAll("$1.$2");
+            lines = Pattern.compile("<p>")
+                    .matcher(lines).replaceAll("");
+            lines = Pattern.compile("<h2>(.*)</h2>", MULTILINE)
+                    .matcher(lines).replaceAll("## $1");
+            lines = Pattern.compile("^    ", MULTILINE)
+                    .matcher(lines).replaceAll("");
+            lines = Pattern.compile("<pre>\\{@code")
+                    .matcher(lines).replaceAll("```java");
+            lines = Pattern.compile("}</pre>")
+                    .matcher(lines).replaceAll("```");
+            return prefix + lines + "\n";
+        }
     }
 }
