@@ -5,7 +5,7 @@ import java.util.function.IntFunction;
 
 /**
  * The growable array shared by the {@code Seq} and {@code SeqStream}
- * builders and used directly as a {@code Consumer} sink by {@link Split}.
+ * builders and used directly as a {@code Consumer} sink by {@link Sources}.
  * Knows nothing of {@code Seq} or {@code SeqStream}: subclasses bind
  * {@link #buildArray} to a result type.
  */

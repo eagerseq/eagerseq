@@ -517,7 +517,7 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testFlattenClosesInnerAfterObtainingItsSpliteratorFails() {
+    public void testFlattenClosesInnerAfterObtainingItsSourceFails() {
         int[] innerCloses = {0};
         Stream<Integer> inner = Stream.of(0)
                 .onClose(() -> innerCloses[0]++);
@@ -964,17 +964,17 @@ public class SeqStreamTest {
 
     @Test
     public void testRequireNonNegativeArgument() {
-        Split.requireNonNegativeArgument("size", 0);
-        Split.requireNonNegativeArgument("size", Long.MAX_VALUE);
+        Sources.requireNonNegativeArgument("size", 0);
+        Sources.requireNonNegativeArgument("size", Long.MAX_VALUE);
         try {
-            Split.requireNonNegativeArgument("size", -1);
+            Sources.requireNonNegativeArgument("size", -1);
             fail("expected IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage(),
                     equalTo("size -1 was negative"));
         }
         try {
-            Split.requireNonNegativeArgument("size", Long.MIN_VALUE);
+            Sources.requireNonNegativeArgument("size", Long.MIN_VALUE);
             fail("expected IllegalArgumentException");
         } catch (IllegalArgumentException expected) {
             assertThat(expected.getMessage(),
@@ -984,16 +984,16 @@ public class SeqStreamTest {
 
     @Test
     public void testRequireNonNegativeIndex() {
-        Split.requireNonNegativeIndex("from", 0);
-        Split.requireNonNegativeIndex("from", Integer.MAX_VALUE);
+        Sources.requireNonNegativeIndex("from", 0);
+        Sources.requireNonNegativeIndex("from", Integer.MAX_VALUE);
         try {
-            Split.requireNonNegativeIndex("from", -1);
+            Sources.requireNonNegativeIndex("from", -1);
             fail("expected IndexOutOfBoundsException");
         } catch (IndexOutOfBoundsException expected) {
             assertThat(expected.getMessage(), equalTo("from -1 was negative"));
         }
         try {
-            Split.requireNonNegativeIndex("from", Integer.MIN_VALUE);
+            Sources.requireNonNegativeIndex("from", Integer.MIN_VALUE);
             fail("expected IndexOutOfBoundsException");
         } catch (IndexOutOfBoundsException expected) {
             assertThat(expected.getMessage(),

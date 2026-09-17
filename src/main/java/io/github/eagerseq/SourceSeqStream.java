@@ -1,31 +1,29 @@
 package io.github.eagerseq;
 
-import java.util.Spliterator;
-
-final class SpliteratorSeqStream<E> implements SeqStream<E> {
+final class SourceSeqStream<E> implements SeqStream<E> {
 
     private final Pipeline pipeline;
-    private Spliterator<E> spliterator;
+    private Source<E> source;
 
-    SpliteratorSeqStream(Spliterator<? extends E> spliterator) {
-        this(spliterator, new SeqStreamPipeline());
+    SourceSeqStream(Source<? extends E> source) {
+        this(source, new SeqStreamPipeline());
     }
 
     @SuppressWarnings("unchecked")
-    SpliteratorSeqStream(
-            Spliterator<? extends E> spliterator, Pipeline pipeline) {
+    SourceSeqStream(
+            Source<? extends E> source, Pipeline pipeline) {
         this.pipeline = pipeline;
-        this.spliterator = (Spliterator<E>) spliterator;
+        this.source = (Source<E>) source;
     }
 
     public Pipeline pipeline() {
         return pipeline;
     }
 
-    public Spliterator<E> spliterator() {
+    public Source<E> spliterator() {
         requireUsable();
-        Spliterator<E> result = spliterator;
-        spliterator = null;
+        Source<E> result = source;
+        source = null;
         return result;
     }
 
@@ -36,7 +34,7 @@ final class SpliteratorSeqStream<E> implements SeqStream<E> {
     }
 
     private void requireUsable() {
-        if (spliterator == null || pipeline.isClosed()) {
+        if (source == null || pipeline.isClosed()) {
             throw new IllegalStateException(
                     "stream has already been operated upon or closed");
         }

@@ -63,16 +63,16 @@ public interface SeqStream<E> extends Stream<E> {
      * Returns an empty {@code SeqStream}.
      */
     static <E> SeqStream<E> of() {
-        return new SpliteratorSeqStream<>(
-                Split.toSpliterator(ArrayBuilder.EMPTY));
+        return new SourceSeqStream<>(
+                Sources.toSource(ArrayBuilder.EMPTY));
     }
 
     /**
      * Returns a {@code SeqStream} containing the given element.
      */
     static <E> SeqStream<E> of(E element) {
-        return new SpliteratorSeqStream<>(
-                Split.toSpliterator(new Object[]{element}));
+        return new SourceSeqStream<>(
+                Sources.toSource(new Object[]{element}));
     }
 
     /**
@@ -80,8 +80,8 @@ public interface SeqStream<E> extends Stream<E> {
      */
     @SafeVarargs
     static <E> SeqStream<E> of(E... elements) {
-        return new SpliteratorSeqStream<>(
-                Split.toSpliterator(Arrays.copyOf(
+        return new SourceSeqStream<>(
+                Sources.toSource(Arrays.copyOf(
                         requireNonNull(elements), elements.length)));
     }
 
@@ -97,15 +97,16 @@ public interface SeqStream<E> extends Stream<E> {
      * Returns a {@code SeqStream} containing the given elements.
      */
     static <E> SeqStream<E> viewOf(Iterator<? extends E> iterator) {
-        return new SpliteratorSeqStream<>(
-                Split.toSpliterator(requireNonNull(iterator)));
+        return new SourceSeqStream<>(
+                Sources.toSource(requireNonNull(iterator)));
     }
 
     /**
      * Returns a {@code SeqStream} containing the given elements.
      */
     static <E> SeqStream<E> viewOf(Spliterator<? extends E> spliterator) {
-        return new SpliteratorSeqStream<>(requireNonNull(spliterator));
+        return new SourceSeqStream<>(
+                Sources.toSource(requireNonNull(spliterator)));
     }
 
     /**
@@ -114,9 +115,9 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static <E> SeqStream<E> viewOf(
             Spliterator<? extends E> spliterator, Pipeline pipeline) {
-        requireNonNull(spliterator);
         requireNonNull(pipeline);
-        return new SpliteratorSeqStream<>(spliterator, pipeline);
+        return new SourceSeqStream<>(
+                Sources.toSource(requireNonNull(spliterator)), pipeline);
     }
 
     /**
@@ -142,28 +143,28 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#range(int, int)}.
      */
     static SeqStream<Integer> range(int from, int to) {
-        return viewOf(Split.range(from, to));
+        return viewOf(Sources.range(from, to));
     }
 
     /**
      * Stream equivalent of {@link Seq#range(long, long)}.
      */
     static SeqStream<Long> range(long from, long to) {
-        return viewOf(Split.range(from, to));
+        return viewOf(Sources.range(from, to));
     }
 
     /**
      * Stream equivalent of {@link Seq#rangeClosed(int, int)}.
      */
     static SeqStream<Integer> rangeClosed(int from, int to) {
-        return viewOf(Split.rangeClosed(from, to));
+        return viewOf(Sources.rangeClosed(from, to));
     }
 
     /**
      * Stream equivalent of {@link Seq#rangeClosed(long, long)}.
      */
     static SeqStream<Long> rangeClosed(long from, long to) {
-        return viewOf(Split.rangeClosed(from, to));
+        return viewOf(Sources.rangeClosed(from, to));
     }
 
     /**
@@ -171,15 +172,15 @@ public interface SeqStream<E> extends Stream<E> {
      * element repeated indefinitely.
      */
     static <E> SeqStream<E> repeat(E element) {
-        return viewOf(Split.repeat(element));
+        return viewOf(Sources.repeat(element));
     }
 
     /**
      * Stream equivalent of {@link Seq#repeat(Object, int)}.
      */
     static <E> SeqStream<E> repeat(E element, int count) {
-        Split.requireNonNegativeArgument("count", count);
-        return viewOf(Split.repeat(element, count));
+        Sources.requireNonNegativeArgument("count", count);
+        return viewOf(Sources.repeat(element, count));
     }
 
     /**
@@ -189,7 +190,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     static <E> SeqStream<E> generate(Supplier<? extends E> supplier) {
         requireNonNull(supplier);
-        return viewOf(Split.generate(supplier));
+        return viewOf(Sources.generate(supplier));
     }
 
     /**
@@ -198,8 +199,8 @@ public interface SeqStream<E> extends Stream<E> {
     static <E> SeqStream<E> generate(
             Supplier<? extends E> supplier, int count) {
         requireNonNull(supplier);
-        Split.requireNonNegativeArgument("count", count);
-        return viewOf(Split.generate(supplier, count));
+        Sources.requireNonNegativeArgument("count", count);
+        return viewOf(Sources.generate(supplier, count));
     }
 
     /**
@@ -210,7 +211,7 @@ public interface SeqStream<E> extends Stream<E> {
     static <E> SeqStream<E> iterate(
             E seed, UnaryOperator<E> operator) {
         requireNonNull(operator);
-        return viewOf(Split.iterate(seed, operator));
+        return viewOf(Sources.iterate(seed, operator));
     }
 
     /**
@@ -221,7 +222,7 @@ public interface SeqStream<E> extends Stream<E> {
             E seed, Predicate<? super E> hasNext, UnaryOperator<E> next) {
         requireNonNull(hasNext);
         requireNonNull(next);
-        return viewOf(Split.iterate(seed, hasNext, next));
+        return viewOf(Sources.iterate(seed, hasNext, next));
     }
 
     /**
@@ -235,7 +236,7 @@ public interface SeqStream<E> extends Stream<E> {
         requireNonNull(streams);
         Arrays.stream(streams).forEach(Objects::requireNonNull);
         SeqStream<E> result = viewOf(
-                Split.concat(Stream::spliterator, streams));
+                Sources.concat(Sources::toSource, streams));
         Arrays.stream(streams).forEach(result::closes);
         return Arrays.stream(streams).anyMatch(Stream::isParallel)
                 ? result.parallel()
@@ -255,9 +256,9 @@ public interface SeqStream<E> extends Stream<E> {
             Stream<? extends Stream<? extends E>> streams) {
         requireNonNull(streams);
         Pipeline pipeline = new SeqStreamPipeline();
-        Spliterator<E> flattened = Split.flatten(
-                streams.spliterator(),
-                Stream::spliterator,
+        Source<E> flattened = Sources.flatten(
+                Sources.toSource(streams),
+                Sources::toSource,
                 Stream::close,
                 pipeline::onClose);
         SeqStream<E> result = viewOf(flattened, pipeline);
@@ -265,7 +266,7 @@ public interface SeqStream<E> extends Stream<E> {
         return streams.isParallel() ? result.parallel() : result;
     }
 
-    Spliterator<E> spliterator();
+    Source<E> spliterator();
 
     /**
      * Returns the state shared by every stage of this stream pipeline.
@@ -280,7 +281,7 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean listEquals(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.listEquals(spliterator(), that.spliterator());
+        return Sources.listEquals(spliterator(), that.spliterator());
     }
 
     /**
@@ -289,7 +290,7 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean setEquals(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.setEquals(spliterator(), that.spliterator());
+        return Sources.setEquals(spliterator(), that.spliterator());
     }
 
     /**
@@ -298,7 +299,7 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean multisetEquals(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.multisetEquals(spliterator(), that.spliterator());
+        return Sources.multisetEquals(spliterator(), that.spliterator());
     }
 
     /**
@@ -310,7 +311,7 @@ public interface SeqStream<E> extends Stream<E> {
         requireNonNull(that);
         requireNonNull(mapper);
         closes(that);
-        return viewOf(Split.zip(spliterator(), that.spliterator(), mapper),
+        return viewOf(Sources.zip(spliterator(), that.spliterator(), mapper),
                 pipeline());
     }
 
@@ -318,7 +319,7 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#indexes()}.
      */
     default SeqStream<Integer> indexes() {
-        return viewOf(Split.indexes(spliterator()), pipeline());
+        return viewOf(Sources.indexes(spliterator()), pipeline());
     }
 
     /**
@@ -327,7 +328,7 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> intersection(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return viewOf(Split.intersection(spliterator(), that.spliterator()),
+        return viewOf(Sources.intersection(spliterator(), that.spliterator()),
                 pipeline());
     }
 
@@ -337,7 +338,7 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> difference(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return viewOf(Split.difference(spliterator(), that.spliterator()),
+        return viewOf(Sources.difference(spliterator(), that.spliterator()),
                 pipeline());
     }
 
@@ -347,7 +348,7 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> union(Stream<? extends E> that) {
         requireNonNull(that);
         closes(that);
-        return viewOf(Split.union(spliterator(), that.spliterator()),
+        return viewOf(Sources.union(spliterator(), Sources.toSource(that)),
                 pipeline());
     }
 
@@ -357,7 +358,7 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<E> sum(Stream<? extends E> that) {
         requireNonNull(that);
         closes(that);
-        return viewOf(Split.concat(Stream::spliterator, this, that),
+        return viewOf(Sources.concat(Sources::toSource, this, that),
                 pipeline());
     }
 
@@ -367,70 +368,70 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean containsMultiset(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.containsMultiset(spliterator(), that.spliterator());
+        return Sources.containsMultiset(spliterator(), Sources.toSource(that));
     }
 
     /**
      * Stream equivalent of {@link Seq#permutations()}.
      */
     default SeqStream<Seq<E>> permutations() {
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.map(Split.defer(
-                () -> Split.<E>permutations(Split.toArray(spliterator)),
-                Split.ordered(spliterator)), Seq::viewOf), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.map(Sources.defer(
+                () -> Sources.<E>permutations(Sources.toArray(source)),
+                Sources.ordered(source)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#permutations(int)}.
      */
     default SeqStream<Seq<E>> permutations(int k) {
-        Split.requireNonNegativeArgument("k", k);
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.map(Split.defer(
-                () -> Split.<E>permutations(Split.toArray(spliterator), k),
-                Split.ordered(spliterator)), Seq::viewOf), pipeline());
+        Sources.requireNonNegativeArgument("k", k);
+        Source<E> source = spliterator();
+        return viewOf(Sources.map(Sources.defer(
+                () -> Sources.<E>permutations(Sources.toArray(source), k),
+                Sources.ordered(source)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#allPermutations()}.
      */
     default SeqStream<Seq<E>> allPermutations() {
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.map(Split.defer(
-                () -> Split.<E>allPermutations(Split.toArray(spliterator)),
-                Split.ordered(spliterator)), Seq::viewOf), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.map(Sources.defer(
+                () -> Sources.<E>allPermutations(Sources.toArray(source)),
+                Sources.ordered(source)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#combinations(int)}.
      */
     default SeqStream<Seq<E>> combinations(int k) {
-        Split.requireNonNegativeArgument("k", k);
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.map(Split.defer(
-                () -> Split.<E>combinations(Split.toArray(spliterator), k),
-                Split.ordered(spliterator)), Seq::viewOf), pipeline());
+        Sources.requireNonNegativeArgument("k", k);
+        Source<E> source = spliterator();
+        return viewOf(Sources.map(Sources.defer(
+                () -> Sources.<E>combinations(Sources.toArray(source), k),
+                Sources.ordered(source)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#allCombinations()}.
      */
     default SeqStream<Seq<E>> allCombinations() {
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.map(Split.defer(
-                () -> Split.<E>allCombinations(Split.toArray(spliterator)),
-                Split.ordered(spliterator)), Seq::viewOf), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.map(Sources.defer(
+                () -> Sources.<E>allCombinations(Sources.toArray(source)),
+                Sources.ordered(source)), Seq::viewOf), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#power(int)}.
      */
     default SeqStream<Seq<E>> power(int k) {
-        Split.requireNonNegativeArgument("k", k);
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.map(Split.defer(
-                () -> Split.<E>power(Split.toArray(spliterator), k),
-                Split.ordered(spliterator)), Seq::viewOf), pipeline());
+        Sources.requireNonNegativeArgument("k", k);
+        Source<E> source = spliterator();
+        return viewOf(Sources.map(Sources.defer(
+                () -> Sources.<E>power(Sources.toArray(source), k),
+                Sources.ordered(source)), Seq::viewOf), pipeline());
     }
 
     /**
@@ -444,21 +445,21 @@ public interface SeqStream<E> extends Stream<E> {
         requireNonNull(that);
         requireNonNull(mapper);
         closes(that);
-        Spliterator<E> first = spliterator();
+        Source<E> first = spliterator();
         Spliterator<? extends F> second = that.spliterator();
-        return viewOf(Split.defer(
-                () -> Split.<E, F, R>product(
-                        first, Split.toArray(second), mapper),
-                Split.ordered(first)), pipeline());
+        return viewOf(Sources.defer(
+                () -> Sources.<E, F, R>product(
+                        first, Sources.toArray(second), mapper),
+                Sources.ordered(first)), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#slice(int, int)}.
      */
     default SeqStream<E> slice(int from, int to) {
-        Split.requireNonNegativeIndex("from", from);
-        Split.requireNonNegativeIndex("to", to);
-        return viewOf(Split.slice(spliterator(), from, to), pipeline());
+        Sources.requireNonNegativeIndex("from", from);
+        Sources.requireNonNegativeIndex("to", to);
+        return viewOf(Sources.slice(spliterator(), from, to), pipeline());
     }
 
     /**
@@ -469,10 +470,10 @@ public interface SeqStream<E> extends Stream<E> {
     default SeqStream<Integer> indexesOfSlice(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        Spliterator<E> spliterator = spliterator();
+        Source<E> source = spliterator();
         Spliterator<?> slice = that.spliterator();
-        return viewOf(Split.defer(
-                () -> Split.indexesOfSlice(spliterator, slice),
+        return viewOf(Sources.defer(
+                () -> Sources.indexesOfSlice(source, slice),
                 Spliterator.ORDERED), pipeline());
     }
 
@@ -482,7 +483,7 @@ public interface SeqStream<E> extends Stream<E> {
     default int indexOfSlice(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.indexOfSlice(spliterator(), that.spliterator());
+        return Sources.indexOfSlice(spliterator(), that.spliterator());
     }
 
     /**
@@ -491,7 +492,7 @@ public interface SeqStream<E> extends Stream<E> {
     default int lastIndexOfSlice(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.lastIndexOfSlice(spliterator(), that.spliterator());
+        return Sources.lastIndexOfSlice(spliterator(), that.spliterator());
     }
 
     /**
@@ -500,7 +501,7 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean containsSlice(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.containsSlice(spliterator(), that.spliterator());
+        return Sources.containsSlice(spliterator(), that.spliterator());
     }
 
     /**
@@ -509,7 +510,7 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean startsWith(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.startsWith(spliterator(), that.spliterator());
+        return Sources.startsWith(spliterator(), that.spliterator());
     }
 
     /**
@@ -518,57 +519,57 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean endsWith(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.endsWith(spliterator(), that.spliterator());
+        return Sources.endsWith(spliterator(), that.spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#get(int)}.
      */
     default E get(int index) {
-        Split.requireNonNegativeIndex("index", index);
-        return Split.get(spliterator(), index);
+        Sources.requireNonNegativeIndex("index", index);
+        return Sources.get(spliterator(), index);
     }
 
     /**
      * Stream equivalent of {@link Seq#indexOf(Object)}.
      */
     default int indexOf(Object object) {
-        return Split.indexOf(spliterator(), object);
+        return Sources.indexOf(spliterator(), object);
     }
 
     /**
      * Stream equivalent of {@link Seq#lastIndexOf(Object)}.
      */
     default int lastIndexOf(Object object) {
-        return Split.lastIndexOf(spliterator(), object);
+        return Sources.lastIndexOf(spliterator(), object);
     }
 
     /**
      * Stream equivalent of {@link Seq#indexesOf(Object)}.
      */
     default SeqStream<Integer> indexesOf(Object object) {
-        return viewOf(Split.indexesOf(spliterator(), object), pipeline());
+        return viewOf(Sources.indexesOf(spliterator(), object), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#reversed()}.
      */
     default SeqStream<E> reversed() {
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.defer(
-                () -> Split.toSpliterator(Split.reversed(spliterator)),
-                Split.ordered(spliterator)), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.defer(
+                () -> Sources.toSource(Sources.reversed(source)),
+                Sources.ordered(source)), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#rotated(int)}.
      */
     default SeqStream<E> rotated(int distance) {
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.defer(
-                () -> Split.toSpliterator(
-                        Split.rotated(spliterator, distance)),
-                Split.ordered(spliterator)), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.defer(
+                () -> Sources.toSource(
+                        Sources.rotated(source, distance)),
+                Sources.ordered(source)), pipeline());
     }
 
     /**
@@ -576,11 +577,11 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> shuffled(Random random) {
         requireNonNull(random);
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.defer(
-                () -> Split.toSpliterator(
-                        Split.shuffled(spliterator, random)),
-                Split.ordered(spliterator)), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.defer(
+                () -> Sources.toSource(
+                        Sources.shuffled(source, random)),
+                Sources.ordered(source)), pipeline());
     }
 
     /**
@@ -588,28 +589,28 @@ public interface SeqStream<E> extends Stream<E> {
      * Consider {@link #count()}.
      */
     default int size() {
-        return Split.size(spliterator());
+        return Sources.size(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#isEmpty()}.
      */
     default boolean isEmpty() {
-        return Split.isEmpty(spliterator());
+        return Sources.isEmpty(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#contains(Object)}.
      */
     default boolean contains(Object object) {
-        return Split.contains(spliterator(), object);
+        return Sources.contains(spliterator(), object);
     }
 
     /**
      * Stream equivalent of {@link Seq#toArray(Object[])}.
      */
     default <T> T[] toArray(T[] ts) {
-        return Split.toArray(spliterator(), ts);
+        return Sources.toArray(spliterator(), ts);
     }
 
     /**
@@ -618,23 +619,23 @@ public interface SeqStream<E> extends Stream<E> {
     default boolean containsAll(Stream<?> that) {
         requireNonNull(that);
         closes(that);
-        return Split.containsAll(spliterator(), that.spliterator());
+        return Sources.containsAll(spliterator(), Sources.toSource(that));
     }
 
     /**
      * Stream equivalent of {@link Seq#limitLast(long)}.
      */
     default SeqStream<E> limitLast(long size) {
-        Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.limitLast(spliterator(), size), pipeline());
+        Sources.requireNonNegativeArgument("size", size);
+        return viewOf(Sources.limitLast(spliterator(), size), pipeline());
     }
 
     /**
      * Stream equivalent of {@link Seq#skipLast(long)}.
      */
     default SeqStream<E> skipLast(long size) {
-        Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.skipLast(spliterator(), size), pipeline());
+        Sources.requireNonNegativeArgument("size", size);
+        return viewOf(Sources.skipLast(spliterator(), size), pipeline());
     }
 
     /**
@@ -642,7 +643,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> takeWhile(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return viewOf(Split.takeWhile(spliterator(), predicate), pipeline());
+        return viewOf(Sources.takeWhile(spliterator(), predicate), pipeline());
     }
 
     /**
@@ -650,7 +651,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> dropWhile(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return viewOf(Split.dropWhile(spliterator(), predicate), pipeline());
+        return viewOf(Sources.dropWhile(spliterator(), predicate), pipeline());
     }
 
     /**
@@ -658,7 +659,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> filter(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return viewOf(Split.filter(spliterator(), predicate), pipeline());
+        return viewOf(Sources.filter(spliterator(), predicate), pipeline());
     }
 
     /**
@@ -667,7 +668,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> map(
             Function<? super E, ? extends R> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.map(spliterator(), mapper), pipeline());
+        return viewOf(Sources.map(spliterator(), mapper), pipeline());
     }
 
     /**
@@ -676,7 +677,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> mapIndexed(
             BiFunction<? super Integer, ? super E, ? extends R> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.mapIndexed(spliterator(), mapper), pipeline());
+        return viewOf(Sources.mapIndexed(spliterator(), mapper), pipeline());
     }
 
     /**
@@ -718,8 +719,8 @@ public interface SeqStream<E> extends Stream<E> {
             Function<? super E, ? extends Stream<? extends R>> mapper) {
         requireNonNull(mapper);
         Pipeline pipeline = pipeline();
-        return viewOf(Split.flatMap(
-                spliterator(), mapper, Stream::spliterator, Stream::close,
+        return viewOf(Sources.flatMap(
+                spliterator(), mapper, Sources::toSource, Stream::close,
                 pipeline::onClose), pipeline);
     }
 
@@ -729,7 +730,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <R> SeqStream<R> mapMulti(
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
         requireNonNull(mapper);
-        return viewOf(Split.mapMulti(spliterator(), mapper), pipeline());
+        return viewOf(Sources.mapMulti(spliterator(), mapper), pipeline());
     }
 
     /**
@@ -763,7 +764,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> distinct() {
-        return viewOf(Split.distinct(spliterator()), pipeline());
+        return viewOf(Sources.distinct(spliterator()), pipeline());
     }
 
     /**
@@ -771,7 +772,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> distinctBy(Function<? super E, ?> keyMapper) {
         requireNonNull(keyMapper);
-        return viewOf(Split.distinctBy(spliterator(), keyMapper), pipeline());
+        return viewOf(Sources.distinctBy(spliterator(), keyMapper), pipeline());
     }
 
     /**
@@ -780,7 +781,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <K> Map<K, Seq<E>> groupBy(
             Function<? super E, ? extends K> keyMapper) {
         requireNonNull(keyMapper);
-        return Split.groupBy(spliterator(), keyMapper, Seq::viewOf);
+        return Sources.groupBy(spliterator(), keyMapper, Seq::viewOf);
     }
 
     /**
@@ -791,7 +792,7 @@ public interface SeqStream<E> extends Stream<E> {
             Function<? super Seq<E>, ? extends V> valueMapper) {
         requireNonNull(keyMapper);
         requireNonNull(valueMapper);
-        return Split.groupBy(spliterator(), keyMapper,
+        return Sources.groupBy(spliterator(), keyMapper,
                 valueMapper.compose(Seq::viewOf));
     }
 
@@ -801,7 +802,7 @@ public interface SeqStream<E> extends Stream<E> {
     default Map<Boolean, Seq<E>> partitionBy(
             Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return Split.partitionBy(spliterator(), predicate, Seq::viewOf);
+        return Sources.partitionBy(spliterator(), predicate, Seq::viewOf);
     }
 
     /**
@@ -812,7 +813,7 @@ public interface SeqStream<E> extends Stream<E> {
             Function<? super Seq<E>, ? extends V> valueMapper) {
         requireNonNull(predicate);
         requireNonNull(valueMapper);
-        return Split.partitionBy(spliterator(), predicate,
+        return Sources.partitionBy(spliterator(), predicate,
                 valueMapper.compose(Seq::viewOf));
     }
 
@@ -820,9 +821,9 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> sorted() {
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.defer(
-                () -> Split.toSpliterator(Split.sorted(spliterator)),
+        Source<E> source = spliterator();
+        return viewOf(Sources.defer(
+                () -> Sources.toSource(Sources.sorted(source)),
                 Spliterator.ORDERED), pipeline());
     }
 
@@ -831,10 +832,10 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> sorted(Comparator<? super E> comparator) {
         requireNonNull(comparator);
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.defer(
-                () -> Split.toSpliterator(
-                        Split.sorted(spliterator, comparator)),
+        Source<E> source = spliterator();
+        return viewOf(Sources.defer(
+                () -> Sources.toSource(
+                        Sources.sorted(source, comparator)),
                 Spliterator.ORDERED), pipeline());
     }
 
@@ -842,16 +843,16 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default SeqStream<E> limit(long size) {
-        Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.limit(spliterator(), size), pipeline());
+        Sources.requireNonNegativeArgument("size", size);
+        return viewOf(Sources.limit(spliterator(), size), pipeline());
     }
 
     /**
      * {@inheritDoc}
      */
     default SeqStream<E> skip(long size) {
-        Split.requireNonNegativeArgument("size", size);
-        return viewOf(Split.skip(spliterator(), size), pipeline());
+        Sources.requireNonNegativeArgument("size", size);
+        return viewOf(Sources.skip(spliterator(), size), pipeline());
     }
 
     /**
@@ -874,7 +875,7 @@ public interface SeqStream<E> extends Stream<E> {
      * {@inheritDoc}
      */
     default Object[] toArray() {
-        return Split.toArray(spliterator());
+        return Sources.toArray(spliterator());
     }
 
     /**
@@ -882,7 +883,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <A> A[] toArray(IntFunction<A[]> generator) {
         requireNonNull(generator);
-        return Split.toArray(spliterator(), generator);
+        return Sources.toArray(spliterator(), generator);
     }
 
     /**
@@ -890,7 +891,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default Optional<E> reduce(BinaryOperator<E> accumulator) {
         requireNonNull(accumulator);
-        return Split.reduce(spliterator(), accumulator);
+        return Sources.reduce(spliterator(), accumulator);
     }
 
     /**
@@ -898,7 +899,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default E reduce(E identity, BinaryOperator<E> accumulator) {
         requireNonNull(accumulator);
-        return Split.reduce(spliterator(), identity, accumulator);
+        return Sources.reduce(spliterator(), identity, accumulator);
     }
 
     /**
@@ -908,7 +909,7 @@ public interface SeqStream<E> extends Stream<E> {
             U identity,
             BiFunction<U, ? super E, U> accumulator) {
         requireNonNull(accumulator);
-        return Split.reduce(spliterator(), identity, accumulator);
+        return Sources.reduce(spliterator(), identity, accumulator);
     }
 
     /**
@@ -920,7 +921,7 @@ public interface SeqStream<E> extends Stream<E> {
             BinaryOperator<U> ignored) {
         requireNonNull(accumulator);
         requireNonNull(ignored);
-        return Split.reduce(spliterator(), identity, accumulator);
+        return Sources.reduce(spliterator(), identity, accumulator);
     }
 
     /**
@@ -945,28 +946,28 @@ public interface SeqStream<E> extends Stream<E> {
      * See {@link Seq#toOptional()}.
      */
     default Optional<E> toOptional() {
-        return Split.toOptional(spliterator());
+        return Sources.toOptional(spliterator());
     }
 
     /**
      * See {@link Seq#toList()}.
      */
     default List<E> toList() {
-        return Split.toList(spliterator());
+        return Sources.toList(spliterator());
     }
 
     /**
      * See {@link Seq#toSet()}.
      */
     default Set<E> toSet() {
-        return Split.toSet(spliterator());
+        return Sources.toSet(spliterator());
     }
 
     /**
      * See {@link Seq#toMap()}.
      */
     default Map<E, E> toMap() {
-        return Split.toMap(spliterator());
+        return Sources.toMap(spliterator());
     }
 
     /**
@@ -975,7 +976,7 @@ public interface SeqStream<E> extends Stream<E> {
     default <K> Map<K, E> toMap(
             Function<? super E, ? extends K> keyMapper) {
         requireNonNull(keyMapper);
-        return Split.toMap(spliterator(), keyMapper);
+        return Sources.toMap(spliterator(), keyMapper);
     }
 
     /**
@@ -986,7 +987,7 @@ public interface SeqStream<E> extends Stream<E> {
             Function<? super E, ? extends V> valueMapper) {
         requireNonNull(keyMapper);
         requireNonNull(valueMapper);
-        return Split.toMap(spliterator(), keyMapper, valueMapper);
+        return Sources.toMap(spliterator(), keyMapper, valueMapper);
     }
 
     /**
@@ -999,7 +1000,7 @@ public interface SeqStream<E> extends Stream<E> {
         requireNonNull(keyMapper);
         requireNonNull(valueMapper);
         requireNonNull(mergeFunction);
-        return Split.toMap(
+        return Sources.toMap(
                 spliterator(), keyMapper, valueMapper, mergeFunction);
     }
 
@@ -1011,7 +1012,7 @@ public interface SeqStream<E> extends Stream<E> {
             BiConsumer<U, ? super E> accumulator) {
         requireNonNull(supplier);
         requireNonNull(accumulator);
-        return Split.collect(spliterator(), supplier, accumulator);
+        return Sources.collect(spliterator(), supplier, accumulator);
     }
 
     /**
@@ -1024,7 +1025,7 @@ public interface SeqStream<E> extends Stream<E> {
         requireNonNull(supplier);
         requireNonNull(accumulator);
         requireNonNull(ignored);
-        return Split.collect(spliterator(), supplier, accumulator);
+        return Sources.collect(spliterator(), supplier, accumulator);
     }
 
     /**
@@ -1032,7 +1033,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default <R, A> R collect(Collector<? super E, A, R> collector) {
         requireNonNull(collector);
-        return Split.collect(spliterator(), collector);
+        return Sources.collect(spliterator(), collector);
     }
 
     /**
@@ -1043,7 +1044,7 @@ public interface SeqStream<E> extends Stream<E> {
             BiPredicate<U, ? super E> accumulator) {
         requireNonNull(supplier);
         requireNonNull(accumulator);
-        return Split.collectWhile(spliterator(), supplier, accumulator);
+        return Sources.collectWhile(spliterator(), supplier, accumulator);
     }
 
     /**
@@ -1051,7 +1052,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default int sumOfInt(ToIntFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return Split.sumOfInt(spliterator(), mapper);
+        return Sources.sumOfInt(spliterator(), mapper);
     }
 
     /**
@@ -1059,7 +1060,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default long sumOfLong(ToLongFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return Split.sumOfLong(spliterator(), mapper);
+        return Sources.sumOfLong(spliterator(), mapper);
     }
 
     /**
@@ -1067,7 +1068,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default double sumOfDouble(ToDoubleFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return Split.sumOfDouble(spliterator(), mapper);
+        return Sources.sumOfDouble(spliterator(), mapper);
     }
 
     /**
@@ -1075,7 +1076,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default int productOfInt(ToIntFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return Split.productOfInt(spliterator(), mapper);
+        return Sources.productOfInt(spliterator(), mapper);
     }
 
     /**
@@ -1083,7 +1084,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default long productOfLong(ToLongFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return Split.productOfLong(spliterator(), mapper);
+        return Sources.productOfLong(spliterator(), mapper);
     }
 
     /**
@@ -1091,14 +1092,14 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default double productOfDouble(ToDoubleFunction<? super E> mapper) {
         requireNonNull(mapper);
-        return Split.productOfDouble(spliterator(), mapper);
+        return Sources.productOfDouble(spliterator(), mapper);
     }
 
     /**
      * Stream equivalent of {@link Seq#min()}.
      */
     default Optional<E> min() {
-        return Split.min(spliterator());
+        return Sources.min(spliterator());
     }
 
     /**
@@ -1106,14 +1107,14 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default Optional<E> min(Comparator<? super E> comparator) {
         requireNonNull(comparator);
-        return Split.min(spliterator(), comparator);
+        return Sources.min(spliterator(), comparator);
     }
 
     /**
      * Stream equivalent of {@link Seq#max()}.
      */
     default Optional<E> max() {
-        return Split.max(spliterator());
+        return Sources.max(spliterator());
     }
 
     /**
@@ -1121,14 +1122,14 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default Optional<E> max(Comparator<? super E> comparator) {
         requireNonNull(comparator);
-        return Split.max(spliterator(), comparator);
+        return Sources.max(spliterator(), comparator);
     }
 
     /**
      * {@inheritDoc}
      */
     default long count() {
-        return Split.count(spliterator());
+        return Sources.count(spliterator());
     }
 
     /**
@@ -1136,7 +1137,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean anyMatch(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return Split.anyMatch(spliterator(), predicate);
+        return Sources.anyMatch(spliterator(), predicate);
     }
 
     /**
@@ -1144,7 +1145,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean allMatch(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return Split.allMatch(spliterator(), predicate);
+        return Sources.allMatch(spliterator(), predicate);
     }
 
     /**
@@ -1152,65 +1153,65 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean noneMatch(Predicate<? super E> predicate) {
         requireNonNull(predicate);
-        return Split.noneMatch(spliterator(), predicate);
+        return Sources.noneMatch(spliterator(), predicate);
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> findFirst() {
-        return Split.findFirst(spliterator());
+        return Sources.findFirst(spliterator());
     }
 
     /**
      * {@inheritDoc}
      */
     default Optional<E> findAny() {
-        return Split.findFirst(spliterator());
+        return Sources.findFirst(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#findOnly()}.
      */
     default Optional<E> findOnly() {
-        return Split.findOnly(spliterator());
+        return Sources.findOnly(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#findLast()}.
      */
     default Optional<E> findLast() {
-        return Split.findLast(spliterator());
+        return Sources.findLast(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#getFirst()}.
      */
     default E getFirst() {
-        return Split.getFirst(spliterator());
+        return Sources.getFirst(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#getLast()}.
      */
     default E getLast() {
-        return Split.getLast(spliterator());
+        return Sources.getLast(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#getOnly()}.
      */
     default E getOnly() {
-        return Split.getOnly(spliterator());
+        return Sources.getOnly(spliterator());
     }
 
     /**
      * Stream equivalent of {@link Seq#windowFixed(int)}.
      */
     default SeqStream<Seq<E>> windowFixed(int size) {
-        Split.requirePositiveArgument("size", size);
-        return viewOf(Split.map(
-                Split.windowFixed(spliterator(), size), Seq::viewOf),
+        Sources.requirePositiveArgument("size", size);
+        return viewOf(Sources.map(
+                Sources.windowFixed(spliterator(), size), Seq::viewOf),
                 pipeline());
     }
 
@@ -1218,9 +1219,9 @@ public interface SeqStream<E> extends Stream<E> {
      * Stream equivalent of {@link Seq#windowSliding(int)}.
      */
     default SeqStream<Seq<E>> windowSliding(int size) {
-        Split.requirePositiveArgument("size", size);
-        return viewOf(Split.map(
-                Split.windowSliding(spliterator(), size), Seq::viewOf),
+        Sources.requirePositiveArgument("size", size);
+        return viewOf(Sources.map(
+                Sources.windowSliding(spliterator(), size), Seq::viewOf),
                 pipeline());
     }
 
@@ -1233,10 +1234,10 @@ public interface SeqStream<E> extends Stream<E> {
             BiFunction<? super R, ? super E, ? extends R> scanner) {
         requireNonNull(initial);
         requireNonNull(scanner);
-        Spliterator<E> spliterator = spliterator();
-        return viewOf(Split.defer(
-                () -> Split.scan(spliterator, initial, scanner),
-                Split.ordered(spliterator)), pipeline());
+        Source<E> source = spliterator();
+        return viewOf(Sources.defer(
+                () -> Sources.scan(source, initial, scanner),
+                Sources.ordered(source)), pipeline());
     }
 
     /**
@@ -1244,7 +1245,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> peek(Consumer<? super E> action) {
         requireNonNull(action);
-        return viewOf(Split.peek(spliterator(), action), pipeline());
+        return viewOf(Sources.peek(spliterator(), action), pipeline());
     }
 
     /**
@@ -1253,7 +1254,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default String toString(
             CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
-        return Split.toString(spliterator(), delimiter, prefix, suffix);
+        return Sources.toString(spliterator(), delimiter, prefix, suffix);
     }
 
     default Iterator<E> iterator() {
@@ -1286,7 +1287,7 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     default SeqStream<E> unordered() {
-        return viewOf(Split.unordered(spliterator()), pipeline());
+        return viewOf(Sources.unordered(spliterator()), pipeline());
     }
 
     default void close() {

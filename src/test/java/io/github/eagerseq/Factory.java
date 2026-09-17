@@ -3,7 +3,6 @@ package io.github.eagerseq;
 import java.util.AbstractCollection;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Spliterator;
 import java.util.Spliterators;
 
 import static java.util.Spliterator.ORDERED;
@@ -42,10 +41,12 @@ interface Factory {
                                     public int size() {
                                         return elements.length;
                                     }
-                                    public Spliterator<E> spliterator() {
-                                        return Spliterators
-                                                .spliteratorUnknownSize(
-                                                        iterator(), ORDERED);
+                                    public Source<E> spliterator() {
+                                        return Source
+                                                .viewOf(Spliterators
+                                                        .spliteratorUnknownSize(
+                                                                iterator(),
+                                                                ORDERED));
                                     }
                                 });
                             }
@@ -96,10 +97,7 @@ interface Factory {
     }
 
     class TestDelegatingSeq<E>
-            extends
-                AbstractSeq<E>
-            implements
-                DelegatingSeq<E> {
+            extends AbstractSeq<E> implements DelegatingSeq<E> {
 
         private final E[] elements;
 
@@ -108,8 +106,8 @@ interface Factory {
             this.elements = elements;
         }
 
-        public Spliterator<E> spliterator() {
-            return Arrays.spliterator(elements);
+        public Source<E> spliterator() {
+            return Source.viewOf(Arrays.spliterator(elements));
         }
     }
 
@@ -122,8 +120,8 @@ interface Factory {
             this.elements = elements;
         }
 
-        public Spliterator<E> spliterator() {
-            return Arrays.spliterator(elements);
+        public Source<E> spliterator() {
+            return Source.viewOf(Arrays.spliterator(elements));
         }
     }
 }

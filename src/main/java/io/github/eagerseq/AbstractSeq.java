@@ -1,7 +1,7 @@
 package io.github.eagerseq;
 
 /**
- * Implements the value semantics shared by the library's {@link Seq}s.
+ * Implements the value semantics shared by {@link Seq}s.
  */
 public abstract class AbstractSeq<E> implements Seq<E> {
 
@@ -9,7 +9,7 @@ public abstract class AbstractSeq<E> implements Seq<E> {
      * {@inheritDoc}
      */
     public int hashCode() {
-        return Split.listHash(spliterator());
+        return Sources.listHash(spliterator());
     }
 
     /**
@@ -19,13 +19,13 @@ public abstract class AbstractSeq<E> implements Seq<E> {
         if (object == this) return true;
         if (!(object instanceof Seq)) return false;
         Seq<?> that = (Seq<?>) object;
-        return Split.listEquals(spliterator(), that.spliterator());
+        return Sources.listEquals(spliterator(), that.spliterator());
     }
 
     /**
      * {@inheritDoc}
      */
     public String toString() {
-        return Split.toString(spliterator(), ", ", "[", "]");
+        return Sources.toString(spliterator(), ", ", "[", "]");
     }
 }

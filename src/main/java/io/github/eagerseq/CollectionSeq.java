@@ -1,7 +1,6 @@
 package io.github.eagerseq;
 
 import java.util.Collection;
-import java.util.Spliterator;
 
 import static java.util.Spliterator.ORDERED;
 
@@ -32,7 +31,7 @@ final class CollectionSeq<E> extends AbstractSeq<E> implements Seq<E> {
         return super.count();
     }
 
-    public Spliterator<E> spliterator() {
-        return collection.spliterator();
+    public Source<E> spliterator() {
+        return Sources.toSource(collection);
     }
 }

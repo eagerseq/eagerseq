@@ -96,8 +96,8 @@ does not delegate `count()`: `Collection.size()` clamps above
 
 Public `Seq` and `SeqStream` methods validate functional, count and index
 arguments before obtaining their spliterator, so an invalid intermediate
-operation does not claim a stream. `Split` algorithms assume their caller has
-performed argument validation. The checks that remain in `Split` protect its
+operation does not claim a stream. `Sources` algorithms assume their caller has
+performed argument validation. The checks that remain in `Sources` protect its
 own internal contracts: deferred suppliers, functions and returned
 spliterators must be non-null, and custom spliterators must reject a null
 `tryAdvance` action.
@@ -105,7 +105,7 @@ spliterators must be non-null, and custom spliterators must reject a null
 The source argument of every static factory is rejected eagerly with an
 explicit `requireNonNull`, whether or not the delegate would also reject it.
 Several would: `CollectionSeq` dereferences the collection to check `ORDERED`,
-`Split.concat` resolves each source's spliterator in its own loop, and
+`Sources.concat` resolves each source's spliterator in its own loop, and
 `Spliterators.spliteratorUnknownSize` checks the iterator it wraps. Relying on
 that would make the public null contract depend on an implementation detail of
 the delegate, so `of`, `copyOf` and `viewOf` check their own arguments and the
@@ -167,10 +167,10 @@ merely `generate(() -> e, n)`. Both report `ORDERED`, deviating from
 since every `Seq` reports `ORDERED` and splitting the pair for JDK parity
 would buy nothing.
 
-`Split` holds the algorithms and both interfaces just validate and wrap, as
+`Sources` holds the algorithms and both interfaces just validate and wrap, as
 with `range`. Only `repeat(e)`, `generate(s)` and `iterate(seed, op)` are new
 spliterators; the bounded forms delegate — `repeat(e, n)` and
-`generate(s, n)` through the existing `Split.limit`, which keeps
+`generate(s, n)` through the existing `Sources.limit`, which keeps
 `generate(s, n)` lazy rather than calling the supplier `n` times when the
 factory is called, and `iterate(seed, hasNext, next)` through
 `takeWhile(iterate(seed, next), hasNext)`, which reuses that spliterator's
@@ -192,10 +192,10 @@ and claim the upstream stream when called, but defer reading it until the
 result is traversed. Obtaining the result's `iterator()` or `spliterator()`
 does not read the source; advancing it does.
 
-`Split.defer` implements this by initializing a delegate spliterator on first
+`Sources.defer` implements this by initializing a delegate spliterator on first
 advance. `SeqStream` supplies computations that buffer the input before
 constructing either the transformed array spliterator or combinatorial
-generator. The underlying `Split` algorithms are shared with eager `Seq`, which
+generator. The underlying `Sources` algorithms are shared with eager `Seq`, which
 can adopt array results without an additional copy. Failed initialization is
 not retried; a later advance reports that the deferred computation failed.
 
@@ -216,7 +216,7 @@ sinks pass the builder directly as a consumer; fluent caller-facing uses remain
 partial result in bulk. `Consumer.andThen` therefore joins the builder surface
 and returns `Consumer<E>`, which is accepted.
 
-`Split` does not create capturing consumers at repeated `tryAdvance` pull
+`Sources` does not create capturing consumers at repeated `tryAdvance` pull
 sites. Reference-valued pulls reuse `Box` fields on their returned
 spliterators; the terminal `listEquals` uses two local boxes because it has no
 wrapper object. `zip` uses two typed boxes, `flatten` keeps its current
@@ -244,18 +244,18 @@ removed the old allocations is unknown.
   stays on the calling thread. `unordered()` still wraps the spliterator, and
   is now an ordinary derived stage of the same pipeline. See
   `STREAM_SEMANTICS.md`.
-- **`Split`'s dependencies on the rest of the package are unreviewed.**
-  `Split` is meant to be the algorithm floor, defined over `Spliterator` and
+- **`Sources`'s dependencies on the rest of the package are unreviewed.**
+  `Sources` is meant to be the algorithm floor, defined over `Spliterator` and
   arrays, which is why it returns `E[]` and lets `Seq`/`SeqStream` adopt the
-  result. The `SeqBuilder` half is now settled: every `Split` use called only
+  result. The `SeqBuilder` half is now settled: every `Sources` use called only
   `accept` and `buildArray()`, never `build()`, so the growable array moved
   to a neutral package-private `ArrayBuilder` and `SeqBuilder` shrank to the
-  `Seq`-returning `build()`. `Split` now names `ArrayBuilder` in
+  `Seq`-returning `build()`. `Sources` now names `ArrayBuilder` in
   `emptySpliterator` (via `ArrayBuilder.EMPTY`), both `toArray` overloads,
   the `limitLast`/`skipLast` queues and `groupBy`, none of which mention
   `Seq`. Still open: it remains a second growth policy alongside `ArrayList`,
   which `toList` uses, and no benchmark says the no-copy adoption pays for
-  that — the alternative is still to drop it from `Split` in favour of
+  that — the alternative is still to drop it from `Sources` in favour of
   `ArrayList` and accept a copy per result.
   `toStream` is the separate and clearer problem — it takes a `SeqStream`
   parameter outright, a straight inversion of the layering. It exists only to
@@ -278,7 +278,7 @@ operations use an `int k` consistently.
 - **Indexes throw `IndexOutOfBoundsException`, counts throw
   `IllegalArgumentException`**, and `limit`/`skip` are counts because `Stream`
   says so. Same seam as the width rule, so one fact about the JDK boundary
-  predicts both. `Split.requireNonNegativeIndex` and
+  predicts both. `Sources.requireNonNegativeIndex` and
   `requireNonNegativeArgument` are the two entry points.
 - **Clamp at the top, throw at the bottom.** Not the arbitrary mix it looks
   like: the lower bound is knowable at the call, the upper bound is not
@@ -300,7 +300,7 @@ which is where it is weaker than `get`.
 
 `windowFixed(windowSize)`, `windowSliding(windowSize)` and
 `scan(initial, scanner)` follow the JDK `Gatherers` names and semantics on
-both `Seq` and `SeqStream`, with shared spliterator algorithms in `Split`.
+both `Seq` and `SeqStream`, with shared spliterator algorithms in `Sources`.
 The implementation remains compatible with Java 8.
 
 Windows are reusable `Seq` snapshots. Fixed windows retain a partial final
@@ -319,7 +319,7 @@ an empty source. These operations preserve the source's `ORDERED` flag.
 ## Settled: short-circuiting collection
 
 `collectWhile(supplier, accumulator)` is a terminal on both `Seq` and
-`SeqStream`, implemented in `Split`. It follows the raw-function `collect`
+`SeqStream`, implemented in `Sources`. It follows the raw-function `collect`
 shape with a `BiPredicate` accumulator: `true` requests another element,
 `false` stops without another pull. It returns the supplied state, including
 changes from the stopping invocation. The supplier runs once even on an empty

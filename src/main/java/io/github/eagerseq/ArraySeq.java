@@ -1,7 +1,6 @@
 package io.github.eagerseq;
 
 import java.util.Optional;
-import java.util.Spliterator;
 
 // Directly implement methods needing only a fixed number of array reads.
 final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
@@ -27,26 +26,26 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
     }
 
     public E get(int index) {
-        // explicit checks for exception symmetry with Split.get
-        Split.requireNonNegativeIndex("index", index);
+        // explicit checks for exception symmetry with Sources.get
+        Sources.requireNonNegativeIndex("index", index);
         if (index >= array.length) {
-            throw Split.indexOutOfBounds("index", index, array.length);
+            throw Sources.indexOutOfBounds("index", index, array.length);
         }
         return array[index];
     }
 
     public E getFirst() {
-        if (array.length == 0) throw Split.emptySequence();
+        if (array.length == 0) throw Sources.emptySequence();
         return array[0];
     }
 
     public E getLast() {
-        if (array.length == 0) throw Split.emptySequence();
+        if (array.length == 0) throw Sources.emptySequence();
         return array[array.length - 1];
     }
 
     public E getOnly() {
-        if (array.length != 1) throw Split.notExactlyOne();
+        if (array.length != 1) throw Sources.notExactlyOne();
         return array[0];
     }
 
@@ -67,12 +66,12 @@ final class ArraySeq<E> extends AbstractSeq<E> implements Seq<E> {
     public Optional<E> toOptional() {
         if (array.length == 0) return Optional.empty();
         if (array.length > 1) {
-            throw Split.moreThanOne(array[0], array[1]);
+            throw Sources.moreThanOne(array[0], array[1]);
         }
         return Optional.of(array[0]);
     }
 
-    public Spliterator<E> spliterator() {
-        return Split.toSpliterator(array);
+    public Source<E> spliterator() {
+        return Sources.toSource(array);
     }
 }
