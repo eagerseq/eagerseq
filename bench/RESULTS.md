@@ -15,7 +15,8 @@ numbers are not kept here.
 The push chain is not the problem. When a pipeline is drained with
 `forEach`, the library beats JDK streams at every depth measured. The
 losses are concentrated in three places: terminals that buffer, whole-source
-operations that ignore a sized source, and `count`.
+operations that ignore a sized source, and `count`. The first and third
+have since been addressed.
 
 ## Confirmed divergences
 
@@ -142,6 +143,8 @@ These three share a cause with the terminals: `estimateSize` and the
 
 ## count traverses, and that is a semantic difference too
 
+**Settled since: it now answers from the size, as the JDK does.**
+
 `SeqStream.count` calls `Sources.count`, which traverses and increments.
 The JDK answers from the source size without running the pipeline. The
 140x on `countMapped` is real but it understates the point, because the
@@ -153,9 +156,8 @@ Seq  count=5 mapper called 5 times
 ```
 
 The JDK behaviour is the documented one and is a known trap for callers who
-put side effects in `map`. The library's is arguably the better contract.
-It is worth deciding which one is intended and saying so in the javadoc,
-because right now the difference is undocumented.
+put side effects in `map`. The library's is arguably the better contract,
+but not one worth an undocumented divergence.
 
 ## Smaller, explainable gaps
 
@@ -226,7 +228,7 @@ listed below was tried, measured to make no difference, and reverted.
 
 The size travels through `Spliterator.SIZED` rather than any private
 channel, because `Source` is a `Spliterator` and has to keep its rules.
-`SizedStage` is a `Stage` that pushes exactly one element for each it
+`MappingStage` is a `Stage` that pushes exactly one element for each it
 receives; it reports `SIZED` and `SUBSIZED` from upstream and delegates
 `estimateSize`, so a partly traversed stage reports what remains.
 `map`, `peek`, `mapIndexed` and `scan` are built on it. The distinction
@@ -254,11 +256,11 @@ The `toMap` row measures the single-lookup and presizing changes together;
 it is retained as historical data and does not isolate the current
 single-lookup implementation.
 
-`sorted` and `reversed` improved only part way, and they are what is left
-of the propagation point. Their internal `toArray` is now exact, but they
-publish through a deferred source rather than a `Stage`, so the hint does
-not reach the terminal and its `toList` grows again. Teaching
-`Sources.defer` to carry a hint would finish them.
+`sorted` and `reversed` improved only part way in this run: their internal
+`toArray` was exact, but they publish through a deferred source rather than
+a `Stage`, so the size did not reach the terminal. `Sources.defer` has
+since been given a size parameter, so these rows predate the fix and need
+re-measuring.
 
 `filter` is unchanged, correctly: it is not size preserving, so the size
 stops there.
@@ -274,6 +276,15 @@ between these designs is not possible by construction.
 
 `toSet` was left alone deliberately. See the note in `Sources.toSet`.
 
+## count, size and isEmpty answer from SIZED
+
+`Sources.count` and `Sources.isEmpty` answer from a sized spliterator
+without traversing it, and traverse only where the size is unknown; `size`
+follows `count`. `CollectionSeq` delegates all three to the collection.
+`countMapped` above is stale as a result, and `SourcesTest` now pins the
+behaviour rather than the timing. `Seq` is unaffected, as its intermediates
+are eager.
+
 # Suggested order of work
 
 1. Presize from `estimateSize` when the source reports `SIZED`, in
@@ -287,5 +298,5 @@ between these designs is not possible by construction.
    would pay across `concat`, `zip`, `flatMap` and every foreign-stream
    entry point at once.
 
-Items 1 and 4 are done, and part of 3's groundwork with them. Items 2 and
-the SIZED propagation that would finish `sorted` and `reversed` are not.
+Items 1, 3 and 4 are done, as is the SIZED propagation through
+`Sources.defer` that finishes `sorted` and `reversed`. Item 2 is not.

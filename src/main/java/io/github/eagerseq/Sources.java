@@ -289,6 +289,8 @@ final class Sources {
     }
 
     static long count(Spliterator<?> spliterator) {
+        long size = exactSizeLong(spliterator);
+        if (size >= 0) return size;
         long[] count = new long[1];
         spliterator.forEachRemaining(e -> count[0]++);
         return count[0];
@@ -300,6 +302,8 @@ final class Sources {
     }
 
     static boolean isEmpty(Source<?> source) {
+        long size = exactSizeLong(source);
+        if (size >= 0) return size == 0;
         return source.forEachWhile(e -> false);
     }
 

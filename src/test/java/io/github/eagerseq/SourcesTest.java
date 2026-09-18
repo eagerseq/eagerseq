@@ -417,19 +417,67 @@ public class SourcesTest {
     }
 
     /**
-     * Counting traverses rather than answering from the reported size, so
-     * a source that under-reports is still counted correctly. This is the
-     * one place the library is deliberately stricter than the JDK, which
-     * answers a sized count without running the pipeline at all.
-     *
-     * <p>This test will probably be deleted. Matching the JDK is the least
-     * surprising behaviour, and refusing to trust a reported size here
-     * while trusting it for capacity is not a coherent position to hold.
+     * Counting answers from the reported size without traversing, so a
+     * source that under-reports is counted wrongly. That is the source
+     * breaking the {@code SIZED} contract, which requires an exact
+     * {@code estimateSize}.
      */
     @Test
-    public void testCountTraversesRatherThanTrustingReportedSize() {
+    public void testCountTrustsReportedSizeRatherThanTraversing() {
         assertThat(Sources.count(Source.viewOf(lyingSized(1))),
+                equalTo(1L));
+        assertThat(Sources.count(Source.viewOf(lyingSized(5))),
+                equalTo(5L));
+    }
+
+    /** An unsized source has no size to answer from, so it is traversed. */
+    @Test
+    public void testCountTraversesAnUnsizedSource() {
+        assertThat(Sources.count(Sources.toSource(
+                Spliterators.spliteratorUnknownSize(
+                        Arrays.asList(1, 2, 3).iterator(), ORDERED))),
                 equalTo(3L));
+    }
+
+    /** Emptiness is answered from the reported size, as counting is. */
+    @Test
+    public void testIsEmptyTrustsReportedSize() {
+        assertTrue(Sources.isEmpty(Source.viewOf(lyingSized(0))));
+        assertFalse(Sources.isEmpty(Source.viewOf(lyingSized(1))));
+        assertTrue(Sources.isEmpty(Sources.toSource(
+                Spliterators.spliteratorUnknownSize(
+                        new ArrayList<Integer>().iterator(), ORDERED))));
+        assertFalse(Sources.isEmpty(Sources.toSource(
+                Spliterators.spliteratorUnknownSize(
+                        Arrays.asList(1).iterator(), ORDERED))));
+    }
+
+    /**
+     * A size-preserving stage reports the upstream size, so counting a
+     * pipeline of them over a sized source runs none of them and their
+     * side effects do not happen, as for {@code Stream.count}.
+     */
+    @Test
+    public void testCountDoesNotRunSizePreservingStages() {
+        int[] calls = new int[1];
+        assertThat(SeqStream.of(1, 2, 3)
+                .peek(e -> calls[0]++)
+                .map(e -> e * 2)
+                .count(), equalTo(3L));
+        assertEquals(0, calls[0]);
+        assertTrue(SeqStream.<Integer>of().peek(e -> calls[0]++).isEmpty());
+        assertEquals(0, calls[0]);
+    }
+
+    /** A stage that may drop elements reports no size, so it is run. */
+    @Test
+    public void testCountRunsStagesThatMayDropElements() {
+        int[] calls = new int[1];
+        assertThat(SeqStream.of(1, 2, 3)
+                .peek(e -> calls[0]++)
+                .filter(e -> e > 1)
+                .count(), equalTo(2L));
+        assertEquals(3, calls[0]);
     }
 
     /** Reports {@code reported} elements but yields three. */

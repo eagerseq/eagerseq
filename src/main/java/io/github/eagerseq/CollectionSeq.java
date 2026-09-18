@@ -26,9 +26,7 @@ final class CollectionSeq<E> extends AbstractSeq<E> implements Seq<E> {
     }
 
     public long count() {
-        // Collection.size() clamps values above Integer.MAX_VALUE, while
-        // count() returns an exact long, so retain the traversing default.
-        return super.count();
+        return collection.size();
     }
 
     public Source<E> spliterator() {
