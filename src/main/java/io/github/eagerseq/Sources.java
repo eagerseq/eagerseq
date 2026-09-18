@@ -41,6 +41,7 @@ import java.util.stream.StreamSupport;
 import static java.util.Collections.reverseOrder;
 import static java.util.Objects.requireNonNull;
 import static java.util.Spliterator.ORDERED;
+import static java.util.Spliterator.SIZED;
 import static java.util.function.Function.identity;
 
 final class Sources {
@@ -88,6 +89,20 @@ final class Sources {
     static <E> Source<E> defer(
             Supplier<Source<E>> supplier,
             int characteristics) {
+        return defer(supplier, characteristics, -1);
+    }
+
+    /**
+     * A deferred source that will hold exactly {@code size} elements, or
+     * {@code -1} where that is not known. A whole-source operation that
+     * rearranges rather than selects, such as sorting or reversing, knows
+     * its count from its input before it runs, and saying so lets the
+     * collecting terminal downstream allocate once.
+     */
+    static <E> Source<E> defer(
+            Supplier<Source<E>> supplier,
+            int characteristics,
+            long size) {
         requireNonNull(supplier);
         return new AbstractSource<E>(characteristics) {
             private Supplier<Source<E>> pending = supplier;
@@ -106,6 +121,16 @@ final class Sources {
                 }
                 return delegate.forEachWhile(sink);
             }
+
+            public int characteristics() {
+                int characteristics = super.characteristics();
+                return size < 0 ? characteristics : characteristics | SIZED;
+            }
+
+            public long estimateSize() {
+                if (delegate != null) return delegate.estimateSize();
+                return size < 0 ? super.estimateSize() : size;
+            }
         };
     }
 
@@ -122,8 +147,34 @@ final class Sources {
         return new ArraySource<>(ArrayBuilder.EMPTY, 0, 0, characteristics);
     }
 
-    // the JDK stream allocates exactly for a SIZED source, as ArrayBuilder
-    // does not
+    /**
+     * The element count of a sized spliterator as an {@code int} array
+     * length, or {@code -1} where it is unknown or too large to allocate.
+     * Named apart from {@code Spliterator.getExactSizeWhenKnown}, which
+     * postdates the release target and returns a {@code long} with
+     * {@code -1} meaning unknown only. Collecting
+     * into a container that starts at this size allocates once instead of
+     * growing and copying, which is the difference between about one and
+     * about three allocated references per element.
+     */
+    static int exactSizeInt(Spliterator<?> spliterator) {
+        long size = exactSizeLong(spliterator);
+        return size >= 0 && size <= ArrayBuilder.MAX_LENGTH ? (int) size : -1;
+    }
+
+    /**
+     * The element count of a sized spliterator, or {@code -1} where it is
+     * unknown. This is {@code Spliterator.getExactSizeWhenKnown}, which
+     * postdates the release target, and is named apart from it for that
+     * reason. Use {@link #exactSizeInt} for an array or table capacity,
+     * which must also fit an {@code int}.
+     */
+    static long exactSizeLong(Spliterator<?> spliterator) {
+        return spliterator.hasCharacteristics(SIZED)
+                ? spliterator.estimateSize()
+                : -1;
+    }
+
     static Object[] toArray(Iterable<?> iterable) {
         return StreamSupport.stream(iterable.spliterator(), false).toArray();
     }
@@ -134,7 +185,8 @@ final class Sources {
     }
 
     static Object[] toArray(Spliterator<?> spliterator) {
-        ArrayBuilder<Object> builder = new ArrayBuilder<>();
+        ArrayBuilder<Object> builder = new ArrayBuilder<>(
+                exactSizeInt(spliterator));
         spliterator.forEachRemaining(builder);
         return builder.buildArray();
     }
@@ -142,7 +194,8 @@ final class Sources {
     @SuppressWarnings("unchecked")
     public static <E, A> A[] toArray(
             Spliterator<E> spliterator, IntFunction<A[]> generator) {
-        ArrayBuilder<A> builder = new ArrayBuilder<>(generator);
+        ArrayBuilder<A> builder = new ArrayBuilder<>(
+                generator, exactSizeInt(spliterator));
         spliterator.forEachRemaining((ArrayBuilder<E>) builder);
         return builder.buildArray();
     }
@@ -161,7 +214,8 @@ final class Sources {
     }
 
     static <E> List<E> toList(Spliterator<E> spliterator) {
-        List<E> list = new ArrayList<>();
+        int size = exactSizeInt(spliterator);
+        List<E> list = size < 0 ? new ArrayList<>() : new ArrayList<>(size);
         spliterator.forEachRemaining(list::add);
         return Collections.unmodifiableList(list);
     }
@@ -193,23 +247,22 @@ final class Sources {
             Spliterator<E> spliterator,
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper,
-            BinaryOperator<V> mergeFunction) {
-        // null is an internal duplicate-key sentinel for private use only
+            BinaryOperator<V> merger) {
         Map<K, V> map = new LinkedHashMap<>();
         spliterator.forEachRemaining(e -> {
             K key = keyMapper.apply(e);
             V value = valueMapper.apply(e);
-            if (map.containsKey(key)) {
-                V present = map.get(key);
-                if (mergeFunction == null) {
+            int before = map.size();
+            V present = map.put(key, value);
+            if (map.size() == before) {
+                if (merger == null) {
                     throw new IllegalStateException(String.format(
                             "duplicate key %s "
                                     + "(attempted merging values %s and %s)",
                             key, present, value));
                 }
-                value = mergeFunction.apply(present, value);
+                map.put(key, merger.apply(present, value));
             }
-            map.put(key, value);
         });
         return Collections.unmodifiableMap(map);
     }
@@ -899,9 +952,9 @@ final class Sources {
     static <E, R> Source<R> map(
             Source<E> source,
             Function<? super E, ? extends R> mapper) {
-        return new Stage<E, R>(source) {
-            public boolean push(E e) {
-                return down.push(mapper.apply(e));
+        return new MappingStage<E, R>(source) {
+            R map(E e) {
+                return mapper.apply(e);
             }
         };
     }
@@ -909,10 +962,10 @@ final class Sources {
     static <E, R> Source<R> mapIndexed(
             Source<E> source,
             BiFunction<? super Integer, ? super E, ? extends R> mapper) {
-        return new Stage<E, R>(source) {
+        return new MappingStage<E, R>(source) {
             private long index;
-            public boolean push(E e) {
-                return down.push(mapper.apply(Math.toIntExact(index++), e));
+            R map(E e) {
+                return mapper.apply(Math.toIntExact(index++), e);
             }
         };
     }
@@ -1273,11 +1326,11 @@ final class Sources {
     static <E, R> Source<R> scan(
             Source<E> source, Supplier<R> initial,
             BiFunction<? super R, ? super E, ? extends R> scanner) {
-        return new Stage<E, R>(source) {
+        return new MappingStage<E, R>(source) {
             private R accumulated = initial.get();
-            public boolean push(E e) {
+            R map(E e) {
                 accumulated = scanner.apply(accumulated, e);
-                return down.push(accumulated);
+                return accumulated;
             }
         };
     }
@@ -1285,10 +1338,10 @@ final class Sources {
     static <E> Source<E> peek(
             Source<E> source,
             Consumer<? super E> peeker) {
-        return new Stage<E, E>(source) {
-            public boolean push(E e) {
+        return new MappingStage<E, E>(source) {
+            E map(E e) {
                 peeker.accept(e);
-                return down.push(e);
+                return e;
             }
         };
     }

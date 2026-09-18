@@ -558,7 +558,8 @@ public interface SeqStream<E> extends Stream<E> {
         Source<E> source = spliterator();
         return viewOf(Sources.defer(
                 () -> Sources.toSource(Sources.reversed(source)),
-                Sources.ordered(source)), pipeline());
+                Sources.ordered(source), Sources.exactSizeLong(source)),
+                pipeline());
     }
 
     /**
@@ -569,7 +570,8 @@ public interface SeqStream<E> extends Stream<E> {
         return viewOf(Sources.defer(
                 () -> Sources.toSource(
                         Sources.rotated(source, distance)),
-                Sources.ordered(source)), pipeline());
+                Sources.ordered(source), Sources.exactSizeLong(source)),
+                pipeline());
     }
 
     /**
@@ -581,7 +583,8 @@ public interface SeqStream<E> extends Stream<E> {
         return viewOf(Sources.defer(
                 () -> Sources.toSource(
                         Sources.shuffled(source, random)),
-                Sources.ordered(source)), pipeline());
+                Sources.ordered(source), Sources.exactSizeLong(source)),
+                pipeline());
     }
 
     /**
@@ -824,7 +827,8 @@ public interface SeqStream<E> extends Stream<E> {
         Source<E> source = spliterator();
         return viewOf(Sources.defer(
                 () -> Sources.toSource(Sources.sorted(source)),
-                Spliterator.ORDERED), pipeline());
+                Spliterator.ORDERED, Sources.exactSizeLong(source)),
+                pipeline());
     }
 
     /**
@@ -836,7 +840,8 @@ public interface SeqStream<E> extends Stream<E> {
         return viewOf(Sources.defer(
                 () -> Sources.toSource(
                         Sources.sorted(source, comparator)),
-                Spliterator.ORDERED), pipeline());
+                Spliterator.ORDERED, Sources.exactSizeLong(source)),
+                pipeline());
     }
 
     /**
@@ -996,12 +1001,12 @@ public interface SeqStream<E> extends Stream<E> {
     default <K, V> Map<K, V> toMap(
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper,
-            BinaryOperator<V> mergeFunction) {
+            BinaryOperator<V> merger) {
         requireNonNull(keyMapper);
         requireNonNull(valueMapper);
-        requireNonNull(mergeFunction);
+        requireNonNull(merger);
         return Sources.toMap(
-                spliterator(), keyMapper, valueMapper, mergeFunction);
+                spliterator(), keyMapper, valueMapper, merger);
     }
 
     /**
@@ -1237,7 +1242,8 @@ public interface SeqStream<E> extends Stream<E> {
         Source<E> source = spliterator();
         return viewOf(Sources.defer(
                 () -> Sources.scan(source, initial, scanner),
-                Sources.ordered(source)), pipeline());
+                Sources.ordered(source), Sources.exactSizeLong(source)),
+                pipeline());
     }
 
     /**

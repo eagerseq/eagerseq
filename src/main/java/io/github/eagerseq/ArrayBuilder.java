@@ -14,7 +14,7 @@ class ArrayBuilder<E> implements Consumer<E> {
     static final Object[] EMPTY = {};
 
     private static final IntFunction<?> GENERATOR = Object[]::new;
-    private static final int MAX_LENGTH = Integer.MAX_VALUE - 8;
+    static final int MAX_LENGTH = Integer.MAX_VALUE - 8;
     private static final int MAX_UNCAPPED_LENGTH = (MAX_LENGTH - 4) / 2;
 
     private final IntFunction<E[]> generator;
@@ -22,15 +22,29 @@ class ArrayBuilder<E> implements Consumer<E> {
     private int size;
 
     // Object[] backing: buildArray() must never reach a concrete E[]
-    @SuppressWarnings("unchecked")
     ArrayBuilder() {
+        this(-1);
+    }
+
+    /**
+     * A builder that starts at {@code capacity}, which a negative value
+     * leaves unspecified. Given the eventual size, the build allocates once
+     * and {@link #buildArray} hands back that same array uncopied; the
+     * capacity is a hint either way, as the builder still grows past it.
+     */
+    @SuppressWarnings("unchecked")
+    ArrayBuilder(int capacity) {
         this.generator = (IntFunction<E[]>) GENERATOR;
-        this.array = (E[]) EMPTY;
+        this.array = capacity > 0 ? (E[]) new Object[capacity] : (E[]) EMPTY;
     }
 
     ArrayBuilder(IntFunction<E[]> generator) {
+        this(generator, -1);
+    }
+
+    ArrayBuilder(IntFunction<E[]> generator, int capacity) {
         this.generator = generator;
-        this.array = generator.apply(0);
+        this.array = generator.apply(Math.max(capacity, 0));
     }
 
     static int nextLength(int length) {

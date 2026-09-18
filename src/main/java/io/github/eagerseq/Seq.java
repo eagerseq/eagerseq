@@ -507,12 +507,12 @@ public interface Seq<E> extends Collection<E> {
     default <K, V> Map<K, V> toMap(
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper,
-            BinaryOperator<V> mergeFunction) {
+            BinaryOperator<V> merger) {
         requireNonNull(keyMapper);
         requireNonNull(valueMapper);
-        requireNonNull(mergeFunction);
+        requireNonNull(merger);
         return Sources.toMap(
-                spliterator(), keyMapper, valueMapper, mergeFunction);
+                spliterator(), keyMapper, valueMapper, merger);
     }
 
     /**

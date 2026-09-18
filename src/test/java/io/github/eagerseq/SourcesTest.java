@@ -6,10 +6,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -34,6 +36,150 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class SourcesTest {
+
+    /**
+     * Traverses the source counting what it pushes and checks that against
+     * the size it reported beforehand. A stage that reports SIZED while
+     * dropping or adding elements breaks the spliterator contract for
+     * every consumer downstream, so it is worth pinning directly.
+     */
+    private static void assertReportedSizeMatchesPushes(
+            Source<?> source, int expectedHint) {
+        // the characteristic itself, not just the count derived from it:
+        // a source claiming SIZED with an unknown estimate would otherwise
+        // slip through, because the derived count rejects a huge estimate
+        assertEquals(expectedHint >= 0, source.hasCharacteristics(SIZED));
+        assertEquals(expectedHint, Sources.exactSizeInt(source));
+        int[] pushed = {0};
+        source.forEachWhile(e -> {
+            pushed[0]++;
+            return true;
+        });
+        if (expectedHint >= 0) {
+            assertEquals(pushed[0], expectedHint);
+        }
+    }
+
+    private static Source<Integer> threeElementSource() {
+        return Sources.toSource(Seq.of(0, 1, 2).spliterator());
+    }
+
+    @Test
+    public void testSizedIsReportedThroughSizePreservingStages() {
+        assertReportedSizeMatchesPushes(threeElementSource(), 3);
+        // a partly traversed stage reports what is left, not what it held
+        Source<Integer> partly = Sources.map(threeElementSource(), x -> x);
+        partly.tryAdvance(x -> {});
+        assertTrue(partly.hasCharacteristics(SIZED));
+        assertEquals(2, partly.estimateSize());
+        // SUBSIZED governs what a split's children report, which only
+        // matters under parallel traversal and is deliberately not claimed
+        assertFalse(partly.hasCharacteristics(SUBSIZED));
+        assertReportedSizeMatchesPushes(
+                Sources.map(threeElementSource(), x -> x + 1), 3);
+        assertReportedSizeMatchesPushes(
+                Sources.peek(threeElementSource(), x -> {}), 3);
+        assertReportedSizeMatchesPushes(
+                Sources.mapIndexed(threeElementSource(), (i, x) -> x), 3);
+        assertReportedSizeMatchesPushes(
+                Sources.scan(threeElementSource(), () -> 0, Integer::sum), 3);
+        assertReportedSizeMatchesPushes(
+                Sources.map(Sources.peek(
+                        Sources.map(threeElementSource(), x -> x + 1),
+                        x -> {}), x -> x + 1),
+                3);
+    }
+
+    @Test
+    public void testSizedIsNotReportedThroughStagesThatChangeSize() {
+        assertReportedSizeMatchesPushes(
+                Sources.filter(threeElementSource(), x -> true), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.distinct(threeElementSource()), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.takeWhile(threeElementSource(), x -> true), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.dropWhile(threeElementSource(), x -> false), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.limit(threeElementSource(), 2), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.skip(threeElementSource(), 1), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.limitLast(threeElementSource(), 2), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.skipLast(threeElementSource(), 1), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.flatMap(threeElementSource(),
+                        x -> Sources.toSource(new Object[]{x})),
+                -1);
+        assertReportedSizeMatchesPushes(
+                Sources.mapMulti(threeElementSource(),
+                        (x, consumer) -> consumer.accept(x)),
+                -1);
+        assertReportedSizeMatchesPushes(
+                Sources.windowFixed(threeElementSource(), 3), -1);
+        assertReportedSizeMatchesPushes(
+                Sources.windowSliding(threeElementSource(), 3), -1);
+        // a size-preserving stage over one that is not stays unknown
+        assertReportedSizeMatchesPushes(
+                Sources.map(Sources.filter(
+                        threeElementSource(), x -> true), x -> x),
+                -1);
+    }
+
+    private static SeqStream<Integer> threeElementStream() {
+        return SeqStream.of(0, 1, 2);
+    }
+
+    /**
+     * The whole-source operations that rearrange rather than select know
+     * their count from their input before they run, and report it through
+     * a deferred source rather than a stage.
+     */
+    @Test
+    public void testSizedIsReportedThroughDeferredRearrangements() {
+        assertReportedSizeMatchesPushes(
+                threeElementStream().sorted().spliterator(), 3);
+        assertReportedSizeMatchesPushes(
+                threeElementStream().sorted(Comparator.reverseOrder())
+                        .spliterator(),
+                3);
+        assertReportedSizeMatchesPushes(
+                threeElementStream().reversed().spliterator(), 3);
+        assertReportedSizeMatchesPushes(
+                threeElementStream().rotated(1).spliterator(), 3);
+        assertReportedSizeMatchesPushes(
+                threeElementStream().shuffled(new Random(0)).spliterator(), 3);
+        assertReportedSizeMatchesPushes(
+                threeElementStream().scan(() -> 0, Integer::sum).spliterator(),
+                3);
+
+        // once running, the count comes from the computed result, so a
+        // partly traversed one reports what is left
+        Source<Integer> sorted = threeElementStream().sorted().spliterator();
+        sorted.tryAdvance(x -> {});
+        assertEquals(2, sorted.estimateSize());
+        assertFalse(sorted.hasCharacteristics(SUBSIZED));
+    }
+
+    @Test
+    public void testDeferredRearrangementOfUnsizedSourceReportsNoSize() {
+        assertReportedSizeMatchesPushes(
+                SeqStream.viewOf(Spliterators.spliteratorUnknownSize(
+                        Arrays.asList(0, 1, 2).iterator(), ORDERED))
+                        .sorted().spliterator(),
+                -1);
+    }
+
+    @Test
+    public void testSizedIsNotReportedForAnUnsizedSource() {
+        assertReportedSizeMatchesPushes(
+                Sources.map(
+                        Sources.toSource(Spliterators.spliteratorUnknownSize(
+                                Arrays.asList(0, 1, 2).iterator(), ORDERED)),
+                        x -> x),
+                -1);
+    }
 
     @Test
     public void testArrayBackedSeqIsOrderedAndSized() {
@@ -205,7 +351,10 @@ public class SourcesTest {
                         : operation == 1 ? source.windowSliding(2)
                                 : source.scan(() -> 0, Integer::sum))
                         .spliterator();
-                assertThat(cursor.characteristics(),
+                // the size bits are exempt: scan preserves the element
+                // count and reports it, which testSizedIsReported... pins
+                assertThat(cursor.characteristics()
+                        & ~(Spliterator.SIZED | Spliterator.SUBSIZED),
                         equalTo(ordered ? Spliterator.ORDERED : 0));
                 assertThrows(NullPointerException.class,
                         () -> cursor.tryAdvance(null));
@@ -250,16 +399,43 @@ public class SourcesTest {
         assertThat(actual, contains(elements));
     }
 
+    /**
+     * Collecting presizes its buffer from the reported size, so that size
+     * is a capacity hint and never the result. A source reporting one
+     * count and yielding another must still give every element it yields
+     * and no more: the buffer grows past a capacity that was too small and
+     * is trimmed when it was too large.
+     */
     @Test
-    public void testReportedSizeIsNotTrustedForResults() {
-        assertThat(Sources.count(Source.viewOf(lyingSized())),
-                equalTo(3L));
-        assertThat(Seq.copyOf(lyingSized()), contains(0, 1, 2));
+    public void testReportedSizeIsOnlyACapacityHintWhenCollecting() {
+        assertThat(Seq.copyOf(lyingSized(1)), contains(0, 1, 2));
+        assertThat(Seq.copyOf(lyingSized(5)), contains(0, 1, 2));
+        assertThat(SeqStream.viewOf(lyingSized(1)).toList(),
+                contains(0, 1, 2));
+        assertThat(SeqStream.viewOf(lyingSized(5)).toList(),
+                contains(0, 1, 2));
     }
 
-    private static Spliterator<Integer> lyingSized() {
+    /**
+     * Counting traverses rather than answering from the reported size, so
+     * a source that under-reports is still counted correctly. This is the
+     * one place the library is deliberately stricter than the JDK, which
+     * answers a sized count without running the pipeline at all.
+     *
+     * <p>This test will probably be deleted. Matching the JDK is the least
+     * surprising behaviour, and refusing to trust a reported size here
+     * while trusting it for capacity is not a coherent position to hold.
+     */
+    @Test
+    public void testCountTraversesRatherThanTrustingReportedSize() {
+        assertThat(Sources.count(Source.viewOf(lyingSized(1))),
+                equalTo(3L));
+    }
+
+    /** Reports {@code reported} elements but yields three. */
+    private static Spliterator<Integer> lyingSized(int reported) {
         return new Spliterators.AbstractSpliterator<Integer>(
-                1, SIZED) {
+                reported, SIZED) {
             private int next;
             public boolean tryAdvance(Consumer<? super Integer> action) {
                 if (next == 3) return false;
@@ -307,7 +483,10 @@ public class SourcesTest {
     }
 
     private static void assertOnlyOrdered(Spliterator<?> spliterator) {
-        assertThat(spliterator.characteristics(), equalTo(ORDERED));
+        // the size bits are exempt and asserted separately: a stage that
+        // preserves the element count reports them from its source
+        assertThat(spliterator.characteristics() & ~(SIZED | SUBSIZED),
+                equalTo(ORDERED));
     }
 
     private static final Integer[][] INNER = {{}, {1}, {2, 3}, {4, 5, 6}};

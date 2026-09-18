@@ -67,8 +67,8 @@ public interface DelegatingSeq<E> extends Seq<E> {
     default <K, V> Map<K, V> toMap(
             Function<? super E, ? extends K> keyMapper,
             Function<? super E, ? extends V> valueMapper,
-            BinaryOperator<V> mergeFunction) {
-        return stream().toMap(keyMapper, valueMapper, mergeFunction);
+            BinaryOperator<V> merger) {
+        return stream().toMap(keyMapper, valueMapper, merger);
     }
 
     default boolean listEquals(Iterable<?> that) {

@@ -331,6 +331,68 @@ lambdas and method references. Uses include accumulating until a state-dependent
 condition is met, or retaining a count and value to find the second element of
 a `SeqStream`. This does not imply a family of specialized search terminals.
 
+## Settled: no `forEachWhile` or `reduceWhile`; `gather` deferred
+
+Adding `Source.forEachWhile` raised whether the push primitive deserves public
+counterparts alongside `collectWhile`. It does not, or not yet.
+
+`forEachWhile(predicate)` is rejected outright: it is `allMatch` under another
+name — same signature, same semantics, same one-line body. The argument for a
+separate name was that `Stream.allMatch` promises only that it "may not
+evaluate the predicate on all elements", too weak to drive side effects. But
+our `allMatch` is sequential and ordered and stops at the first `false`, so
+that guarantee is ours to document on `allMatch` itself.
+`takeWhile(p).forEach(a)` remains the spelling when the condition and the
+action are separate.
+
+`reduceWhile` is rejected on shape. Java 8 has no carrier for "new value plus
+continue", so a fused accumulator would need a public `Step<R>` type, and
+`Optional<R>`-as-stop would discard the stopping value that `collectWhile`
+deliberately keeps. A predicate over the element is just
+`takeWhile(p).reduce(...)`. That leaves a predicate over the accumulator,
+`reduceWhile(identity, accumulator, continueWhile)`, which is not redundant but
+is a three-argument method covering ground `collectWhile` already reaches with
+a mutable container, and that `scan(...).takeWhile(p).findLast()` reaches for
+immutable values, modulo the stopping accumulation and an `Optional` result.
+
+`gather` is deferred rather than rejected. It is the one genuinely new
+ability: stateful, one-to-many and cancellable together, which nothing else
+provides — `mapMulti` is stateless, `scan` is one-to-one, `collectWhile` is
+terminal. The machinery already exists internally, since `Sink` is
+`Gatherer.Downstream` and `Stage.push` is `Gatherer.Integrator`, with
+`combiner()` unnecessary because traversal is sequential.
+
+Four shapes were weighed: explicit state with a new three-argument interface,
+mirroring `collectWhile`'s supplier; a call-site closure over a plain
+`BiPredicate`, which silently corrupts if the lambda is hoisted and reused; a
+per-traversal supplier of closures, which has nowhere to put a finisher; and a
+per-traversal supplier of a two-method object, which drops a type variable but
+cannot be a lambda. The first is the best of them. A finisher overload is
+required rather than optional, because `window` and `limitLast` emit after the
+upstream is exhausted and an integrator is never called there. A generic
+`gather` must also track whether the downstream ever returned `false`, so that
+a user integrator returning `false` to mean "I am done" is reported as
+exhaustion rather than cancellation; `limit`, `takeWhile` and `zip` each need
+that fixup by hand today.
+
+Two reasons not to ship it now. Naming does not cohere: `gather` invites
+`Integrator` and `Downstream`, but `Sink` is already the right name and
+already public on `Source.forEachWhile`, leaving a two-thirds match that sets
+up a correspondence and breaks it at the one place a reader would lean on it.
+Take the whole JDK vocabulary or none of it. Second, `Source` and `Sink` are
+public only as parameter and return types; nothing outside the package
+implements them, so the resumption obligation, the exhausted-versus-cancelled
+return encoding and the characteristics defaults are all still ours to change.
+A public `gather` would fix the `Sink` half of that permanently, immediately
+after the traversal model was rewritten, with no user demand behind it.
+
+The escape hatch, if one is ever needed, is
+`transform(Function<Source<E>, Source<R>>)`: two lines on each interface, no
+new types, and strictly more powerful, since `Source` has a single abstract
+method and is already lambda-compatible. It is deliberately not offered
+either, because it hands users all of those invariants at once and freezes the
+whole protocol rather than just `Sink`.
+
 ## API gaps
 
 Each forces users back into the `Stream` verbosity `Seq` exists to remove.
