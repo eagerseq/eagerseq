@@ -633,6 +633,8 @@ public class SeqStreamTest {
                         (source, that) -> source.zip(that, Integer::sum),
                         SeqStream::intersection,
                         SeqStream::difference,
+                        SeqStream::symmetricDifference,
+                        (source, that) -> source.disjoint(that),
                         SeqStream::union,
                         SeqStream::sum,
                         (source, that) -> source.containsMultiset(that),
@@ -670,20 +672,31 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testProductAndIndexesOfSliceAreLazy() {
-        int[] reads = {0};
-        SeqStream<Integer> product = streamOf(0, 1)
-                .product(streamOf(2, 3).peek(i -> reads[0]++), Integer::sum);
-        assertThat(reads[0], equalTo(0));
-        assertThat(product.toSeq(), equalTo(Seq.of(2, 3, 3, 4)));
-        assertThat(reads[0], equalTo(2));
-
-        reads[0] = 0;
-        SeqStream<Integer> indexes = streamOf(0, 1, 0)
-                .indexesOfSlice(streamOf(1, 0).peek(i -> reads[0]++));
-        assertThat(reads[0], equalTo(0));
-        assertThat(indexes.toSeq(), equalTo(Seq.of(1)));
-        assertThat(reads[0], equalTo(2));
+    public void testOperationsDeferTheirStreamArguments() {
+        List<BiFunction<SeqStream<Integer>, Stream<Integer>, SeqStream<?>>> operations = Arrays
+                .asList(
+                        (source, that) -> source.product(that, Integer::sum),
+                        SeqStream::indexesOfSlice,
+                        SeqStream::intersection,
+                        SeqStream::difference,
+                        SeqStream::symmetricDifference);
+        for (BiFunction<SeqStream<Integer>, Stream<Integer>, SeqStream<?>> operation : operations) {
+            for (Function<SeqStream<?>, BooleanSupplier> cursorFactory : deferredCursors()) {
+                int[] reads = {0, 0};
+                SeqStream<Integer> first = streamOf(0, 1, 2)
+                        .peek(e -> reads[0]++);
+                SeqStream<Integer> second = streamOf(1, 2)
+                        .peek(e -> reads[1]++);
+                SeqStream<?> result = operation.apply(first, second);
+                assertArrayEquals(new int[]{0, 0}, reads);
+                assertConsumed(() -> first.count());
+                assertConsumed(() -> second.count());
+                BooleanSupplier advance = cursorFactory.apply(result);
+                assertArrayEquals(new int[]{0, 0}, reads);
+                assertTrue(advance.getAsBoolean());
+                assertThat(reads[1], equalTo(2));
+            }
+        }
     }
 
     @Test
@@ -767,6 +780,8 @@ public class SeqStreamTest {
         assertThat(SeqStream.iterate(0, i -> i + 1).get(5), equalTo(5));
         assertThat(SeqStream.iterate(0, i -> i + 1).indexOf(5), equalTo(5));
         assertTrue(SeqStream.iterate(0, i -> i + 1).contains(5));
+        assertFalse(SeqStream.iterate(0, i -> i + 1).disjoint(streamOf(5)));
+        assertFalse(streamOf(0).containsAll(SeqStream.iterate(0, i -> i + 1)));
         assertTrue(SeqStream.iterate(0, i -> i + 1).anyMatch(i -> i == 5));
         assertFalse(SeqStream.iterate(0, i -> i + 1).allMatch(i -> i < 5));
         assertFalse(SeqStream.iterate(0, i -> i + 1).noneMatch(i -> i == 5));
@@ -1182,6 +1197,8 @@ public class SeqStreamTest {
                         stream -> stream.zip(null, Integer::sum),
                         stream -> stream.intersection(null),
                         stream -> stream.difference(null),
+                        stream -> stream.symmetricDifference(null),
+                        stream -> stream.disjoint(null),
                         stream -> stream.union(null),
                         stream -> stream.sum(null),
                         stream -> stream.containsMultiset(null),

@@ -286,6 +286,11 @@ public class SourcesTest {
                 ordered(0), unordered(1), Integer::sum)
                 .hasCharacteristics(ORDERED));
 
+        assertOnlyOrdered(Sources.symmetricDifference(ordered(0), ordered(1)));
+        assertFalse(Sources.symmetricDifference(ordered(0), unordered(1))
+                .hasCharacteristics(Spliterator.ORDERED));
+        assertFalse(Sources.symmetricDifference(unordered(0), ordered(1))
+                .hasCharacteristics(Spliterator.ORDERED));
         assertOnlyOrdered(Sources.union(ordered(0), ordered(1)));
         assertFalse(Sources.union(ordered(0), unordered(1))
                 .hasCharacteristics(ORDERED));
@@ -601,6 +606,9 @@ public class SourcesTest {
                 s -> Sources.intersection(s, Sources.toSource(OTHER)));
         PIPES.put("difference",
                 s -> Sources.difference(s, Sources.toSource(OTHER)));
+        PIPES.put("symmetricDifference",
+                s -> Sources.symmetricDifference(s,
+                        Sources.<Integer>toSource(OTHER)));
         PIPES.put("union",
                 s -> Sources.union(s, Sources.<Integer>toSource(OTHER)));
         PIPES.put("indexes", Sources::indexes);

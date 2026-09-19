@@ -293,6 +293,22 @@ public class SeqReferenceTest {
     }
 
     @Test
+    public void testSymmetricDifference() {
+        forEachInputPair((input, that) -> {
+            List<String> expected = referenceDifference(input, that);
+            expected.addAll(referenceDifference(that, input));
+            assertThat(seq(input).symmetricDifference(that).toList(),
+                    equalTo(expected));
+        });
+    }
+
+    @Test
+    public void testDisjoint() {
+        forEachInputPair((input, that) -> assertThat(seq(input).disjoint(that),
+                equalTo(java.util.Collections.disjoint(input, that))));
+    }
+
+    @Test
     public void testUnion() {
         forEachInputPair((input, that) -> {
             // the documented equivalence, sum(that.difference(this))

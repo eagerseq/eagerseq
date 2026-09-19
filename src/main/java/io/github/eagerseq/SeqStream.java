@@ -343,6 +343,18 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#symmetricDifference(Iterable)}.
+     */
+    default SeqStream<E> symmetricDifference(Stream<? extends E> that) {
+        requireNonNull(that);
+        closes(that);
+        return viewOf(
+                Sources.symmetricDifference(spliterator(),
+                        Sources.toSource(that)),
+                pipeline());
+    }
+
+    /**
      * Stream equivalent of {@link Seq#union(Iterable)}.
      */
     default SeqStream<E> union(Stream<? extends E> that) {
@@ -369,6 +381,15 @@ public interface SeqStream<E> extends Stream<E> {
         requireNonNull(that);
         closes(that);
         return Sources.containsMultiset(spliterator(), Sources.toSource(that));
+    }
+
+    /**
+     * Stream equivalent of {@link Seq#disjoint(Iterable)}.
+     */
+    default boolean disjoint(Stream<?> that) {
+        requireNonNull(that);
+        closes(that);
+        return Sources.disjoint(spliterator(), that.spliterator());
     }
 
     /**

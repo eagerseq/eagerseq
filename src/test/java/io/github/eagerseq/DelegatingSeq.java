@@ -101,6 +101,10 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().difference(toSeqStream(that)).toSeq();
     }
 
+    default Seq<E> symmetricDifference(Iterable<? extends E> that) {
+        return stream().symmetricDifference(toSeqStream(that)).toSeq();
+    }
+
     default Seq<E> union(Iterable<? extends E> that) {
         return stream().union(toSeqStream(that)).toSeq();
     }
@@ -111,6 +115,10 @@ public interface DelegatingSeq<E> extends Seq<E> {
 
     default boolean containsMultiset(Iterable<?> that) {
         return stream().containsMultiset(toSeqStream(that));
+    }
+
+    default boolean disjoint(Iterable<?> that) {
+        return stream().disjoint(toSeqStream(that));
     }
 
     default Seq<Seq<E>> permutations() {

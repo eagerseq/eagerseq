@@ -43,6 +43,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -571,6 +572,12 @@ public class SeqTest {
         assertThat(
                 seqOf(null, null, null).intersection(seqOf(null, null)),
                 contains((Integer) null, null));
+        String a0 = new String("a"), a1 = new String("a");
+        String b = new String("b");
+        assertThat(
+                seqOf(a0, b, a1)
+                        .intersection(seqOf(new String("b"), new String("a"))),
+                contains(sameInstance(a0), sameInstance(b)));
     }
 
     @Test
@@ -584,6 +591,70 @@ public class SeqTest {
         assertThat(
                 seqOf(null, null, null).difference(seqOf(null, null)),
                 contains((Integer) null));
+        String a0 = new String("a"), a1 = new String("a");
+        String b = new String("b");
+        assertThat(seqOf(a0, b, a1).difference(seqOf(new String("a"))),
+                contains(sameInstance(b), sameInstance(a1)));
+    }
+
+    @Test
+    public void testSymmetricDifference() {
+        assertThat(seqOf(0, 1).symmetricDifference(seqOf(1, 2)),
+                contains(0, 2));
+        assertThat(seqOf(0, 0, 1).symmetricDifference(seqOf(0, 1, 1)),
+                contains(0, 1));
+        assertThat(seqOf(null, null).symmetricDifference(seqOf((Integer) null)),
+                contains((Integer) null));
+        assertThat(seqOf().symmetricDifference(seqOf(1, 2)), contains(1, 2));
+        assertThat(seqOf(1, 2).symmetricDifference(seqOf()), contains(1, 2));
+        assertThat(seqOf(1, 2).symmetricDifference(seqOf(2, 1)), empty());
+        String a0 = new String("a"), a1 = new String("a");
+        String b0 = new String("b"), b1 = new String("b");
+        assertThat(seqOf(a0, b0, a1).symmetricDifference(seqOf(b0, a0, b1)),
+                contains(sameInstance(a1), sameInstance(b1)));
+    }
+
+    @Test
+    public void testEqualsDirection() {
+        List<String> comparisons = new ArrayList<>();
+        class Value {
+            final String name;
+            Value(String name) {
+                this.name = name;
+            }
+            public int hashCode() {
+                return 0;
+            }
+            public boolean equals(Object other) {
+                comparisons.add(name);
+                return other instanceof Value;
+            }
+        }
+        Value stored = new Value("stored");
+        Value query = new Value("query");
+        assertTrue(seqOf(stored).containsAll(seqOf(query)));
+        assertThat(comparisons, contains("query"));
+        comparisons.clear();
+        assertFalse(seqOf(stored).disjoint(seqOf(query)));
+        assertThat(comparisons, contains("stored"));
+        comparisons.clear();
+        assertTrue(seqOf(stored).setEquals(seqOf(query)));
+        assertThat(comparisons, contains("stored"));
+        comparisons.clear();
+        assertTrue(seqOf(stored).multisetEquals(seqOf(query)));
+        assertThat(comparisons, not(empty()));
+        assertThat(comparisons, everyItem(equalTo("stored")));
+    }
+
+    @Test
+    public void testDisjoint() {
+        assertTrue(seqOf().disjoint(seqOf()));
+        assertTrue(seqOf(1).disjoint(seqOf()));
+        assertTrue(seqOf().disjoint(seqOf(1)));
+        assertTrue(seqOf(0, 0).disjoint(seqOf(1, 1)));
+        assertFalse(seqOf(0, 1).disjoint(seqOf(1, 2)));
+        assertFalse(seqOf(null, null).disjoint(seqOf((Integer) null)));
+        assertTrue(seqOf((Integer) null).disjoint(seqOf(0)));
     }
 
     @Test
@@ -597,6 +668,12 @@ public class SeqTest {
         assertThat(
                 seqOf(null, null, null).union(seqOf(null, null)),
                 contains((Integer) null, null, null));
+        String a0 = new String("a"), a1 = new String("a");
+        String a2 = new String("a"), a3 = new String("a"), a4 = new String("a");
+        String b = new String("b");
+        assertThat(seqOf(a0, a1).union(seqOf(a2, b, a3, a4)),
+                contains(sameInstance(a0), sameInstance(a1), sameInstance(b),
+                        sameInstance(a4)));
     }
 
     @Test
@@ -1607,6 +1684,8 @@ public class SeqTest {
         assertNullRejected(() -> seq.intersection(null));
         assertNullRejected(() -> seq.difference(null));
         assertNullRejected(() -> seq.union(null));
+        assertNullRejected(() -> seq.symmetricDifference(null));
+        assertNullRejected(() -> seq.disjoint(null));
         assertNullRejected(() -> seq.sum(null));
         assertNullRejected(() -> seq.containsMultiset(null));
         assertNullRejected(() -> seq.product(null, Integer::sum));

@@ -329,7 +329,8 @@ final class Sources {
         Set<Object> set1 = new HashSet<>();
         spl0.forEachRemaining(set0::add);
         spl1.forEachRemaining(set1::add);
-        return set0.equals(set1);
+        // Reverse set equality so elements of spl0 call equals, as in multisetEquals.
+        return set1.equals(set0);
     }
 
     static boolean multisetEquals(Spliterator<?> spl0, Spliterator<?> spl1) {
@@ -767,6 +768,20 @@ final class Sources {
         return multisetOperation(first, second, true);
     }
 
+    static <E> Source<E> symmetricDifference(
+            Source<E> first,
+            Source<? extends E> second) {
+        return defer(() -> {
+            Object[] buffered = toArray(second);
+            Map<Object, Long> multiset = new HashMap<>();
+            return concat(identity(),
+                    difference(
+                            peek(first, e -> multisetAdd(multiset, e)),
+                            toSource(buffered)),
+                    multisetFilter(toSource(buffered), multiset, true));
+        }, ordered(first, second));
+    }
+
     static <E> Source<E> union(
             Source<E> first,
             Source<? extends E> second) {
@@ -785,7 +800,17 @@ final class Sources {
     static boolean containsAll(
             Spliterator<?> first,
             Source<?> second) {
-        return containsMultiset(first, distinct(second));
+        Set<Object> members = new HashSet<>();
+        first.forEachRemaining(members::add);
+        return allMatch(second, members::contains);
+    }
+
+    static boolean disjoint(
+            Source<?> first,
+            Spliterator<?> second) {
+        Set<Object> members = new HashSet<>();
+        second.forEachRemaining(members::add);
+        return noneMatch(first, members::contains);
     }
 
     static Source<Integer> indexesOfSlice(
@@ -1262,13 +1287,13 @@ final class Sources {
     static <E> boolean anyMatch(
             Source<E> source,
             Predicate<? super E> predicate) {
-        return !noneMatch(source, predicate);
+        return !source.forEachWhile(e -> !predicate.test(e));
     }
 
     static <E> boolean allMatch(
             Source<E> source,
             Predicate<? super E> predicate) {
-        return noneMatch(source, predicate.negate());
+        return source.forEachWhile(predicate::test);
     }
 
     static <E> Source<E[]> windowFixed(

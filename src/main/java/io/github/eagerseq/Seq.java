@@ -589,7 +589,6 @@ public interface Seq<E> extends Collection<E> {
      * from this {@code Seq} which occur first in encounter order.
      * The {@link #difference(Iterable)} contains the remaining
      * {@code max(0, a - b)} elements from this {@code Seq}.
-     * The implementation uses hash tables.
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> intersection(Iterable<?> that) {
@@ -609,12 +608,29 @@ public interface Seq<E> extends Collection<E> {
      * from this {@code Seq} which occur last in encounter order.
      * The {@link #intersection(Iterable)} contains the remaining
      * {@code min(a, b)} elements from this {@code Seq}.
-     * The implementation uses hash tables.
      * See also {@link #union(Iterable)}, {@link #sum(Iterable)}.
      */
     default Seq<E> difference(Iterable<?> that) {
         requireNonNull(that);
         return copyOf(Sources.difference(spliterator(), that.spliterator()));
+    }
+
+    /**
+     * Returns the difference of this {@code Seq} and the given
+     * {@code Iterable}, followed by the difference in the other direction.
+     * Uses the multiset definition: when a value occurs {@code a} times in
+     * this sequence and {@code b} times in the other, the result contains
+     * {@code abs(a - b)} occurrences. Surviving elements are the last
+     * occurrences in each input, in encounter order, with this sequence's
+     * survivors first. Equality uses the elements' {@code equals} method.
+     * Equivalent to {@code difference(that).sum(that.difference(this))}
+     * when {@code that} is a {@code Seq}.
+     * See also {@link #intersection(Iterable)}, {@link #union(Iterable)}.
+     */
+    default Seq<E> symmetricDifference(Iterable<? extends E> that) {
+        requireNonNull(that);
+        return copyOf(Sources.symmetricDifference(spliterator(),
+                Sources.toSource(that)));
     }
 
     /**
@@ -629,7 +645,6 @@ public interface Seq<E> extends Collection<E> {
      * elements from this {@code Seq} then those {@code max(0, b - a)} elements
      * from the given {@code Iterable} which occur last in encounter order.
      * Equivalent to {@code sum(that.difference(this))}.
-     * The implementation uses hash tables.
      * See also {@link #intersection(Iterable)}, {@link #difference(Iterable)},
      * {@link #sum(Iterable)}.
      */
@@ -659,6 +674,19 @@ public interface Seq<E> extends Collection<E> {
     default boolean containsMultiset(Iterable<?> that) {
         requireNonNull(that);
         return Sources.containsMultiset(spliterator(), Sources.toSource(that));
+    }
+
+    /**
+     * Returns whether this sequence and the given {@code Iterable} have
+     * no elements in common according to the elements' {@code equals}
+     * method. Repeated elements do not affect the result.
+     * Equivalent to {@code intersection(that).isEmpty()}.
+     * Stops traversing this sequence at the first match.
+     * See also {@link Collections#disjoint(Collection, Collection)}.
+     */
+    default boolean disjoint(Iterable<?> that) {
+        requireNonNull(that);
+        return Sources.disjoint(spliterator(), that.spliterator());
     }
 
     /**
