@@ -5,36 +5,29 @@ to manipulate collections without ceremony: Guava, lodash (the `Array` and
 `Collection` modules) and Python (sequence syntax, builtins, `itertools`,
 `collections`).
 
-`Seq` has two goals. The first is terseness — can a user do the ordinary thing
-without dropping back into `stream()` and `Collectors`, which is the verbosity
-`Seq` exists to remove. The second is consolidation: putting the common
-operations on collection-like things on a single type, even when the JDK
-already has them somewhere. `reversed()` exists despite `Collections.reverse`;
-`intersection` exists despite `retainAll`; `indexOfSlice` exists despite
-`Collections.indexOfSubList`. Any operation common enough earns a place on
-`Seq` regardless of whether it is reachable some other way.
+This is historical API-comparison research, not required onboarding, a roadmap,
+or an authoritative inventory. The EagerSeq entries below have been reconciled
+with the implementation during the documentation consolidation; comparisons
+with other libraries have not been re-researched. Rankings and judgments record
+the original exploration rather than commitments to add methods.
 
-The question this answers is not "does `Seq` have every function these
-libraries have" — it shouldn't.
+Current design principles live in [DESIGN.md](DESIGN.md#api-design-principles), active
+work in [TODO.md](../TODO.md), and search proposal analysis in
+[DIRECT_MATCHING.md](DIRECT_MATCHING.md). Read the interfaces for current API
+availability.
 
-Guava is the reference that speaks to the second goal. It is the most
-exhaustive Java collection library there is, so it answers two questions at
-once: which operations are load-bearing enough that a serious Java library
-shipped them, and what the cost is of shipping them the way Guava does.
-
-## Method of ranking
+## Original comparison method
 
 There is no honest per-function popularity data. lodash download counts are
 per-package; Python has no equivalent at all; measuring real usage would mean
 grepping a corpus.
 
-So the ranking below uses **independent convergence** as the proxy, over five
+The original exploration used **independent convergence** as the proxy, over five
 API designs: JDK `Stream`/`Collectors`, Kotlin's stdlib, lodash, Python and
 Guava. An operation all five ship separately is very likely load-bearing,
 because five designs with different tastes each concluded it earned a name.
-Convergence is evidence, not proof — a mediocre idea can be copied — so it is
-used to *rank* candidates, and judgement is used to reject them. Where the two
-disagree the disagreement is stated, not hidden.
+Convergence is evidence, not proof — a mediocre idea can be copied — so it was
+used to *rank* candidates alongside judgments about their suitability for Java.
 
 The reverse also matters: an operation only one library has is usually that
 library's hobby. Scala's collections are the standard warning here, and both
@@ -47,65 +40,14 @@ library specifically*, because Guava's authors already weighed it against Java's
 type system, erasure and boxing. It is weak evidence about *naming and shape*,
 because Guava predates lambdas and `Stream` and its API reflects that.
 
-## Verdict
+## Findings in context
 
-**`Seq` covers the sequence-shaped operations well and the aggregation-shaped
-operations badly. Guava confirms the consolidation thesis and shows where `Seq`
-is short.**
-
-Anything that takes a sequence and returns a sequence of the same elements —
-filter, slice, take, drop, reverse, rotate, dedupe, set operations, subsequence
-search — is present, usually with a better name than lodash's and with multiset
-semantics that lodash and Python's `set` both lack. In this half of the space
-`Seq` is *more* complete than either reference, and materially terser than
-`Stream`.
-
-Anything that reduces a sequence to a summary keyed or numbered by something —
-`sum`, `average`, `countBy` — is largely absent. `groupBy` and `partitionBy`
-are now filled; the rest are not exotic either. A user hitting
-one of them today writes:
-
-```java
-seq.stream().mapToInt(String::length).sum();
-```
-
-which is exactly the `Stream` boilerplate the README opens by rejecting. So the
-gap is not "a few missing conveniences"; it is a category of operation where the
-library still does not fully deliver its stated benefit.
-
-Beyond that, three findings from the Guava comparison.
-
-1. **Guava has nearly everything, spread across a dozen static utility
-   classes.** `Iterables`, `Iterators`, `Lists`, `Sets`, `Maps`, `Multimaps`,
-   `Multisets`, `Collections2`, `Streams`, `Comparators`, `MoreCollectors`,
-   `Ordering`. Finding an operation means first guessing which class holds it,
-   and the answer is keyed off the receiver's *type*, not off what you want to
-   do — `Lists.partition` chunks a list, `Iterables.partition` chunks an
-   iterable, `Sets.cartesianProduct` and `Lists.cartesianProduct` are separate
-   methods with different return types. That fragmentation is exactly the
-   problem `Seq` solves by being one type with instance methods. This is the
-   strongest argument for the library that exists, and the README does not make
-   it.
-
-2. **Guava independently validates several operations that otherwise look like
-   `Seq`'s idiosyncratic tail.** `getOnly`/`findOnly` is
-   `Iterables.getOnlyElement` and `MoreCollectors.onlyElement`.
-   `containsMultiset` is `Multisets.containsOccurrences`. Multiset
-   `intersection`/`difference`/`union`/`sum` are the four `Multisets` statics,
-   with the same names. Combinatorics are `Sets.powerSet`,
-   `Sets.combinations(k)`, `Collections2.permutations` and
-   `orderedPermutations`. None of these are hobbies; a second serious library
-   shipped each one.
-
-3. **The remaining Tier 1 gaps get worse, not better.** Guava has
-   `Multimaps.index` (group by), `Multiset` (count by),
-   `Iterables.frequency` (count of a value), `Ordering.min`/`max` natural
-   order, `Ordering.onResultOf` (sort by key), and `Lists.partition` (chunk).
-   `Seq` now fills the grouping gap with `groupBy`; chunking remains present in
-   all five reference libraries. Numeric `sum` is the one Tier 1 item Guava
-   does *not* endorse — it has `Ints.max`/`min` on primitive arrays and nothing
-   sequence-shaped — which is a mild argument that Java's boxing makes the
-   feature less obviously worth it than lodash and Python suggest.
+The original comparison highlighted consolidation: familiar operations spread
+across utility classes elsewhere are discoverable as methods on `Seq`.
+It also identified aggregation and windowing gaps. Several have since been
+filled: primitive mapper sums/products, natural-order extrema, `distinctBy`,
+fixed/sliding windows and `scan`. Averages, keyed counting and projected sorting
+remain subjects for evaluation, not commitments implied by this comparison.
 
 ## Coverage tables
 
@@ -113,7 +55,7 @@ Legend: **yes** — direct method. **comp.** — composable in one terse
 expression, no `stream()` needed. **no** — requires `stream()`/`Collectors`, a
 JDK static, or a manual loop.
 
-### Reduce-to-summary (the weak area)
+### Reduce-to-summary
 
 | Operation | Guava | lodash | Python | `Seq` | |
 |---|---|---|---|---|---|
@@ -123,23 +65,23 @@ JDK static, or a manual loop.
 | merge on key collision | — | — | dict comp. | `toMap(k, v, merge)` | yes |
 | count occurrences by key | `Multiset` | `countBy` | `Counter` | — | **no** |
 | count of one value | `Iterables.frequency` | — | `list.count` | `indexesOf(v).size()` | comp. |
-| numeric sum | — | `sum`, `sumBy` | `sum` | — | **no** |
+| numeric sum | — | `sum`, `sumBy` | `sum` | `sumOfInt`, `sumOfLong`, `sumOfDouble` | yes |
 | average | — | `mean` | `statistics.mean` | — | **no** |
 | min/max by comparator | `Ordering.min/max` | `minBy` | `min(key=)` | `min(Comparator)` | yes |
-| min/max natural order | `Ordering.natural().min` | `min`, `max` | `min`, `max` | — | **no** |
+| min/max natural order | `Ordering.natural().min` | `min`, `max` | `min`, `max` | `min()`, `max()` | yes |
 | top / bottom k | `Comparators.greatest` | — | `heapq.nlargest` | `sorted(c).limit(k)` | comp. |
 | partition on predicate | — | `partition` | — | `partitionBy` | yes |
 | count matching | `Iterables.size(filter)` | — | `sum(1 for ...)` | `filter(p).size()` | comp. |
 | join to string | `Joiner` | `join` | `str.join` | `toString(...)` | yes |
 | fold / reduce | — | `reduce` | `reduce` | `reduce` | yes |
-| running totals | — | — | `accumulate` | — | **no** |
+| running totals | — | — | `accumulate` | `scan` | yes |
 
 `Joiner` is worth a note: Guava built a whole configurable object
 (`Joiner.on(",").skipNulls().useForNull("?")`) for what `Seq` does with
 `toString(sep, prefix, suffix)`. The `Seq` form covers the common case and
 `map(...).toString(...)` covers the rest. No gap.
 
-### Sequence-to-sequence (the strong area)
+### Sequence-to-sequence
 
 | Operation | Guava | lodash | Python | `Seq` | |
 |---|---|---|---|---|---|
@@ -154,14 +96,14 @@ JDK static, or a manual loop.
 | sort | `Ordering.sortedCopy` | `sortBy` | `sorted` | `sorted(Comparator)` | yes |
 | sort by key fn | `Ordering.onResultOf` | `sortBy` | `sorted(key=)` | `Comparator.comparing` | **no**¹ |
 | distinct | `ImmutableSet.copyOf` | `uniq` | `dict.fromkeys` | `distinct` | yes |
-| distinct by key fn | — | `uniqBy` | — | — | **no** |
+| distinct by key fn | — | `uniqBy` | — | `distinctBy` | yes |
 | concat | `Iterables.concat` | `concat` | `s + t` | `concat`, `sum` | yes |
 | zip | `Streams.zip` | `zip` | `zip` | `zip(that, mapper)` | yes |
 | enumerate | `Streams.mapWithIndex` | — | `enumerate` | `mapIndexed` | yes |
 | shuffle | — | `shuffle` | `random.shuffle` | `shuffled` | yes |
 | rotate | — | — | — | `rotated` | yes |
-| chunk into blocks of n | `Lists.partition` | `chunk` | `batched` | — | **no** |
-| sliding window | — | — | `pairwise` | — | **no** |
+| chunk into blocks of n | `Lists.partition` | `chunk` | `batched` | `windowFixed` | yes |
+| sliding window | — | — | `pairwise` | `windowSliding` | yes |
 | cartesian product | `Lists.cartesianProduct` | — | `product` | `product(that, mapper)` | yes |
 | merge two sorted | `Iterables.mergeSorted` | — | `heapq.merge` | — | no² |
 | cycle | `Iterables.cycle` | — | `cycle` | — | **no**³ |
@@ -169,16 +111,15 @@ JDK static, or a manual loop.
 | deep flatten | — | `flattenDeep` | — | — | no⁴ |
 | unzip | — | `unzip` | `zip(*xs)` | — | no⁴ |
 
-¹ `sorted(Comparator.comparing(Person::getName))` works; Guava spelling it
-`Ordering.natural().onResultOf(f)` is not better. A `sortedBy(Function)`
-overload beats both.
+¹ `sorted(Comparator.comparing(Person::getName))` works. The potential benefit
+of `sortedBy(Function)` is discussed in [EQUALITY_AND_ORDERING.md](EQUALITY_AND_ORDERING.md#ordering).
 ² Needs sortedness the type system cannot express — same reason as binary
 search. Guava is the only reference with it and its contract is "results are
-undefined if inputs aren't sorted", which is the kind of API `Seq` should not
-copy.
+undefined if inputs aren't sorted"; the original comparison treated that
+precondition as a reason against adding it.
 ³ `SeqStream` only; an eager `Seq` cannot hold it.
-⁴ Blocked by erasure and the absence of tuples — see "What Java's type system
-makes unreachable" below.
+⁴ The original objections concerned erasure and the absence of tuples — see
+"Java constraints considered in the comparison" below.
 
 ### Search and predicates
 
@@ -200,8 +141,8 @@ makes unreachable" below.
 | binary search on sorted | `Ordering.binarySearch` | `sortedIndex` | `bisect` | — | no⁵ |
 
 ⁵ Both are cheap and neither needs a sorted *type* — `isInOrder` is just a
-predicate. `isSorted(Comparator)` is a defensible small addition;
-`binarySearch` still is not, because a wrong answer on unsorted input is silent.
+predicate. The original comparison favoured `isSorted(Comparator)` over
+`binarySearch`, because a wrong answer on unsorted input is silent.
 
 ### Set and multiset operations
 
@@ -225,9 +166,8 @@ a `Multiset` receiver and preserves documented encounter order. Getting
 Guava's multiset semantics means constructing `HashMultiset` copies of both
 operands and losing order.
 
-Only `symmetricDifference` is missing, and
-`a.difference(b).sum(b.difference(a))` covers it. Two references now have it,
-so it moves from "not worth adding" to Tier 3.
+`symmetricDifference` has no direct method;
+`a.difference(b).sum(b.difference(a))` expresses it through composition.
 
 ### Factories
 
@@ -256,27 +196,23 @@ The unbounded factories only make sense on `SeqStream`, which now has
 it is a different operation — it repeats a whole sequence rather than one
 element.
 
-## What Java's type system makes unreachable
+## Java constraints considered in the comparison
 
-Not every gap is fixable, and it would be a mistake to chase these:
+The exploration identified these constraints on API shape:
 
 - **No tuples.** `zip` returning pairs, `unzip`, `starmap`, `fromPairs`,
   `zipObject` and `pairwise`-returning-pairs all depend on a cheap anonymous
-  product type. `zip(that, mapper)` is the correct Java answer and `Seq` already
-  has it. `windowed(n)` returning `Seq<Seq<E>>` sidesteps the issue and is still
-  worth having.
+  product type. `Seq` instead provides `zip(that, mapper)` and represents
+  windows from `windowFixed` and `windowSliding` as reusable `Seq` values.
 - **No slice syntax.** `s[i:j:k]` will never be one character. `slice(from, to)`
   is as close as Java gets.
-- **Primitive boxing.** `sum`/`average` on `Seq<Integer>` cannot be as clean as
-  Python's `sum`. The realistic shape is `sum(ToIntFunction)` — which is still
-  far terser than `stream().mapToInt(f).sum()`. Guava's abstention here is the
-  one piece of evidence that this cost is real.
-- **Erasure.** `flattenDeep` has no sound signature. Skip it.
+- **Primitive boxing.** EagerSeq uses primitive mapper terminals such as
+  `sumOfInt(ToIntFunction)` instead of `stream().mapToInt(f).sum()`.
+- **Erasure.** The exploration found no sound typed signature for `flattenDeep`.
 
-## What Guava has that `Seq` should not take
+## Guava features the comparison did not favour adopting
 
-Guava is exhaustive, and most of the excess is excess for a reason `Seq` should
-respect:
+The original comparison argued against adopting the following features:
 
 - **Type-keyed duplication.** `Lists.partition` / `Iterables.partition` /
   `Iterators.partition`, and the parallel `Sets`/`Lists` cartesian products.
@@ -297,81 +233,20 @@ respect:
 - **`paddedPartition`, `consumingIterable`, `mergeSorted`, `Iterators.advance`,
   `peekingIterator`.** Guava's own tail.
 
-## Two naming problems worth deciding before the gaps get filled
+## Naming questions from the comparison
 
-1. **`sum(Iterable)` means concatenation.** In lodash, Python, Kotlin and
-   `Stream`, `sum` is the numeric reduction, so this is the one name on `Seq`
-   that means something different from what most reference libraries train
-   users to expect — and it occupies the name the top-priority missing feature
-   wants. But Guava is a genuine counterexample: `Multisets.sum` is its name for
-   the same operation on the same semantics. So the prior art is split, and the
-   case for renaming rests on terseness and on freeing the name, not on `Seq`
-   contradicting everyone else. `concat` already exists as the static form; the
-   instance method could be `then`, `append`, `plus` or `concat`.
+`sum(Iterable)` means concatenation, following multiset terminology. Numeric
+terminals now use `sumOfInt`, `sumOfLong` and `sumOfDouble`, with matching
+primitive product terminals; the earlier suggestion that numeric sums required
+renaming concatenation is obsolete.
 
-2. **`count()` means size.** That follows `Stream`, so it should stay — but it
-   means a lodash-style `countBy` and a Python-style `count(value)` would both
-   sit awkwardly next to it. Prefer `frequencies()` or `groupBy(f, counting)`
-   over an overloaded `count`.
+`count()` retains the JDK stream meaning. Predicate, value and keyed counting
+have separate design considerations; see [DIRECT_MATCHING.md](DIRECT_MATCHING.md)
+rather than treating this comparison's former gap rankings as an API plan.
 
-## Ranked gaps
+## Historical candidates
 
-**Tier 1 — five of five references have each one.**
-
-- `sortedBy(Function)` — the last place `Stream` idiom leaks into `Seq` code.
-- `min()` / `max()` natural-order overloads. `sorted()` already has the pair.
-- `chunked(n)`. `Lists.partition`, lodash `chunk`, Python `batched`, Kotlin
-  `chunked`. Only `Stream` lacks it.
-- Numeric terminals: `sum(ToIntFunction)` and `average(...)`. Four of five;
-  Guava abstains, which is worth noting but not enough to demote it — Guava
-  also predates `ToIntFunction`. Requires resolving the `sum` name clash above.
-
-**Tier 2 — common, each removes a real workaround.**
-
-- `frequencies()` / `countBy(Function)`. Guava dedicates a whole type
-  (`Multiset`) to this.
-- `distinctBy(Function)`.
-- `find(Predicate)` / `findLast(Predicate)`. Guava has `Iterables.find`,
-  `tryFind` and `Streams.findLast`; `filter(p).findFirst()` is already terse,
-  so this is about avoiding the intermediate `Seq`.
-- `indexOf(Predicate)` — `Iterables.indexOf` takes a predicate and lodash has
-  `findIndex`. `Seq` has the value-based family already, so this is one
-  overload.
-
-**Tier 3 — real but narrower.**
-
-- `windowed(n)` / `pairwise()`.
-- `scan` / running reduce.
-- `symmetricDifference` — promoted from "not worth adding" on Guava's evidence.
-- `isSorted()` / `isSorted(Comparator)`.
-- `greatest(k, Comparator)` / `least(k, ...)` — top-k without a full sort.
-  Guava and `heapq` both have it; a naive `sorted().limit(k)` already works, so
-  this is a performance affordance, not an expressiveness one.
-- `range` with step.
-- `cycle` on `SeqStream`.
-- `slice` with step.
-
-**Not worth adding.** `flattenDeep`, `unzip`, `starmap`, `zipObject`,
-`zip_longest`, `sample`, `mergeSorted`, `paddedPartition`, the
-`sortedIndex`/`bisect`/`binarySearch` family, lodash's `*By`/`*With`
-comparator-variant scheme, Guava's `Ordering` beyond top-k, and `tee` — which
-`Seq` makes unnecessary, since a `Seq` is re-traversable by construction.
-
-## What the README should say
-
-Two claims are currently missing from it, and Guava supplies the evidence for
-both.
-
-1. **One type, not a dozen utility classes.** Guava's operations are correct
-   and complete and you still have to know that chunking a list is
-   `Lists.partition`, that grouping is `Multimaps.index`, that "exactly one
-   element" is `Iterables.getOnlyElement`, and that multiset intersection is
-   `Multisets.intersection`. On `Seq` these are methods on the value you
-   already hold, found by autocomplete. Terseness is the first half of the
-   pitch; discoverability is the second, and it is the one the README omits.
-
-2. **Snapshot semantics by default, laziness on request.** Guava's views are
-   lazy and alias their sources; `Stream` is lazy and single-use. `Seq` is
-   neither — it is a re-traversable value, and `stream()` is there when
-   laziness is actually wanted. That is a real design position and it is
-   currently only visible in the implementation notes.
+The exploration also considered top-k selection, symmetric difference,
+`isSorted`, stepped ranges/slices and cycling. Their appearance here does not
+establish priority or approval. Current candidates are maintained in
+[TODO.md](../TODO.md); fulfilled gaps and duplicate rankings have been removed.

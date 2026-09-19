@@ -1,6 +1,7 @@
 # Direct matching families
 
-Companion to `EQUALITY_AND_ORDERING.md`, covering only direct matching: one
+Design note accompanying [EQUALITY_AND_ORDERING.md](EQUALITY_AND_ORDERING.md),
+covering only direct matching: one
 input searched against a query. Not equivalence classes (`distinct`, set
 operations) or ordering (`sorted`, `min`).
 
@@ -90,8 +91,7 @@ The `Of` column returns an element you already hold, up to equality.
 `findFirstOf` is the least degenerate, since equality is not identity, and
 still does not earn a name.
 
-`find(i)` is independent of predicate matching: it concerns bounds. Its
-possible name and shape do not by themselves justify adding it.
+`find(i)` is independent of predicate matching: it concerns bounds.
 
 ### Sequence
 
@@ -101,13 +101,10 @@ possible name and shape do not by themselves justify adding it.
 
 ## Is the predicate column justified?
 
-Avoiding an eager intermediate sequence is not sufficient justification for
-a specialized method. `seq.stream().filter(p).findFirst()` already avoids
-materializing the filter result and stops at the first match. The same lazy
-pipeline mechanism supports mapping, flat-mapping and combinations of stages;
-short-circuiting does not uniquely justify condensing a filter and terminal.
-Predicate `get`/`find` overloads could still earn a place as natural ways to
-express common queries, but that demand has not been established here.
+Apply the [shared API-design principles](DESIGN.md#api-design-principles):
+a specialized query needs a concrete benefit beyond avoiding an eager
+intermediate. Predicate `get`/`find` overloads could earn a place as natural
+ways to express common queries, but that demand has not been established here.
 
 Predicate indexes have a distinct benefit: filtering loses original positions.
 They also cover searching projected values:
@@ -118,16 +115,11 @@ seq.index(e -> Objects.equals(f.apply(e), value)) // proposed API
 
 This expresses `seq.map(f).indexOf(value)` without materializing mapped
 values. Unlike filtering, mapping preserves positions. Predicate indexes
-therefore serve more than filter fusion, but preserving information does not
-establish how often callers need it. Indexes can identify match locations or
-feed `slice` without feeding `get`; these are valid uses, currently not enough
-to prioritize expanding the positional API.
+therefore serve more than filter fusion. Indexes can also identify match
+locations or feed `slice` without feeding `get`.
 
 There is no planned family of predicate terminals such as `min(p)`, `max(p)`,
-`sum(p)`, `reduce(p, ...)`, `toList(p)`, `toSet(p)` or `sorted(p)`. Nor does
-the existence of a composition automatically rule out a method. The question
-is whether the operation naturally belongs in the library's everyday
-vocabulary, not whether a table can be completed or an intermediate avoided.
+`sum(p)`, `reduce(p, ...)`, `toList(p)`, `toSet(p)` or `sorted(p)`.
 
 ## Counting is a separate candidate
 
@@ -139,8 +131,7 @@ as an additional benefit, not short-circuiting.
 should be considered alongside them. It would count occurrences per projected
 key, not matches to a predicate. `groupBy(key, Seq::size)` currently builds
 groups just to count them; a dedicated operation could accumulate `long`
-counts using storage proportional to the number of keys. These are candidates
-to assess independently, not commitments implied by the search tables.
+counts using storage proportional to the number of keys.
 
 ## Footnote: the sentinel
 
@@ -158,12 +149,3 @@ It would also make `limit(indexOf(o))` equal `takeWhile(not(o::equals))` in the
 absent case, and make `index()` cleanly `0`. Blocked by `List.indexOf` parity,
 and a split convention would be worse than either. Recorded so it is not
 rediscovered.
-
-## Summary
-
-No predicate-search expansion is currently planned. Retain the naming scheme
-for evaluating concrete proposals; predicate indexes are valid but currently
-unprioritized, and predicate `get`/`find` overloads are not justified solely
-by short-circuiting. Neither `lastIndex()` nor `find(i)` earns a place merely
-by filling a cell. Consider counting independently on natural expression,
-consolidation and storage benefits.

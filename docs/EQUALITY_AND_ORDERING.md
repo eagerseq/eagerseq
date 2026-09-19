@@ -1,8 +1,10 @@
 # Equality, matching and ordering
 
-This is a naming and API-shape guide, not a list of promised additions. Use it
-when reviewing an existing or proposed operation so related methods do not grow
-arbitrary, superficially symmetrical overloads.
+Design note for reviewing concrete API proposals, not required general
+onboarding or a list of promised additions. Start with
+[DESIGN.md](DESIGN.md#api-design-principles) for the shared design
+principles. Except where explicitly identified as existing, overload examples
+below illustrate possible shapes; check the interfaces for the current API.
 
 ## Classify the operation first
 
@@ -130,33 +132,22 @@ candidates, not existing methods or planned additions; see
 
 The result may be a boolean, element, index, indexes, count or filtered
 sequence; it may find the first, last or all matches; and it may short-circuit
-or traverse everything. A coherent name does not establish demand. Existing
-composition does not disqualify a natural, useful operation either: assess
-whether it belongs in the library's everyday vocabulary. Avoiding an eager
-intermediate or enabling short-circuiting alone does not justify specialized
-terminals, since `stream()` provides lazy composition across arbitrary stages.
-Predicate indexes preserve information that filtering loses, but their demand
-remains a separate question. No predicate-search expansion is currently
-planned; counting is considered independently. Ordered or binary search is
-separate again because it introduces ordering and a sortedness precondition.
+or traverse everything. [DIRECT_MATCHING.md](DIRECT_MATCHING.md) evaluates these
+axes and the distinct benefits of predicate indexes and counting. Ordered or
+binary search is separate because it introduces ordering and a sortedness
+precondition.
 
-## Naming rule
+## Key semantics
 
-- Keep the base name when an argument directly supplies the operation's
-  strategy: `sorted(comparator)`, possibly `distinct(comparator)` or
-  `listEquals(that, matcher)`.
-- Use `By` when a function projects each element to a key:
-  `distinctBy(key)`, `sortedBy(key)`, `groupBy(key)`.
-- Do not add overloads just to make every row symmetrical. Prefer the most
-  natural abstraction for the category and require a concrete usability or
-  performance benefit.
+Keep the base name when an argument supplies a strategy, such as
+`sorted(comparator)`. Use `By` when a function projects elements to keys,
+such as `distinctBy(key)` or `groupBy(key)`.
 
-In particular, these similar-looking expressions intentionally use different
-key semantics:
+These similar-looking expressions intentionally use different key semantics:
 
 ```java
-distinctBy(key)                    // key.equals / key.hashCode
-distinct(comparing(key))           // key.compareTo == 0
+distinctBy(key)                    // existing: key.equals / key.hashCode
+distinct(comparing(key))           // proposed: key.compareTo == 0
 ```
 
 They agree only when the key's natural ordering is consistent with its

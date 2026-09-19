@@ -1,12 +1,14 @@
 # Stream semantics
 
+Detailed reference for contributors changing stream traversal or lifecycle.
+Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for the project overview.
+
 `SeqStream` is a sequential implementation of `Stream` built on a
 cancellable push traversal. Its `Source` spliterators push elements into a
 `Sink` until the sink cancels or the source is exhausted, while still exposing
 the ordinary `Spliterator` pull operations for interoperability.
-Spliterator characteristics are deliberately outside the scope of this note:
-under-reporting them primarily loses optimisations, and common cases such as
-`ArraySeq` can be improved independently if useful.
+Check the relevant source implementation for its size and ordering
+characteristics. A size-based terminal may answer without traversing the pipeline.
 
 ## Shared pipeline
 
@@ -80,7 +82,9 @@ Deferring whole-source work until the first traversal attempt is valid. For
 ordinary terminals that attempt occurs inside the terminal call; a cursor
 terminal such as `iterator()` or `spliterator()` may defer it until the cursor
 is first advanced. `Sources.defer` is therefore the mechanism for `sorted` and
-the other buffering operations.
+the other buffering operations when traversal is required. A sized `count()`
+can answer without initialising the deferred computation. Failed initialisation
+is not retried; subsequent traversal reports the failure.
 
 Operations that needed individual changes beyond sharing a pipeline:
 
