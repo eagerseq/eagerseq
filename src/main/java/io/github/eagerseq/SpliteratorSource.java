@@ -1,5 +1,6 @@
 package io.github.eagerseq;
 
+import java.util.Comparator;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -46,5 +47,11 @@ final class SpliteratorSource<E> implements Source<E> {
 
     public int characteristics() {
         return spliterator.characteristics();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Comparator<? super E> getComparator() {
+        // Widening the source type does not change the elements being compared.
+        return (Comparator<? super E>) spliterator.getComparator();
     }
 }

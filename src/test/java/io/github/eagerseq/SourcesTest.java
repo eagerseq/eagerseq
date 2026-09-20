@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 import static io.github.eagerseq.SeqTest.assertThrows;
 import static java.util.Spliterator.ORDERED;
 import static java.util.Spliterator.SIZED;
+import static java.util.Spliterator.SORTED;
 import static java.util.Spliterator.SUBSIZED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -32,10 +33,84 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class SourcesTest {
+
+    @Test
+    public void testSortedSpliteratorComparatorAndSplits() {
+        for (Comparator<Integer> comparator : Arrays
+                .<Comparator<Integer>>asList(
+                        null, Comparator.reverseOrder())) {
+            TreeSet<Integer> values = new TreeSet<>(comparator);
+            values.addAll(Arrays.asList(1, 2, 3, 4));
+            // A source may widen the element type of its backing spliterator.
+            Source<Number> source = Source.viewOf(values.spliterator());
+            assertTrue(source.hasCharacteristics(SORTED));
+            assertSame(comparator, source.getComparator());
+            Spliterator<Number> prefix = source.trySplit();
+            assertNotNull(prefix);
+            assertTrue(prefix.hasCharacteristics(SORTED));
+            assertSame(comparator, prefix.getComparator());
+            assertSame(comparator, source.getComparator());
+            List<Number> traversed = new ArrayList<>();
+            prefix.forEachRemaining(traversed::add);
+            source.forEachRemaining(traversed::add);
+            assertEquals(new ArrayList<>(values), traversed);
+        }
+    }
+
+    @Test
+    public void testUnsortedSpliteratorComparatorAndSplits() {
+        Source<Integer> source = Source.viewOf(
+                Arrays.asList(2, 1, 4, 3).spliterator());
+        assertFalse(source.hasCharacteristics(SORTED));
+        assertThrows(IllegalStateException.class, source::getComparator);
+        Spliterator<Integer> prefix = source.trySplit();
+        assertNotNull(prefix);
+        assertFalse(prefix.hasCharacteristics(SORTED));
+        assertThrows(IllegalStateException.class, prefix::getComparator);
+    }
+
+    @Test
+    public void testSortedCollectionViewCopyAndBridges() {
+        for (Comparator<Integer> comparator : Arrays
+                .<Comparator<Integer>>asList(
+                        null, Comparator.reverseOrder())) {
+            TreeSet<Integer> values = new TreeSet<>(comparator);
+            values.addAll(Arrays.asList(1, 2));
+            Seq<Integer> view = Seq.viewOf(values);
+            Seq<Integer> copy = Seq.copyOf(view);
+            assertEquals(new ArrayList<>(values), new ArrayList<>(copy));
+            assertEquals(new ArrayList<>(values), view.stream().toStream()
+                    .collect(java.util.stream.Collectors.toList()));
+            // A custom comparator must not be mistaken for natural ordering.
+            assertThat(view.stream().toStream().sorted()
+                    .collect(java.util.stream.Collectors.toList()),
+                    contains(1, 2));
+            assertEquals(3, view.stream().mapToInt(x -> x).sum());
+            assertEquals(3L, view.stream().mapToLong(x -> x).sum());
+            assertEquals(3.0, view.stream().mapToDouble(x -> x).sum(), 0.0);
+            assertEquals(3, view.parallelStream().mapToInt(x -> x).sum());
+            values.clear();
+            assertEquals(2, copy.size());
+        }
+    }
+
+    @Test
+    public void testSortedJdkStreamViewBridges() {
+        assertThat(SeqStream.viewOf(Stream.of(2, 1).sorted()).toStream()
+                .collect(java.util.stream.Collectors.toList()), contains(1, 2));
+        assertEquals(3, SeqStream.viewOf(Stream.of(2, 1).sorted())
+                .mapToInt(x -> x).sum());
+        assertEquals(3L, SeqStream.viewOf(Stream.of(2, 1).sorted())
+                .mapToLong(x -> x).sum());
+        assertEquals(3.0, SeqStream.viewOf(Stream.of(2, 1).sorted())
+                .mapToDouble(x -> x).sum(), 0.0);
+    }
 
     /**
      * Traverses the source counting what it pushes and checks that against

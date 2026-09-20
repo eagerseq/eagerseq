@@ -6,14 +6,6 @@ below are subjects to assess, not commitments to implement.
 
 ## Compatibility and robustness
 
-- Address interoperability with sorted foreign spliterators. `SpliteratorSource`
-  preserves `SORTED` but inherits a `getComparator()` implementation that throws
-  `IllegalStateException`. Reproductions include
-  `Seq.copyOf(Seq.viewOf(new TreeSet<>(Arrays.asList(1, 2))))` and
-  `SeqStream.viewOf(Stream.of(2, 1).sorted()).mapToInt(x -> x).sum()`.
-  Delegating comparator access is one possible direction; assess the adapter's
-  characteristic contracts and cover natural ordering, custom comparators,
-  split children, copying and stream bridges.
 - Address premature source binding in lazy intermediates over live collection
   views. For an `ArrayList` initially containing `[2, 1]`, construct
   `Seq.viewOf(list).stream().sorted()`, then append `3` before invoking a
