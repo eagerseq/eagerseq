@@ -141,7 +141,7 @@ precondition as a reason against adding it.
 | binary search on sorted | `Ordering.binarySearch` | `sortedIndex` | `bisect` | — | no⁵ |
 
 ⁵ Both are cheap and neither needs a sorted *type* — `isInOrder` is just a
-predicate. The original comparison favoured `isSorted(Comparator)` over
+predicate. The original comparison favored `isSorted(Comparator)` over
 `binarySearch`, because a wrong answer on unsorted input is silent.
 
 ### Set and multiset operations
@@ -210,7 +210,7 @@ The exploration identified these constraints on API shape:
   `sumOfInt(ToIntFunction)` instead of `stream().mapToInt(f).sum()`.
 - **Erasure.** The exploration found no sound typed signature for `flattenDeep`.
 
-## Guava features the comparison did not favour adopting
+## Guava features the comparison did not favor adopting
 
 The original comparison argued against adopting the following features:
 

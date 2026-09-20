@@ -101,14 +101,14 @@ order.
 
 Sequence equality compares elements in order and only considers other `Seq`
 instances equal. Use `listEquals`, `setEquals`, or `multisetEquals` to compare
-with other iterables under the corresponding equality rule. Ordinary
-materialized sequences support constant-time `get` and `size`; collection views
-delegate size queries and use linear-time indexing.
+with other iterables under the corresponding equality rule. Array-backed
+sequences support constant-time `get` and `size`; collection views delegate size
+queries and use linear-time indexing.
 
 ## Lazy composition when needed
 
 `stream()` returns a `SeqStream`, which extends JDK `Stream` with the library's
-additional operations. Use `toSeq()` to materialize the result:
+additional operations. Use `toSeq()` to collect the results into a sequence:
 
 ```java
 Seq<String> numbered = words.stream()

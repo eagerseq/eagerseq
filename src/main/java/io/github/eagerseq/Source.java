@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A {@link Spliterator} whose primitive traversal is a cancellable push:
+ * A {@link Spliterator} whose primitive traversal is a cancelable push:
  * {@link #forEachWhile} pushes elements into a {@link Predicate} until it returns
  * {@code false} or the elements are exhausted. Like any spliterator, a
  * {@code Source} is advanced permanently by traversal.

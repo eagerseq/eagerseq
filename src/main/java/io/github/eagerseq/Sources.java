@@ -97,7 +97,7 @@ final class Sources {
      * supplied and sized. Read only its characteristics during construction:
      * querying its estimate can bind a late-binding input before evaluation.
      * Size queries before traversal use the input without running the deferred
-     * computation; once initialised, the delegate reports the remaining size.
+     * computation; once initialized, the delegate reports the remaining size.
      */
     static <E> Source<E> defer(
             Supplier<Source<E>> supplier,

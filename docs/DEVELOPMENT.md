@@ -11,7 +11,7 @@ CI currently verifies on JDK 8 and 25. Use a modern JDK (17 or newer) locally
 to include the formatting check, which is enabled by a Maven profile.
 
 ```sh
-mvn test             # behavioural tests
+mvn test             # behavioral tests
 mvn verify           # tests, packaging, coverage and active formatting checks
 mvn spotless:apply   # format Java using the checked-in Eclipse configuration
 ```
@@ -19,11 +19,11 @@ mvn spotless:apply   # format Java using the checked-in Eclipse configuration
 `verify` requires 100% line coverage through JaCoCo. Tests live in
 `src/test/java/io/github/eagerseq`:
 
-- `SeqTest` checks shared behaviour through `Factory`, covering multiple
+- `SeqTest` checks shared behavior through `Factory`, covering multiple
   implementations including interface defaults and stream delegation.
 - `SeqReferenceTest` compares exhaustive short inputs against independent
   `java.util` references.
-- `SeqStreamTest` covers stream-specific behaviour, including lifecycle and
+- `SeqStreamTest` covers stream-specific behavior, including lifecycle and
   laziness; `SourcesTest` exercises traversal machinery directly.
 - `ApiShapeTest` checks API structure and test naming coverage.
 
@@ -39,7 +39,7 @@ with examples and installation instructions; it is not generated from Javadoc.
 The `Seq` class Javadoc provides a self-contained API overview, including
 ownership, ordering, equality, performance and custom implementation guidance.
 Individual method Javadoc defines the detailed contracts. Keep the README and
-Javadoc consistent when behaviour changes without duplicating their full text.
+Javadoc consistent when behavior changes without duplicating their full text.
 Architecture and implementation details belong in the contributor references
 linked from [CONTRIBUTING.md](../CONTRIBUTING.md).
 

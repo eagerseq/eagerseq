@@ -4,7 +4,7 @@ Detailed reference for contributors changing stream traversal or lifecycle.
 Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for the project overview.
 
 `SeqStream` is a sequential implementation of `Stream` built on a
-cancellable push traversal. Its `Source` spliterators push elements into a
+cancelable push traversal. Its `Source` spliterators push elements into a
 downstream `Predicate` until it returns `false` or the source is exhausted,
 while still exposing the ordinary `Spliterator` pull operations for interoperability.
 Check the relevant source implementation for its size and ordering
@@ -47,7 +47,7 @@ mode survives conversion to and from `Stream`. The sources are
 nonetheless splittable, so `toStream()` and the primitive bridges built on it
 do evaluate in parallel when the mode is parallel.
 
-Factories create new pipelines. `viewOf(Stream)` initialises its pipeline from
+Factories create new pipelines. `viewOf(Stream)` initializes its pipeline from
 the source mode and closes the source from its close action. The primitive
 stream bridges in `toStream()` carry the current mode and close the
 `SeqStream`. `concat` creates a new pipeline which closes all inputs; as in
@@ -83,15 +83,15 @@ ordinary terminals that attempt occurs inside the terminal call; a cursor
 terminal such as `iterator()` or `spliterator()` may defer it until the cursor
 is first advanced. `Sources.defer` is therefore the mechanism for `sorted` and
 the other buffering operations when traversal is required. A sized `count()`
-can answer without initialising the deferred computation. Failed initialisation
+can answer without initializing the deferred computation. Failed initialization
 is not retried; subsequent traversal reports the failure.
 
 Count-preserving deferred operations (`sorted`, `reversed`, `rotated`,
 `shuffled` and `scan`) retain the input's `SIZED` characteristic without
 querying its size during construction or cursor acquisition. Before traversal,
-size queries read the input's current estimate; after initialisation they read
+size queries read the input's current estimate; after initialization they read
 the delegate's remaining estimate. This preserves allocation and `count()`
-optimisations without prematurely binding late-binding inputs such as an
+optimizations without prematurely binding late-binding inputs such as an
 `ArrayList` view. Changes to such backing collections before evaluation (or
 before the acquired cursor is first advanced or queried for size) are observed.
 A size query may itself bind the input; this does not promise support for

@@ -58,7 +58,7 @@ mapper, and `toMap` with key/value mappers and an optional collision merger.
 | Map elements within groups | `groupBy(k, g -> g.map(v))`; Scala `groupMap` | **Lower priority:** a direct method could avoid retaining originals, but still stores mapped outputs. [Scala grouping][s-iterable] |
 | Several summaries simultaneously | Custom `collect`, or JDK `teeing` where available | **Omit a dedicated family:** the collector entry point exists. [Collectors][jdk-collectors] |
 
-`groupBy(key, Seq::size)` materialises groups; the `toMap` counting expression
+`groupBy(key, Seq::size)` materializes groups; the `toMap` counting expression
 already uses storage proportional to distinct keys. Thus `countBy` earns its
 place through clarity, not a claim that efficient aggregation is missing.
 Similarly, the current group-mapper overload consumes completed groups; it is
@@ -104,7 +104,7 @@ comparator forms. The nondecreasing-order check already covers Guava's
 | `sortedBy(key[, comparator])` | `sorted(Comparator.comparing(key))`; Scala `sortBy` | **Medium:** strongest case is evaluating each key once, with stable ties. [Scala sequences][s-seq] |
 | `minBy` / `maxBy` | Comparator composition; Scala equivalents | **Low:** convenient naming, but extrema already take linear comparisons. [Scala traversal][s-once] |
 | Strict order test | Adjacent comparisons; Guava `isInStrictOrder` | **Low:** useful if strict ordering is common. [Comparators][g-comparators] |
-| Merge sorted inputs | Concatenate then sort; Guava `mergeSorted` | **Medium specialised candidate:** two-way merging can be linear with bounded lookahead, particularly on `SeqStream`. [Iterables][g-iterables] |
+| Merge sorted inputs | Concatenate then sort; Guava `mergeSorted` | **Medium specialized candidate:** two-way merging can be linear with bounded lookahead, particularly on `SeqStream`. [Iterables][g-iterables] |
 | Binary search / insertion point | `Collections.binarySearch(toList(), x, c)`; Scala `search` | **Lower priority:** chiefly for `Seq`; conversion and non-random-access views can undermine the benefit. [Collections][jdk-collections], [Scala sequences][s-seq] |
 
 Top-k must specify tie handling: Guava allows arbitrary ties; matching stable
@@ -182,7 +182,7 @@ treat their order as identical to EagerSeq's. [LinkedHashMultiset][g-linkedmulti
 |---|---|---|
 | Runtime type selection | Guava `filter(Class)`; filter then cast | **Low–medium:** an `ofType` method also narrows the result type. [Iterables][g-iterables] |
 | Negated/null filtering, partial-function mapping | Negate a predicate, `Objects::nonNull`, filter/map or `mapMulti` | **Omit aliases/protocols:** existing primitives suffice. |
-| Padded zip / pairwise side effects | Scala `zipAll`; Guava `forEachPair` | **Low:** useful specialised shapes, not grounds for a large pairing framework. [Scala grouping][s-iterable], [Streams][g-streams] |
+| Padded zip / pairwise side effects | Scala `zipAll`; Guava `forEachPair` | **Low:** useful specialized shapes, not grounds for a large pairing framework. [Scala grouping][s-iterable], [Streams][g-streams] |
 | Unzip / transpose | Scala methods | **Defer:** tuple carriers and rectangularity rules need concrete demand. [Scala grouping][s-iterable] |
 | Stepped windows | Scala `sliding(size, step)` | **Low–medium:** useful for overlapping/gapped batches; specify final partial windows. [Scala immutable sequences][s-immutable] |
 | Split at index / predicate boundary | Scala `splitAt` / `span`; paired take/drop operations | **Low / low–medium:** `span` can avoid repeated predicate evaluation; both require two-result representation. [Scala immutable sequences][s-immutable] |
@@ -259,7 +259,7 @@ length-k permutations, all permutation lengths, length-k combinations and all
 combination lengths. Multiple product axes are composable; a homogeneous
 multi-axis factory is a low-priority convenience. [Guava Lists][g-lists]
 
-Duplicate-aware permutation generation is a more substantive specialised gap:
+Duplicate-aware permutation generation is a more substantive specialized gap:
 Guava `orderedPermutations` avoids redundant outputs. EagerSeq enumerates
 positions, so equal elements can produce equal results; appending `distinct`
 can waste enormous work. Nevertheless, this ranks below everyday aggregation
@@ -273,7 +273,7 @@ formatted string joining, lazy pipelines and JDK stream bridges. `toMap(key)`
 already provides unique indexing; duplicate keys fail unless a merger is given.
 
 The set conversion preserves encounter order. A factory-based collector can
-choose another destination, but its mutability and null behaviour then follow
+choose another destination, but its mutability and null behavior then follow
 that collector. Similarly, a newer JDK default inherited by `SeqStream` at
 runtime is not automatically an explicitly supported Java 8 EagerSeq method.
 These are interoperability distinctions, not reasons to duplicate every
@@ -286,7 +286,7 @@ filter/map before joining. Delimiter-only joining and writing to an
 
 Preserve these boundaries:
 
-- No mutators, synchronised/checked wrappers or new specialised storage types.
+- No mutators, synchronized/checked wrappers or new specialized storage types.
 - No live-view duplicate of every transformation; explicit views and streams
   already express those choices. Keep snapshot reversal.
 - No wholesale import of Guava maps, tables, range structures or multimap APIs.

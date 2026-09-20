@@ -148,14 +148,14 @@ These three share a cause with the terminals: `estimateSize` and the
 `SeqStream.count` calls `Sources.count`, which traverses and increments.
 The JDK answers from the source size without running the pipeline. The
 140x on `countMapped` is real but it understates the point, because the
-behaviours differ as well as the speeds. Verified directly:
+behaviors differ as well as the speeds. Verified directly:
 
 ```
 JDK  count=5 mapper called 0 times
 Seq  count=5 mapper called 5 times
 ```
 
-The JDK behaviour is the documented one and is a known trap for callers who
+The JDK behavior is the documented one and is a known trap for callers who
 put side effects in `map`. The library's is arguably the better contract,
 but not one worth an undocumented divergence.
 
@@ -178,7 +178,7 @@ but not one worth an undocumented divergence.
   side to `forEachRemaining` instead.
 
   This is the same root cause as `zip` and part of `flatMap`, and it is
-  not obviously fixable: a cancellable push cannot use `forEachRemaining`,
+  not obviously fixable: a cancelable push cannot use `forEachRemaining`,
   because there is no way to stop it. It is the price of accepting a
   foreign `Spliterator`, and it is paid by every entry point that does,
   including `SeqStream.viewOf(Stream)`.
@@ -282,7 +282,7 @@ between these designs is not possible by construction.
 without traversing it, and traverse only where the size is unknown; `size`
 follows `count`. `CollectionSeq` delegates all three to the collection.
 `countMapped` above is stale as a result, and `SourcesTest` now pins the
-behaviour rather than the timing. `Seq` is unaffected, as its intermediates
+behavior rather than the timing. `Seq` is unaffected, as its intermediates
 are eager.
 
 # Suggested order of work
@@ -294,7 +294,7 @@ are eager.
    when the source is `SIZED`.
 3. Decide and document the `count` contract.
 4. Nothing for `concat` on its own. If the one-at-a-time pull in
-   `SpliteratorSource` can be avoided for non-cancelling terminals, that
+   `SpliteratorSource` can be avoided for non-canceling terminals, that
    would pay across `concat`, `zip`, `flatMap` and every foreign-stream
    entry point at once.
 

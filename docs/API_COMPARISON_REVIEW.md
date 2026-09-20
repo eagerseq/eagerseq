@@ -53,7 +53,7 @@ and simply have few worthwhile gaps left.
 | Sorting by projection | Comparator composition already works | **Medium:** `sortedBy` only if its contract adds useful key-caching semantics. |
 | Set and multiset algebra | Core algebra is now complete | **Low:** no urgent additions. Projected equivalence is a separate, larger design decision. |
 | Windows, splitting and pairing | Basic windows, zip and partition exist | **Low–medium:** stepped windows or `span` if use cases justify their contracts. |
-| Factories, conversions and combinatorics | Broad coverage | **Low:** a few conveniences and specialised algorithms; avoid systematic expansion. |
+| Factories, conversions and combinatorics | Broad coverage | **Low:** a few conveniences and specialized algorithms; avoid systematic expansion. |
 
 A sensible first review could stop after the first three groups. They offer
 useful additions without introducing a new result-type ecosystem, general
@@ -83,7 +83,7 @@ execution protocol or mutable collection model.
 
 ### Why this group deserves attention
 
-The useful distinction is between **summary results** and **materialised groups**.
+The useful distinction is between **summary results** and **materialized groups**.
 `groupBy(key, Seq::size)` builds all groups; `toMap(key, e -> 1L, Long::sum)`
 already counts using state proportional to the number of keys. The case for
 `countBy` is its vocabulary and discoverability, not a claim that EagerSeq
@@ -117,7 +117,7 @@ predicate variants of every numeric terminal.
 | Sort by extracted key | **Compose:** `sorted(Comparator.comparing(key))` | Scala `sortBy`; Guava `Ordering.onResultOf` | Medium candidate if `sortedBy` computes each key once, preserves stable ties and offers a key comparator. [Scala sequences][s-seq], [Guava ordering][g-ordering] |
 | Min/max by extracted key | **Compose:** `min/max(Comparator.comparing(key))` | Scala `minBy`/`maxBy` | Lower priority; naming convenience is real, but extrema already need only linear comparisons. [Scala traversal][s-once] |
 | Least/greatest k elements | **Compose:** `sorted(c).limit(k)` or reversed comparator | Guava `Comparators.least/greatest`, `Ordering.leastOf/greatestOf` | **Medium–high candidate:** avoid full sorting; return results in the chosen order. [Guava comparators][g-comparators], [Guava ordering][g-ordering] |
-| Merge already sorted inputs | **Gap:** concatenation then sorting does not exploit sortedness | Guava `Iterables.mergeSorted` | Medium specialised candidate, especially for `SeqStream`; two-way merge can be linear with bounded lookahead. [Guava iterables][g-iterables] |
+| Merge already sorted inputs | **Gap:** concatenation then sorting does not exploit sortedness | Guava `Iterables.mergeSorted` | Medium specialized candidate, especially for `SeqStream`; two-way merge can be linear with bounded lookahead. [Guava iterables][g-iterables] |
 | Search sorted input / insertion point | **Compose via JDK:** `Collections.binarySearch(toList(), x, c)` | JDK binary search; Scala `search` | Lower priority, principally a `Seq` operation. Conversion can erase the performance benefit. [JDK collections][jdk-collections], [Scala sequences][s-seq] |
 
 Top-k needs a **tie contract** before naming or implementation. Guava permits
@@ -153,7 +153,7 @@ operands. Binary search has little justification as a generic streaming method.
 | Pairwise relation over equal-length inputs | No direct matcher overload | Scala `corresponds`. **Low–medium candidate:** `listEquals(that, matcher)` or another explicit relation name. [Scala sequences][s-seq] |
 | First differing position | **Gap:** no `mismatch` | JDK `Arrays.mismatch` (Java 9). **Low–medium candidate:** useful for comparison diagnostics and common-prefix work. [JDK arrays][jdk-arrays] |
 | Lexicographic comparison | No direct method; external comparator usable | JDK `Arrays.compare` (Java 9); Guava `Comparators.lexicographical` | Lower priority than mismatch. Consider a comparator factory rather than making `Seq` naturally `Comparable`. [JDK arrays][jdk-arrays], [Guava comparators][g-comparators] |
-| Size comparison without full counting | **Compose:** bounded traversal | Scala `sizeCompare`/`sizeIs` | Low priority on eager materialised values; more meaningful for unknown-size streams. [Scala collections][s-iterable] |
+| Size comparison without full counting | **Compose:** bounded traversal | Scala `sizeCompare`/`sizeIs` | Low priority on eager materialized values; more meaningful for unknown-size streams. [Scala collections][s-iterable] |
 
 `findOnly()` returns empty for both zero and multiple elements. `toOptional()`
 returns empty only for zero and throws for multiple elements. `getOnly()` throws
@@ -255,7 +255,7 @@ Two easy mistakes: `partitionBy` splits *all* matching/nonmatching elements,
 whereas `span` splits at one boundary; and `windowSliding(2)` produces a
 one-element window for singleton input, so it is not automatically a sequence
 of pairs. Empty input produces no windows. Existing `windowSliding` should not
-change its behaviour just to imitate another library's overload family.
+change its behavior just to imitate another library's overload family.
 
 ## 7. Copy-and-edit operations and reordering
 
@@ -295,7 +295,7 @@ Before adoption, choose whether `patch` clamps like slicing or throws like
 | Seed-inclusive scan | **Compose:** prepend seed when appropriate | Scala `scanLeft` includes the seed | Omit a duplicate until demanded; mutable seeds also need care with aliasing. [Scala collections][s-immutable] |
 | Right fold / right scan | **Compose:** reverse then reduce/scan, adapting argument and result order | Scala `foldRight`, `scanRight` | Low priority on finite input; not generally productive for unbounded streams. [Scala traversal][s-once], [Scala collections][s-immutable] |
 | General custom gatherer | No Java-8-native EagerSeq protocol | JDK `Stream.gather` (Java 24) | Defer, consistently with the existing design decision. Modern JDK callers can use `toStream()` for the JDK API. [JDK streams][jdk-stream] |
-| Fold as a one-element stream stage | **Compose:** reduction plus wrapping, where materialisation is acceptable | JDK `Gatherers.fold` | Low priority; distinct stage semantics matter more on `SeqStream` than `Seq`. [Gatherers][jdk-gatherers] |
+| Fold as a one-element stream stage | **Compose:** reduction plus wrapping, where materialization is acceptable | JDK `Gatherers.fold` | Low priority; distinct stage semantics matter more on `SeqStream` than `Seq`. [Gatherers][jdk-gatherers] |
 | Concurrent mapping | No concurrent EagerSeq evaluation | JDK `Gatherers.mapConcurrent` | Omit for now: scheduling, cancellation and resource policy are a much larger commitment than collection vocabulary. [Gatherers][jdk-gatherers] |
 | Side effects and observation | **Have:** `forEach`, `forEachOrdered`, `peek` | JDK stream operations | Complete; eager `peek` executes immediately and returns the receiver. |
 
@@ -332,14 +332,14 @@ because the JDK now provides gatherers.
 | Full and length-k permutations | **Have:** `permutations()`, `permutations(k)` | Guava `Collections2.permutations`; Scala permutations | Broad positional coverage. [Guava combinatorics][g-collections2] |
 | All permutation lengths | **Have:** `allPermutations()` | Broader than the basic comparison APIs | No expansion needed. |
 | Length-k / all-length combinations | **Have:** `combinations(k)`, `allCombinations()` | Guava `Sets.combinations`/`powerSet`; Scala combinations | Similar capabilities, different duplicate semantics. [Guava sets][g-sets], [Scala sequences][s-seq] |
-| Unique value permutations with duplicates | **Compose:** permutations then distinct, potentially very wasteful | Guava `orderedPermutations`; Scala permutations | Low specialised candidate with a real algorithmic distinction. [Guava combinatorics][g-collections2], [Scala sequences][s-seq] |
+| Unique value permutations with duplicates | **Compose:** permutations then distinct, potentially very wasteful | Guava `orderedPermutations`; Scala permutations | Low specialized candidate with a real algorithmic distinction. [Guava combinatorics][g-collections2], [Scala sequences][s-seq] |
 
 EagerSeq enumerates original **positions**. Equal elements can therefore produce
 repeated equal outputs. Guava set combinations first have set semantics, while
 Scala combination/permutation enumeration treats duplicates differently.
 Calling these exact equivalents would be misleading. A duplicate-aware
 algorithm can avoid generating enormous numbers of redundant results, but this
-is still a specialised priority below everyday aggregation and editing.
+is still a specialized priority below everyday aggregation and editing.
 
 Also distinguish lazy enumeration of results from streaming input: several
 `SeqStream` combinatorial methods still buffer their finite input. Eager
@@ -358,13 +358,13 @@ does not solve that inherent cost.
 | String join with delimiter and wrappers | **Have:** `toString(delimiter, prefix, suffix)` | JDK joining; Guava `Joiner`; Scala `mkString` | Complete core formatting. [Guava joiner][g-joiner], [Scala traversal][s-once] |
 | Simple delimiter-only join | **Compose:** pass empty wrappers | Guava/Scala join overloads | Low-cost convenience candidate; decide naming independently of richer formatting. |
 | Skip/substitute nulls while joining | **Compose:** filter/map then join | Guava `Joiner.skipNulls/useForNull` | No need for a separate configurable joiner object. Policies are not identical by default. [Guava joiner][g-joiner] |
-| Write joined output to an `Appendable` | No direct formatted-output terminal | Guava `Joiner.appendTo` | Low specialised candidate if avoiding a whole result string matters. [Guava joiner][g-joiner] |
+| Write joined output to an `Appendable` | No direct formatted-output terminal | Guava `Joiner.appendTo` | Low specialized candidate if avoiding a whole result string matters. [Guava joiner][g-joiner] |
 | Legacy enumeration input/output | **Compose:** JDK adapters plus existing factories | `Collections.list/enumeration` | Omit dedicated legacy overloads absent use cases. [JDK collections][jdk-collections] |
 | Lazy operation pipeline / JDK stream bridge | **Have:** `stream`, `parallelStream`; `SeqStream.toSeq/toStream` | JDK stream interoperability | Complete escape hatch; see execution caveat below. |
 
 `toList` and `toSet` are unmodifiable outputs, and `toSet` retains encounter
 order. Generic JDK collectors can have different mutability, order and null
-behaviour. “Available through collect” means the computation is possible, not
+behavior. “Available through collect” means the computation is possible, not
 that every collector already reproduces EagerSeq's result contracts.
 
 `SeqStream` implements `Stream`, but its own algorithms run sequentially.
@@ -378,7 +378,7 @@ See [stream semantics](STREAM_SEMANTICS.md).
 
 These are omissions with a coherent rationale, rather than overlooked gaps:
 
-- **Mutators, synchronised/checked wrappers and specialised storage types.**
+- **Mutators, synchronized/checked wrappers and specialized storage types.**
   JDK utility methods cover these, but `Seq` rejects collection mutation.
   Copy edits are the appropriate area to expand.
 - **A second immutable/live/lazy variant of every transformation.** Explicit
@@ -386,7 +386,7 @@ These are omissions with a coherent rationale, rather than overlooked gaps:
   `SequencedCollection.reversed()` is a view; EagerSeq deliberately keeps
   snapshot reversal. [JDK sequenced collections][jdk-sequenced]
 - **Guava's broader data-structure ecosystem.** `Multimap`, `BiMap`, `Table`,
-  range structures and specialised maps solve different problems from adding
+  range structures and specialized maps solve different problems from adding
   operations to a sequence. Using `Map<K, Seq<E>>` is sufficient for ordinary
   grouping; it does not replace every multimap feature.
 - **Comparator-building methods on Seq.** JDK `Comparator` and Guava

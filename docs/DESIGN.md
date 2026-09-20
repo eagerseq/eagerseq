@@ -2,7 +2,7 @@
 
 This note records choices whose reasons are not obvious from the implementation.
 It is not a second specification: inspect the current code and tests for exact
-behaviour. [CONTRIBUTING.md](../CONTRIBUTING.md) provides the architectural overview.
+behavior. [CONTRIBUTING.md](../CONTRIBUTING.md) provides the architectural overview.
 
 ## API design principles
 
@@ -45,7 +45,7 @@ that might only support one traversal.
 
 `Seq.reversed()` remains a snapshot, consistent with ordinary eager
 transformations. Adopting the live-view semantics of newer JDK sequenced
-collections would make this operation behave differently from its neighbours.
+collections would make this operation behave differently from its neighbors.
 Refusing collection mutations does not imply immutable backing data, since
 explicit views remain supported.
 
@@ -76,7 +76,7 @@ composition. `collectWhile` has its own name to avoid ambiguity with
 void-compatible `collect` lambdas.
 
 A general `gather` is deferred, not ruled out. Stateful, one-to-many,
-cancellable operations need decisions about per-traversal state, completion and
+cancelable operations need decisions about per-traversal state, completion and
 cancellation. Exposing that machinery would commit to more public protocol and
 vocabulary without established demand. A source-transform escape hatch was
 likewise left out. These decisions can be revisited for concrete use cases;

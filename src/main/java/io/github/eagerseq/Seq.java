@@ -35,9 +35,10 @@ import static java.util.Objects.requireNonNull;
 /**
  * An ordered, reusable collection with eager transformations and additional
  * collection operations. Methods such as {@link #map(Function)},
- * {@link #filter(Predicate)} and {@link #sorted()} return materialised sequences;
- * operations such as {@link #groupBy(Function)}, {@link #zip(Iterable, BiFunction)}
- * and {@link #windowFixed(int)} provide further ways to organise and combine data.
+ * {@link #filter(Predicate)} and {@link #sorted()} evaluate immediately and return
+ * new sequences. Operations such as {@link #groupBy(Function)},
+ * {@link #zip(Iterable, BiFunction)}
+ * and {@link #windowFixed(int)} provide further ways to organize and combine data.
  *
  * <pre>{@code
  * Seq<String> words = Seq.of("pear", "apple", "plum");
@@ -67,14 +68,14 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>{@link #stream()} returns a single-use {@link SeqStream}, a subtype of
  * {@link Stream} retaining additional sequence operations.
- * {@link SeqStream#toSeq()} materialises its result as a reusable sequence.
+ * {@link SeqStream#toSeq()} collects its results into a reusable sequence.
  * {@code SeqStream}'s own operations evaluate sequentially even in parallel
  * mode; see {@link SeqStream#parallel()} and {@link SeqStream#toStream()}.
  *
  * <h2>Indexing and size</h2>
  *
- * <p>Materialised sequences produced by this library, and array views, support
- * constant-time {@link #get(int)}, {@link #size()} and {@link #isEmpty()}.
+ * <p>Array-backed sequences produced by this library, including array views,
+ * support constant-time {@link #get(int)}, {@link #size()} and {@link #isEmpty()}.
  * Collection views use linear-time indexing and delegate {@code size} and
  * {@code isEmpty} to the backing collection. Custom implementations inherit
  * traversal-based defaults unless they override them or supply size information

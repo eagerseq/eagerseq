@@ -30,7 +30,7 @@ import io.github.eagerseq.SeqStream;
  * stream and a hand-written loop.
  *
  * <ul>
- * <li>SEQ is the eager API: every stage materialises an array.
+ * <li>SEQ is the eager API: every stage materializes an array.
  * <li>SEQSTREAM is the lazy API: a push chain of stages.
  * <li>JDK is {@code java.util.stream}.
  * <li>LOOP is a plain loop and is the floor.

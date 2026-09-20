@@ -120,7 +120,7 @@ index(person -> person.email().equals(email)) // proposed API
 index(e -> comparator.compare(e, query) == 0)
 ```
 
-This family has further axes and should be analysed separately rather than
+This family has further axes and should be analyzed separately rather than
 expanded mechanically. The following predicate index and count forms are
 candidates, not existing methods or planned additions; see
 `DIRECT_MATCHING.md` for the naming analysis and current priorities:

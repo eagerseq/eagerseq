@@ -7,7 +7,7 @@ linked references as needed for the task rather than loading every document.
 
 EagerSeq puts common collection operations directly on the collection. `Seq`
 extends Java's `Collection` with eager methods such as `map`, `filter` and
-`groupBy`: `words.map(String::length)` immediately returns a materialised,
+`groupBy`: `words.map(String::length)` immediately returns a materialized,
 reusable sequence without stream-and-collector ceremony.
 
 The API also extends beyond the operations available on `Stream`, gathering
@@ -16,8 +16,8 @@ useful methods otherwise found in `Collections` or libraries such as Guava:
 Keeping these methods on the collection makes them easier to discover and
 combine without searching through separate utility classes.
 
-For lazy composition, `seq.stream()` returns `SeqStream`, a specialisation of
-JDK `Stream` retaining the library's additional operations; `toSeq()` materialises
+For lazy composition, `seq.stream()` returns `SeqStream`, a specialization of
+JDK `Stream` retaining the library's additional operations; `toSeq()` materializes
 the result. A `Seq` is reusable; a `SeqStream` is single-use. Keep both APIs in
 mind when changing an operation.
 
@@ -34,7 +34,7 @@ elements. The callback uses the JDK `Predicate` interface; ordinary
 `Seq` and `SeqStream` delegate common implementations to `Sources`. Their public
 methods generally validate arguments, acquire a source, call the shared
 algorithm and wrap its result. The key difference is evaluation: `Seq`
-generally materialises into `ArraySeq`, while `SeqStream` retains a lazy source
+generally materializes into `ArraySeq`, while `SeqStream` retains a lazy source
 pipeline. For example, their default `map` methods both use `Sources.map`, but
 only the eager version immediately collects the mapped elements.
 
@@ -65,7 +65,7 @@ For custom sequences, follow the implementation guidance in
 [`Seq.java`](src/main/java/io/github/eagerseq/Seq.java): extend `AbstractSeq` to
 inherit the value implementations that interface defaults cannot supply.
 
-Specialised implementations optimise common cases but must preserve the shared
+Specialized implementations optimize common cases but must preserve the shared
 contracts. For example, `ArraySeq` can answer positional and size queries
 without general traversal. Stream operations also have lifecycle obligations:
 claiming an input is distinct from traversing it, and derived stages share
@@ -77,7 +77,7 @@ The library targets Java 8 and has no runtime dependencies. Run `mvn verify`
 for the build checks; use JDK 17 or newer locally to include the formatting
 check. Build configuration and CI define the precise checks and supported
 verification environments. [DEVELOPMENT.md](docs/DEVELOPMENT.md) explains commands,
-test organisation and how to validate changes.
+test organization and how to validate changes.
 
 For README and API documentation maintenance, follow
 [the development reference](docs/DEVELOPMENT.md#documentation). Follow
