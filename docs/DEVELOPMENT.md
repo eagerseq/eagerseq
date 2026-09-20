@@ -31,16 +31,21 @@ Benchmarks are a separate Maven project. Follow [bench/README.md](../bench/READM
 for building and running them and interpreting results. CI compiles them; timing
 ratios are not CI assertions. Keep measurements and experiment reports there.
 
-## Updating the README
+## Documentation
 
-To change the user introduction, edit the `Seq` class comment (installation
-boilerplate lives in `ReadmeGenerator`), then regenerate:
+Edit `README.md` directly. It is the independently authored user introduction,
+with examples and installation instructions; it is not generated from Javadoc.
 
-```sh
-mvn test-compile
-java -cp target/test-classes:target/classes io.github.eagerseq.ReadmeGenerator
-mvn -Dtest=ReadmeTest test
-```
+The `Seq` class Javadoc provides a self-contained API overview, including
+ownership, ordering, equality, performance and custom implementation guidance.
+Individual method Javadoc defines the detailed contracts. Keep the README and
+Javadoc consistent when behaviour changes without duplicating their full text.
+Architecture and implementation details belong in the contributor references
+linked from [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+`mvn verify` builds the Javadoc JAR as well as checking the library. Inspect
+the generated API documentation after changing Javadoc; repository-relative
+Markdown links are not a substitute for Javadoc links to API contracts.
 
 ## Releases
 

@@ -58,24 +58,3 @@ below are subjects to assess, not commitments to implement.
   before claiming streams or invoking callbacks, callback exception propagation,
   stopping after failure, and stream consumption after failure. Address shared
   concerns consistently rather than only for each newly added operation.
-
-## User documentation
-
-- Reconcile introductory claims with the API: functional signatures are not
-  universally identical to `Stream` (`flatMap` accepts `Iterable` on `Seq`),
-  and collection mutators do have default implementations, which throw.
-  Make changes in the authoritative Javadoc and regenerate the README under
-  the existing workflow.
-- Review the breadth of the recommendation to use `Seq` as the default
-  collection and the visibility of its tradeoffs. Explain its fit for finite,
-  ordered, read-mostly data and make the deliberate parallel-evaluation and
-  partial-traversal resource-closure differences discoverable from the user
-  introduction. Link to the existing contracts rather than duplicating the
-  detailed stream semantics.
-- Restructure the user introduction to lead with eager operations and the
-  library's consolidation of common collection operations; place installation
-  after the motivation and examples.
-- Reconsider whether the generated introduction should draw from both `Seq`
-  and `SeqStream`, or whether it should be authored independently of Javadoc.
-  Until that decision changes the workflow, follow the existing generation
-  instructions in [DEVELOPMENT.md](docs/DEVELOPMENT.md#updating-the-readme).

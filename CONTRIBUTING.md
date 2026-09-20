@@ -79,9 +79,8 @@ check. Build configuration and CI define the precise checks and supported
 verification environments. [DEVELOPMENT.md](docs/DEVELOPMENT.md) explains commands,
 test organisation and how to validate changes.
 
-`README.md` is generated from `Seq`'s class Javadoc and installation boilerplate
-in `ReadmeGenerator`; do not edit it independently. Generation instructions are in
-[the development reference](docs/DEVELOPMENT.md#updating-the-readme). Follow
+For README and API documentation maintenance, follow
+[the development reference](docs/DEVELOPMENT.md#documentation). Follow
 [AGENTS.md](AGENTS.md) for documentation maintenance and handling disagreements
 between code and documentation.
 
@@ -91,7 +90,7 @@ between code and documentation.
 |---|---|
 | Design choices and their rationale | [DESIGN.md](docs/DESIGN.md) |
 | Stream lifecycle, laziness, closure or parallel bridges | [STREAM_SEMANTICS.md](docs/STREAM_SEMANTICS.md) |
-| Build, tests, formatting or generated documentation | [DEVELOPMENT.md](docs/DEVELOPMENT.md) |
+| Build, tests, formatting or documentation | [DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 | Equality, ordering or related API proposals | [EQUALITY_AND_ORDERING.md](docs/EQUALITY_AND_ORDERING.md) |
 | Search and counting proposals | [DIRECT_MATCHING.md](docs/DIRECT_MATCHING.md) |
 | Benchmarks and performance evidence | [bench/README.md](bench/README.md) |

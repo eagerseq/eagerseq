@@ -1,6 +1,136 @@
-## Maven
+# EagerSeq
 
+*EagerSeq* puts common operations directly on an ordered collection. `Seq`
+extends Java's `Collection` with eager versions of stream methods like `map`,
+`filter` and `sorted`. It also brings together operations such as `groupBy`,
+`distinctBy`, `zip` and `windowFixed`, otherwise spread across the standard Java
+library and third-party libraries.
+
+```java
+Seq<String> words = Seq.of("pear", "apple", "plum");
+Seq<Integer> lengths = words.map(String::length);
 ```
+
+With JDK streams, you first create a stream, then collect the result back into a
+collection:
+
+```java
+List<String> words = List.of("pear", "apple", "plum");
+List<Integer> lengths = words.stream()
+        .map(String::length)
+        .collect(toList());
+```
+
+Transforming one collection into another is common, and laziness isn't always
+needed. `Seq` expresses these operations directly, without setting up and
+collecting a stream. Each transformation completes immediately and returns a
+sequence ready to use. When you want lazy composition, `stream()` provides it
+while retaining the additional collection operations.
+
+## Collection operations
+
+Methods live on the collection, so you can discover and combine them without
+switching between streams, collectors, and utility classes.
+
+```java
+// Transform and summarize
+tracks.filter(track -> track.getDurationSeconds() < 180);
+playlists.flatMap(Playlist::getTracks);
+tracks.sumOfInt(Track::getDurationSeconds);
+ratings.frequency(5);
+
+// Organize by a property
+photos.groupBy(Photo::getLocation);
+tracks.distinctBy(Track::getArtist);
+files.partitionBy(File::isDirectory);
+
+// Select and reorder
+matches.getOnly();
+photos.slice(10, 20);
+events.limitLast(10);
+photos.reversed();
+tracks.shuffled(new Random());
+tracks.mapIndexed((i, track) -> (i + 1) + ". " + track.getTitle());
+
+// Combine and compare
+names.zip(scores, (name, score) -> name + ": " + score);
+tags.intersection(selectedTags);
+tracks.listEquals(otherPlaylist);
+players.combinations(2);
+
+// Batch and accumulate
+files.windowFixed(100);
+readings.windowSliding(3);
+roundScores.scan(() -> 0, Integer::sum); // Total score after each round
+```
+
+## Creating and using sequences
+
+Create sequences from values, existing data, or a live view of an array or
+ordered collection:
+
+```java
+Seq.of("pear", "apple", "plum");
+Seq.copyOf(list);
+Seq.copyOf(array);
+Seq.copyOf(iterator);
+Seq.copyOf(stream);
+Seq.copyOf(optional);
+Seq.viewOf(list);
+Seq.viewOf(array);
+Seq.range(0, 10);
+Seq.repeat("—", 5);
+```
+
+A `Seq` is a `Collection`. Convert it to other types when needed:
+
+```java
+words.toList();
+words.toSet();
+words.toArray(String[]::new);
+users.toMap(User::getId);
+matches.toOptional();
+words.toString(", ", "[", "]");
+```
+
+Collection mutators such as `add` and `remove` throw
+`UnsupportedOperationException`. `copyOf` and transformations such as `map`,
+`filter`, and `reversed` produce shallow snapshots. The lists, sets, and maps
+returned by conversions are unmodifiable; sets and maps preserve encounter
+order.
+
+Sequence equality compares elements in order and only considers other `Seq`
+instances equal. Use `listEquals`, `setEquals`, or `multisetEquals` to compare
+with other iterables under the corresponding equality rule. Ordinary
+materialized sequences support constant-time `get` and `size`; collection views
+delegate size queries and use linear-time indexing.
+
+## Lazy composition when needed
+
+`stream()` returns a `SeqStream`, which extends JDK `Stream` with the library's
+additional operations. Use `toSeq()` to materialize the result:
+
+```java
+Seq<String> numbered = words.stream()
+        .distinctBy(String::length)
+        .reversed()
+        .mapIndexed((index, word) -> (index + 1) + ": " + word)
+        .toSeq();
+// [1: apple, 2: pear]
+```
+
+A `Seq` is reusable; like any JDK `Stream`, a `SeqStream` is single-use.
+
+`SeqStream` evaluates its own operations sequentially, even in parallel mode.
+Use `toStream()` for JDK parallel evaluation.
+
+## Installation
+
+EagerSeq works with Java 8 and newer and has no runtime dependencies.
+
+### Maven
+
+```xml
 <dependency>
     <groupId>io.github.eagerseq</groupId>
     <artifactId>eagerseq</artifactId>
@@ -8,187 +138,16 @@
 </dependency>
 ```
 
-## Gradle
+### Gradle
 
-```
+```groovy
 implementation 'io.github.eagerseq:eagerseq:x.y.z'
 ```
 
-## Introduction
+## Further reading
 
-`Seq` extends `Collection` and defines eager versions
-of almost all `Stream` methods like
-`map`, `filter` and `reduce`. For example:
-
-```java
-Seq<Integer> lengths = words.map(String::length);
-```
-
-Compare with the `Stream` version:
-
-```java
-List<Integer> lengths = words.stream()
-        .map(String::length)
-        .toList();
-```
-
-These are extremely common operations, and laziness is often not required.
-`Stream`s are verbose
-for this case, hence `Seq`.
-
-## Usage
-
-`Seq` can be used as the default choice of `Collection`
-most of the time unless specific features
-(such as constant-time `contains`) are required.
-
-```java
-Seq.of(0, 1, 2);
-
-Seq.Builder<String> builder = Seq.builder();
-while (scanner.hasNext()) {
-    builder.add(scanner.next());
-}
-builder.build();
-```
-
-Almost all instances of `Seq` produced by this library (ie by
-factory methods and returned by `map`, `filter`, etc)
-support constant-time indexing (`get` and `size`)
-and are backed by an array.
-Only `Seq.viewOf(Collection)` in this library and any user-defined
-subclasses use the default linear-time `get` implementation (if not
-overridden). A collection view delegates `size` and `isEmpty`
-to its backing collection.
-
-## Collections
-
-Factory methods convert from existing types.
-
-```java
-Seq.copyOf(new Integer[]{4, 5});
-Seq.copyOf(Optional.of(6));
-Seq.viewOf(List.of(7, 8));
-Seq.copyOf(List.of(9, 10).iterator());
-Seq.copyOf(Stream.of(11, 12, 13));
-```
-
-Other methods convert to existing types.
-
-```java
-seq.toOptional();
-seq.toList();
-seq.toSet();
-seq.toMap(Entity::getId);
-seq.toArray();
-seq.toArray(new String[5]);
-seq.toArray(String[]::new);
-seq.findFirst();
-seq.findLast();
-seq.findOnly();
-```
-
-## Grouping
-
-`groupBy()` replaces
-`collect(Collectors.groupingBy(...))` and makes each group a
-`Seq`. An overload applies a reduction to each group.
-
-```java
-Map<Integer, Seq<String>> wordsByLength =
-        words.groupBy(String::length);
-Map<Integer, Integer> wordCountByLength =
-        words.groupBy(String::length, Seq::size);
-```
-
-`partitionBy()` similarly replaces
-`collect(Collectors.partitioningBy(...))`, makes each partition a
-`Seq` and always includes both Boolean keys.
-
-```java
-Map<Boolean, Seq<String>> longWords =
-        words.partitionBy(word -> word.length() > 3);
-```
-
-## Streams
-
-When laziness is desired, `Seq.stream()`
-can be called as usual, and the resulting type `SeqStream`
-retains the additional methods of `Seq`.
-
-```java
-Seq<Integer> lengths = words.stream()
-        .filter(w -> w.contains("e"))
-        .map(String::length)
-        .reversed()
-        .toSeq();
-```
-
-All functional operations defined on `Seq` have the same
-signature as the `Stream` version, so code using both types looks
-natural.
-
-## Equality
-
-`Seq` defines `equals()`
-such that two `Seq`s are equal only if they have the same elements
-in the same order. This is like `List`, though a `Seq`
-is never equal to a `List` and vice versa, as required by
-`List.equals()`.
-The methods `listEquals()`, `setEquals()` and
-`multisetEquals()` may be used for other definitions of equality
-and do not depend on the subtype of the given `Iterable`.
-The methods `toList()`,
-`toSet()` and `toMap()` may be useful for equality comparisons
-in other cases.
-
-## Immutability
-
-The `Seq` interface itself does not have default implementations
-of any mutating methods.
-All inherited mutating methods from `Collection` throw
-`UnsupportedOperationException`.
-But there is no restriction on what additional methods `Seq`
-subclasses may contain.
-Note that factory methods can create views of mutable collections, in which
-case mutations to the underlying collection are reflected in `Seq`.
-
-## Implementation
-
-`Seq` supplies default implementations of collection and sequence
-operations in terms of `spliterator()`, which returns a `Source`, a
-`Spliterator` whose primitive traversal pushes elements into a
-downstream `Predicate` until it returns `false`. For example,
-internally the most common implementation of `Seq` is `ArraySeq`, which wraps an
-array and implements the abstract method with a source over that array.
-Methods like `map` and `filter`
-internally create a `Source` representing the result then read
-the contained elements into an array to create another `ArraySeq`.
-Calling `Seq.stream()` simply generates a `SeqStream` whose
-abstract methods are `spliterator()`, which can only be called once and
-returns one generated by the original `Seq`, and the `pipeline()` and
-`onClose` methods that hold the state shared by every stage of the pipeline.
-Additionally, `SeqStream.map`, etc internally create a
-`Source` but
-do not eagerly read it into an array and instead save the result, piping it
-into the next method, eg `filter`, or read it into an array only if
-explicitly requested to do so with `toSeq()`.
-
-A custom `Seq` can extend `AbstractSeq` and implement
-`spliterator()`. The base class provides the required implementations of
-`equals()`, `hashCode()` and `toString()`.
-
-## Examples
-
-```java
-seq.filter(Objects::isNull);
-seq.flatMap(s -> s);
-seq.reduce(0, (len, str) -> len + str.length());
-seq.intersection(otherSeq);
-seq.shuffled(new Random());
-seq.mapIndexed((index, element) -> index + ": " + element);
-seq.get(2);
-seq.indexesOf(element);
-seq.limitLast(3);
-seq.toString("; ", "<", ">");
-```
+- API documentation in the source:
+  [Seq](src/main/java/io/github/eagerseq/Seq.java) and
+  [SeqStream](src/main/java/io/github/eagerseq/SeqStream.java).
+- [Contributor guide](CONTRIBUTING.md): architecture, custom implementations,
+  and development workflow.

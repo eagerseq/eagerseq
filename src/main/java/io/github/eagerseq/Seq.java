@@ -33,182 +33,62 @@ import java.util.stream.Stream;
 import static java.util.Objects.requireNonNull;
 
 /**
- * <p>{@code Seq} extends {@code Collection} and defines eager versions
- * of almost all {@link java.util.stream.Stream Stream} methods like
- * {@code map}, {@code filter} and {@code reduce}. For example:
+ * An ordered, reusable collection with eager transformations and additional
+ * collection operations. Methods such as {@link #map(Function)},
+ * {@link #filter(Predicate)} and {@link #sorted()} return materialised sequences;
+ * operations such as {@link #groupBy(Function)}, {@link #zip(Iterable, BiFunction)}
+ * and {@link #windowFixed(int)} provide further ways to organise and combine data.
  *
  * <pre>{@code
- *     Seq<Integer> lengths = words.map(String::length);
+ * Seq<String> words = Seq.of("pear", "apple", "plum");
+ * Seq<Integer> lengths = words.map(String::length);
  * }</pre>
  *
- * <p>Compare with the {@code Stream} version:
+ * <h2>Order, ownership and equality</h2>
  *
- * <pre>{@code
- *     List<Integer> lengths = words.stream()
- *             .map(String::length)
- *             .toList();
- * }</pre>
+ * <p>Every sequence has a defined encounter order, stable in the absence of
+ * mutation. Collection mutators throw {@link UnsupportedOperationException}.
+ * The {@code copyOf} factories and transformations such as {@code map},
+ * {@code filter} and {@link #reversed()} produce shallow snapshots: element
+ * references are copied, but the elements themselves are not cloned.
+ * The explicit {@link #viewOf(Object[]) array} and
+ * {@link #viewOf(Collection) collection} views reflect changes to their backing
+ * data. Refusing collection mutation does not imply immutable backing data or
+ * immutable elements.
  *
- * <p>These are extremely common operations, and laziness is often not required.
- * {@code Stream}s are verbose
- * for this case, hence {@code Seq}.
+ * <p>Equality and hashing follow the ordered element contracts of
+ * {@link #equals(Object)} and {@link #hashCode()}. A {@code Seq} is only equal
+ * to another {@code Seq}, never to a {@link List}. Use
+ * {@link #listEquals(Iterable)}, {@link #setEquals(Iterable)} or
+ * {@link #multisetEquals(Iterable)} to compare with other iterables under those
+ * respective equality rules.
  *
- * <h2>Usage</h2>
+ * <h2>Lazy composition</h2>
  *
- * <p>{@code Seq} can be used as the default choice of {@code Collection}
- * most of the time unless specific features
- * (such as constant-time {@code contains}) are required.
+ * <p>{@link #stream()} returns a single-use {@link SeqStream}, a subtype of
+ * {@link Stream} retaining additional sequence operations.
+ * {@link SeqStream#toSeq()} materialises its result as a reusable sequence.
+ * {@code SeqStream}'s own operations evaluate sequentially even in parallel
+ * mode; see {@link SeqStream#parallel()} and {@link SeqStream#toStream()}.
  *
- * <pre>{@code
- *     Seq.of(0, 1, 2);
+ * <h2>Indexing and size</h2>
  *
- *     Seq.Builder<String> builder = Seq.builder();
- *     while (scanner.hasNext()) {
- *         builder.add(scanner.next());
- *     }
- *     builder.build();
- * }</pre>
+ * <p>Materialised sequences produced by this library, and array views, support
+ * constant-time {@link #get(int)}, {@link #size()} and {@link #isEmpty()}.
+ * Collection views use linear-time indexing and delegate {@code size} and
+ * {@code isEmpty} to the backing collection. Custom implementations inherit
+ * traversal-based defaults unless they override them or supply size information
+ * through their source.
  *
- * <p>Almost all instances of {@code Seq} produced by this library (ie by
- * factory methods and returned by {@code map}, {@code filter}, etc)
- * support constant-time indexing ({@code get} and {@code size})
- * and are backed by an array.
- * Only {@code Seq.viewOf(Collection)} in this library and any user-defined
- * subclasses use the default linear-time {@code get} implementation (if not
- * overridden). A collection view delegates {@code size} and {@code isEmpty}
- * to its backing collection.
+ * <h2>Custom implementations</h2>
  *
- * <h2>Collections</h2>
- *
- * <p>Factory methods convert from existing types.
- *
- * <pre>{@code
- *     Seq.copyOf(new Integer[]{4, 5});
- *     Seq.copyOf(Optional.of(6));
- *     Seq.viewOf(List.of(7, 8));
- *     Seq.copyOf(List.of(9, 10).iterator());
- *     Seq.copyOf(Stream.of(11, 12, 13));
- * }</pre>
- *
- * <p>Other methods convert to existing types.
- *
- * <pre>{@code
- *     seq.toOptional();
- *     seq.toList();
- *     seq.toSet();
- *     seq.toMap(Entity::getId);
- *     seq.toArray();
- *     seq.toArray(new String[5]);
- *     seq.toArray(String[]::new);
- *     seq.findFirst();
- *     seq.findLast();
- *     seq.findOnly();
- * }</pre>
- *
- * <h2>Grouping</h2>
- *
- * <p>{@code groupBy()} replaces
- * {@code collect(Collectors.groupingBy(...))} and makes each group a
- * {@code Seq}. An overload applies a reduction to each group.
- *
- * <pre>{@code
- *     Map<Integer, Seq<String>> wordsByLength =
- *             words.groupBy(String::length);
- *     Map<Integer, Integer> wordCountByLength =
- *             words.groupBy(String::length, Seq::size);
- * }</pre>
- *
- * <p>{@code partitionBy()} similarly replaces
- * {@code collect(Collectors.partitioningBy(...))}, makes each partition a
- * {@code Seq} and always includes both Boolean keys.
- *
- * <pre>{@code
- *     Map<Boolean, Seq<String>> longWords =
- *             words.partitionBy(word -> word.length() > 3);
- * }</pre>
- *
- * <h2>Streams</h2>
- *
- * <p>When laziness is desired, {@link Seq#stream()}
- * can be called as usual, and the resulting type {@link SeqStream}
- * retains the additional methods of {@code Seq}.
- *
- * <pre>{@code
- *     Seq<Integer> lengths = words.stream()
- *             .filter(w -> w.contains("e"))
- *             .map(String::length)
- *             .reversed()
- *             .toSeq();
- * }</pre>
- *
- * <p>All functional operations defined on {@code Seq} have the same
- * signature as the {@code Stream} version, so code using both types looks
- * natural.
- *
- * <h2>Equality</h2>
- *
- * <p>{@code Seq} defines {@code equals()}
- * such that two {@code Seq}s are equal only if they have the same elements
- * in the same order. This is like {@code List}, though a {@code Seq}
- * is never equal to a {@code List} and vice versa, as required by
- * {@code List.equals()}.
- * The methods {@code listEquals()}, {@code setEquals()} and
- * {@code multisetEquals()} may be used for other definitions of equality
- * and do not depend on the subtype of the given {@code Iterable}.
- * The methods {@code toList()},
- * {@code toSet()} and {@code toMap()} may be useful for equality comparisons
- * in other cases.
- *
- * <h2>Immutability</h2>
- *
- * <p>The {@code Seq} interface itself does not have default implementations
- * of any mutating methods.
- * All inherited mutating methods from {@code Collection} throw
- * {@code UnsupportedOperationException}.
- * But there is no restriction on what additional methods {@code Seq}
- * subclasses may contain.
- * Note that factory methods can create views of mutable collections, in which
- * case mutations to the underlying collection are reflected in {@code Seq}.
- *
- * <h2>Implementation</h2>
- *
- * <p>{@code Seq} supplies default implementations of collection and sequence
- * operations in terms of {@code spliterator()}, which returns a {@link Source}, a
- * {@code Spliterator} whose primitive traversal pushes elements into a
- * downstream {@link Predicate} until it returns {@code false}. For example,
- * internally the most common implementation of {@code Seq} is {@code ArraySeq}, which wraps an
- * array and implements the abstract method with a source over that array.
- * Methods like {@code map} and {@code filter}
- * internally create a {@code Source} representing the result then read
- * the contained elements into an array to create another {@code ArraySeq}.
- * Calling {@code Seq.stream()} simply generates a {@code SeqStream} whose
- * abstract methods are {@code spliterator()}, which can only be called once and
- * returns one generated by the original {@code Seq}, and the {@code pipeline()} and
- * {@code onClose} methods that hold the state shared by every stage of the pipeline.
- * Additionally, {@code SeqStream.map}, etc internally create a
- * {@code Source} but
- * do not eagerly read it into an array and instead save the result, piping it
- * into the next method, eg {@code filter}, or read it into an array only if
- * explicitly requested to do so with {@code toSeq()}.
- *
- * <p>A custom {@code Seq} can extend {@link AbstractSeq} and implement
- * {@code spliterator()}. The base class provides the required implementations of
- * {@code equals()}, {@code hashCode()} and {@code toString()}.
- *
- * <h2>Examples</h2>
- *
- * <pre>{@code
- *     seq.filter(Objects::isNull);
- *     seq.flatMap(s -> s);
- *     seq.reduce(0, (len, str) -> len + str.length());
- *     seq.intersection(otherSeq);
- *     seq.shuffled(new Random());
- *     seq.mapIndexed((index, element) -> index + ": " + element);
- *     seq.get(2);
- *     seq.indexesOf(element);
- *     seq.limitLast(3);
- *     seq.toString("; ", "<", ">");
- * }</pre>
+ * <p>Extend {@link AbstractSeq} and implement {@link #spliterator()} to create a
+ * custom sequence. The base class supplies the required value implementations
+ * of {@code equals}, {@code hashCode} and {@code toString}; the interface
+ * supplies default collection and sequence operations. Implementations that
+ * implement {@code Seq} directly must also provide those value semantics.
+ * Each call to {@code spliterator()} must return a fresh traversal that follows
+ * the {@link Source} contract and reports {@link Spliterator#ORDERED}.
  */
 public interface Seq<E> extends Collection<E> {
 
