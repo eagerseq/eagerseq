@@ -2,6 +2,7 @@ package io.github.eagerseq;
 
 /**
  * Implements the value semantics shared by {@link Seq}s.
+ * Extend this class and implement {@link #spliterator()} for a custom sequence.
  */
 public abstract class AbstractSeq<E> implements Seq<E> {
 

@@ -15,7 +15,10 @@ below illustrate possible shapes; check the interfaces for the current API.
 | Direct matching | Do particular elements satisfy this match? | `Predicate` for a query; `BiPredicate` for two inputs | `contains`, `indexOf`, `listEquals`, the slice searches, `startsWith`, `endsWith` |
 
 `Seq.equals` and `hashCode` are not customizable: they define the value's
-object contract.
+object contract. `AbstractSeq` supplies these implementations; direct `Seq`
+implementers must uphold the same contracts. See
+[`Seq.java`](../src/main/java/io/github/eagerseq/Seq.java) for the contracts and
+recommended extension pattern.
 
 ## Ordering
 

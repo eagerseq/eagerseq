@@ -43,6 +43,7 @@ All library code lives in `src/main/java/io/github/eagerseq`. The main pieces ar
 | Component | Role |
 |---|---|
 | `Seq`, `SeqStream` | Public eager and lazy APIs. |
+| `AbstractSeq` | Shared value equality, hashing and string representation for sequences. |
 | `Sources` | Shared algorithms, terminals, buffering and adapters. |
 | `Source`, `Stage` | Traversal and composition of operations. |
 | `ArraySeq`, `CollectionSeq` | Array-backed sequences and collection-backed views. |
@@ -59,6 +60,10 @@ not necessarily backed by immutable data: `copyOf` creates a snapshot, while
 `viewOf` retains backing data and reflects external changes. Ordinary eager
 transformations produce snapshots. An `ArraySeq` may itself be a view, so its
 backing array must not be mutated or exposed by a copying conversion.
+
+For custom sequences, follow the implementation guidance in
+[`Seq.java`](src/main/java/io/github/eagerseq/Seq.java): extend `AbstractSeq` to
+inherit the value implementations that interface defaults cannot supply.
 
 Specialised implementations optimise common cases but must preserve the shared
 contracts. For example, `ArraySeq` can answer positional and size queries

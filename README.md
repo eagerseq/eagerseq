@@ -155,9 +155,8 @@ case mutations to the underlying collection are reflected in `Seq`.
 
 ## Implementation
 
-`Seq` is an interface whose only abstract method is
-`spliterator()`, ie all other methods have default implementations
-defined in terms of `spliterator()`. It returns a `Source`, a
+`Seq` supplies default implementations of collection and sequence
+operations in terms of `spliterator()`, which returns a `Source`, a
 `Spliterator` whose primitive traversal pushes elements into a
 downstream `Predicate` until it returns `false`. For example,
 internally the most common implementation of `Seq` is `ArraySeq`, which wraps an
@@ -174,6 +173,10 @@ Additionally, `SeqStream.map`, etc internally create a
 do not eagerly read it into an array and instead save the result, piping it
 into the next method, eg `filter`, or read it into an array only if
 explicitly requested to do so with `toSeq()`.
+
+A custom `Seq` can extend `AbstractSeq` and implement
+`spliterator()`. The base class provides the required implementations of
+`equals()`, `hashCode()` and `toString()`.
 
 ## Examples
 

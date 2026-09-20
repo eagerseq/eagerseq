@@ -172,9 +172,8 @@ import static java.util.Objects.requireNonNull;
  *
  * <h2>Implementation</h2>
  *
- * <p>{@code Seq} is an interface whose only abstract method is
- * {@code spliterator()}, ie all other methods have default implementations
- * defined in terms of {@code spliterator()}. It returns a {@link Source}, a
+ * <p>{@code Seq} supplies default implementations of collection and sequence
+ * operations in terms of {@code spliterator()}, which returns a {@link Source}, a
  * {@code Spliterator} whose primitive traversal pushes elements into a
  * downstream {@link Predicate} until it returns {@code false}. For example,
  * internally the most common implementation of {@code Seq} is {@code ArraySeq}, which wraps an
@@ -191,6 +190,10 @@ import static java.util.Objects.requireNonNull;
  * do not eagerly read it into an array and instead save the result, piping it
  * into the next method, eg {@code filter}, or read it into an array only if
  * explicitly requested to do so with {@code toSeq()}.
+ *
+ * <p>A custom {@code Seq} can extend {@link AbstractSeq} and implement
+ * {@code spliterator()}. The base class provides the required implementations of
+ * {@code equals()}, {@code hashCode()} and {@code toString()}.
  *
  * <h2>Examples</h2>
  *
@@ -429,14 +432,14 @@ public interface Seq<E> extends Collection<E> {
     Source<E> spliterator();
 
     /**
-     * See {@link #equals(Object)}.
+     * Equivalent to {@code toList().hashCode()}.
+     * See {@link #equals(Object)} for the corresponding equality contract.
      */
     int hashCode();
 
     /**
-     * Returns {@code true} only if the argument is a {@code Seq}
-     * that contains the same elements in the same order
-     * according to the {@code equals} method of individual elements.
+     * Equivalent to
+     * {@code o instanceof Seq && toList().equals(((Seq<?>) o).toList())}.
      */
     boolean equals(Object o);
 

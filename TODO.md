@@ -71,13 +71,6 @@ below are subjects to assess, not commitments to implement.
 
 ## User documentation
 
-- Address misleading custom-implementation guidance. The introduction says
-  implementing `spliterator()` supplies all other behaviour through defaults,
-  but value-based `equals`, `hashCode` and `toString` are implemented by
-  `AbstractSeq`. For `Seq<Integer> custom = () -> Seq.of(1, 2).spliterator()`,
-  `custom.equals(Seq.of(1, 2))` is false while the reverse comparison is true.
-  Clarify or otherwise address the extension contract; explaining `AbstractSeq`
-  and the obligations of direct implementers is one possible direction.
 - Reconcile introductory claims with the API: functional signatures are not
   universally identical to `Stream` (`flatMap` accepts `Iterable` on `Seq`),
   and collection mutators do have default implementations, which throw.
