@@ -2,13 +2,14 @@ package io.github.eagerseq;
 
 import java.util.Spliterators.AbstractSpliterator;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * A source of unknown size whose primitive is {@code forEachWhile};
- * {@code tryAdvance} is derived from it by pushing into a sink that takes one
- * element and stops, and splitting is inherited from
+ * {@code tryAdvance} is derived from it by pushing into a downstream predicate
+ * that takes one element and stops, and splitting is inherited from
  * {@link AbstractSpliterator}.
  */
 abstract class AbstractSource<E>
@@ -26,10 +27,10 @@ abstract class AbstractSource<E>
         return !forEachWhile(once);
     }
 
-    private final class Once implements Sink<E> {
+    private final class Once implements Predicate<E> {
         Consumer<? super E> action;
 
-        public boolean push(E e) {
+        public boolean test(E e) {
             action.accept(e);
             return false;
         }

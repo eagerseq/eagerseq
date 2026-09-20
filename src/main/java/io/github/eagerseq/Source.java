@@ -2,12 +2,13 @@ package io.github.eagerseq;
 
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * A {@link Spliterator} whose primitive traversal is a cancellable push:
- * {@link #forEachWhile} pushes elements into a {@link Sink} until it returns
+ * {@link #forEachWhile} pushes elements into a {@link Predicate} until it returns
  * {@code false} or the elements are exhausted. Like any spliterator, a
  * {@code Source} is advanced permanently by traversal.
  */
@@ -23,13 +24,14 @@ public interface Source<E> extends Spliterator<E> {
     }
 
     /**
-     * Pushes remaining elements into {@code sink} while it returns
-     * {@code true}, advancing this source past every element pushed.
-     *
-     * @return {@code false} if and only if {@code sink} returned
-     *         {@code false}
+     * Calls the given {@code action} predicate for each remaining element in this
+     * {@code Source} while {@code action} returns {@code true}.
+     * Returns {@code true} if {@code action} returned {@code true}
+     * for all remaining elements.
+     * Returns {@code false} if {@code action} returned {@code false},
+     * stopping traversal, even if no elements remain.
      */
-    boolean forEachWhile(Sink<? super E> sink);
+    boolean forEachWhile(Predicate<? super E> action);
 
     default void forEachRemaining(Consumer<? super E> action) {
         requireNonNull(action);
@@ -40,7 +42,7 @@ public interface Source<E> extends Spliterator<E> {
     }
 
     /**
-     * Pushes one element into a sink that takes it and stops.
+     * Pushes one element into a downstream predicate that takes it and stops.
      */
     default boolean tryAdvance(Consumer<? super E> action) {
         requireNonNull(action);

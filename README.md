@@ -159,8 +159,8 @@ case mutations to the underlying collection are reflected in `Seq`.
 `spliterator()`, ie all other methods have default implementations
 defined in terms of `spliterator()`. It returns a `Source`, a
 `Spliterator` whose primitive traversal pushes elements into a
-`Sink` until the sink cancels. For example, internally the most
-common implementation of `Seq` is `ArraySeq`, which wraps an
+downstream `Predicate` until it returns `false`. For example,
+internally the most common implementation of `Seq` is `ArraySeq`, which wraps an
 array and implements the abstract method with a source over that array.
 Methods like `map` and `filter`
 internally create a `Source` representing the result then read

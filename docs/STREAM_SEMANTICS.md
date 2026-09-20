@@ -5,8 +5,8 @@ Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for the project overview.
 
 `SeqStream` is a sequential implementation of `Stream` built on a
 cancellable push traversal. Its `Source` spliterators push elements into a
-`Sink` until the sink cancels or the source is exhausted, while still exposing
-the ordinary `Spliterator` pull operations for interoperability.
+downstream `Predicate` until it returns `false` or the source is exhausted,
+while still exposing the ordinary `Spliterator` pull operations for interoperability.
 Check the relevant source implementation for its size and ordering
 characteristics. A size-based terminal may answer without traversing the pipeline.
 
@@ -68,7 +68,7 @@ closeable after a terminal operation. Traversal does not itself close either
 stream; explicitly closing any stage in the pipeline closes every adopted
 stream.
 
-Because a sink can cancel immediately after accepting an element, an inner
+Because the traversal action can return `false` after receiving an element, an inner
 stream that produced the last requested element remains open until the next
 traversal attempt observes its exhaustion or until the pipeline is closed.
 Short-circuiting and traversal failure are therefore partial traversal:

@@ -28,8 +28,8 @@ Both APIs express iteration through `Source`, a small extension of
 many elements in one call, but its callback returns a boolean to request
 continuation or stop early. This lets algorithms combine bulk traversal with
 short-circuiting without repeatedly calling `tryAdvance` for individual
-elements. The callback type is called `Sink`; ordinary `Spliterator` operations
-remain available for interoperability.
+elements. The callback uses the JDK `Predicate` interface; ordinary
+`Spliterator` operations remain available for interoperability.
 
 `Seq` and `SeqStream` delegate common implementations to `Sources`. Their public
 methods generally validate arguments, acquire a source, call the shared
@@ -44,10 +44,15 @@ All library code lives in `src/main/java/io/github/eagerseq`. The main pieces ar
 |---|---|
 | `Seq`, `SeqStream` | Public eager and lazy APIs. |
 | `Sources` | Shared algorithms, terminals, buffering and adapters. |
-| `Source`, `Sink`, `Stage` | Traversal and composition of operations. |
+| `Source`, `Stage` | Traversal and composition of operations. |
 | `ArraySeq`, `CollectionSeq` | Array-backed sequences and collection-backed views. |
 | `SourceSeqStream`, `SeqStreamPipeline` | Single-use stage acquisition and shared lifecycle state. |
 | `ArrayBuilder` | Accumulation into arrays for results and builders. |
+
+When implementing a stage, consult the class Javadoc in
+[`Stage.java`](src/main/java/io/github/eagerseq/Stage.java) for callback binding
+and overriding `forEachWhile`. The callback interface choice is explained
+in [the design rationale](docs/DESIGN.md#traversal-callbacks).
 
 `Seq` has a defined encounter order. Its collection mutators throw, but it is
 not necessarily backed by immutable data: `copyOf` creates a snapshot, while

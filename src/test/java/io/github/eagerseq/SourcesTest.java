@@ -705,8 +705,8 @@ public class SourcesTest {
     }
 
     /**
-     * A source must reject a null sink before it is first traversed, after
-     * a sink has stopped it part way, and after it is exhausted: an early
+     * A source must reject a null downstream predicate before it is first traversed, after
+     * a downstream predicate has stopped it part way, and after it is exhausted: an early
      * return for an exhausted or closed source must not skip the check.
      */
     @Test
@@ -845,9 +845,9 @@ public class SourcesTest {
     @Test
     public void sourceDefaultsAdvanceOnceAndPromiseNothing() {
         int[] next = {0};
-        Source<Integer> source = sink -> {
+        Source<Integer> source = action -> {
             while (next[0] < 3) {
-                if (!sink.push(next[0]++)) return false;
+                if (!action.test(next[0]++)) return false;
             }
             return true;
         };
@@ -865,9 +865,9 @@ public class SourcesTest {
         assertEquals(Arrays.asList(0), out);
 
         int[] from = {0};
-        Source<Integer> unconsumed = sink -> {
+        Source<Integer> unconsumed = action -> {
             while (from[0] < 3) {
-                if (!sink.push(from[0]++)) return false;
+                if (!action.test(from[0]++)) return false;
             }
             return true;
         };

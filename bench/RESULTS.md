@@ -112,8 +112,8 @@ get the JDK's exact sizing. Only the spliterator overload grows.
 
 ## Stages are fine
 
-`Sources.map` and `Sources.filter` are a single `push` each, with no
-per-element object, and `Stage` binds `down` once per traversal rather than
+`Sources.map` and `Sources.filter` are a single `test` each, with no
+per-element object, and `Stage` binds `action` once per traversal rather than
 per element. The `drainN` rows show the result: at one, two and four map
 stages the library is faster than the JDK, and at one stage it allocated
 152 B/op against the JDK's 14,200 because escape analysis removed the

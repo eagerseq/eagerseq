@@ -7,8 +7,8 @@ package io.github.eagerseq;
  */
 abstract class MappingStage<U, E> extends Stage<U, E> {
 
-    MappingStage(Source<? extends U> up) {
-        super(up);
+    MappingStage(Source<? extends U> upstream) {
+        super(upstream);
     }
 
     /**
@@ -16,15 +16,15 @@ abstract class MappingStage<U, E> extends Stage<U, E> {
      */
     abstract E map(U element);
 
-    public final boolean push(U element) {
-        return down.push(map(element));
+    public final boolean test(U element) {
+        return action.test(map(element));
     }
 
     public int characteristics() {
-        return super.characteristics() | (up.characteristics() & SIZED);
+        return super.characteristics() | (upstream.characteristics() & SIZED);
     }
 
     public long estimateSize() {
-        return up.estimateSize();
+        return upstream.estimateSize();
     }
 }

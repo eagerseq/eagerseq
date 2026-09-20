@@ -18,6 +18,22 @@ ordering and search are explored in [EQUALITY_AND_ORDERING.md](EQUALITY_AND_ORDE
 and [DIRECT_MATCHING.md](DIRECT_MATCHING.md). Those analyses help evaluate
 concrete proposals; they are not requirements to complete an API matrix.
 
+## Traversal callbacks
+
+`Source.forEachWhile` uses the JDK `Predicate` interface rather than a separate
+public `Sink` interface. Its method name and contract give the boolean its
+continuation meaning; a dedicated callback type would add vocabulary without
+adding capability. Side effects are intentional here, as they are in the
+`BiPredicate` accumulator accepted by `collectWhile`.
+
+The callback parameter is named `action`, consistent with `forEachRemaining`.
+Stages retain that name for the callback field, binding it with
+`this.action = requireNonNull(action)`; `upstream` names the source feeding
+the stage. The implementation protocol is documented in
+[`Stage.java`](../src/main/java/io/github/eagerseq/Stage.java); the traversal
+return contract belongs to
+[`Source.forEachWhile`](../src/main/java/io/github/eagerseq/Source.java).
+
 ## Ownership choices
 
 `copyOf(array)` deliberately exists alongside `of(array)`: the explicit name

@@ -2,6 +2,7 @@ package io.github.eagerseq;
 
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 
@@ -23,12 +24,12 @@ final class ArraySource<E> implements Source<E> {
     }
 
     @SuppressWarnings("unchecked")
-    public boolean forEachWhile(Sink<? super E> sink) {
-        requireNonNull(sink);
+    public boolean forEachWhile(Predicate<? super E> action) {
+        requireNonNull(action);
         int i = index;
         try {
             while (i < fence) {
-                if (!sink.push((E) array[i++])) return false;
+                if (!action.test((E) array[i++])) return false;
             }
             return true;
         } finally {

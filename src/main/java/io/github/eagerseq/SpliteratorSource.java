@@ -2,6 +2,7 @@ package io.github.eagerseq;
 
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
 
@@ -18,10 +19,10 @@ final class SpliteratorSource<E> implements Source<E> {
         this.spliterator = requireNonNull(spliterator);
     }
 
-    public boolean forEachWhile(Sink<? super E> sink) {
-        requireNonNull(sink);
+    public boolean forEachWhile(Predicate<? super E> action) {
+        requireNonNull(action);
         while (spliterator.tryAdvance(next)) {
-            if (!sink.push(next.value)) return false;
+            if (!action.test(next.value)) return false;
         }
         return true;
     }

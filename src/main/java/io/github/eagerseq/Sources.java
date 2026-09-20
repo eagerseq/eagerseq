@@ -51,10 +51,10 @@ final class Sources {
 
     static <E> Source<E> toSource(Iterator<? extends E> iterator) {
         return new AbstractSource<E>(0) {
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
                 while (iterator.hasNext()) {
-                    if (!sink.push(iterator.next())) return false;
+                    if (!action.test(iterator.next())) return false;
                 }
                 return true;
             }
@@ -108,8 +108,8 @@ final class Sources {
             private Supplier<Source<E>> pending = supplier;
             private Source<E> delegate;
 
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
                 if (pending != null) {
                     Supplier<Source<E>> supplier = pending;
                     pending = null;
@@ -119,7 +119,7 @@ final class Sources {
                     throw new IllegalStateException(
                             "deferred computation previously failed");
                 }
-                return delegate.forEachWhile(sink);
+                return delegate.forEachWhile(action);
             }
 
             public int characteristics() {
@@ -429,23 +429,23 @@ final class Sources {
                     closeCurrent();
                 });
             }
-            public boolean push(P part) {
-                currentPart = part;
-                if (part == null) return true;
-                current = toSource.apply(part);
-                if (!current.forEachWhile(down)) return false;
-                closeCurrent();
-                return true;
-            }
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                this.action = requireNonNull(action);
                 if (closed) return true;
                 // resume the part a previous stop left behind
-                if (current != null && !current.forEachWhile(sink)) {
+                if (current != null && !current.forEachWhile(action)) {
                     return false;
                 }
                 closeCurrent();
-                return super.forEachWhile(sink);
+                return upstream.forEachWhile(this);
+            }
+            public boolean test(P part) {
+                currentPart = part;
+                if (part == null) return true;
+                current = toSource.apply(part);
+                if (!current.forEachWhile(action)) return false;
+                closeCurrent();
+                return true;
             }
             private void closeCurrent() {
                 P part = currentPart;
@@ -470,10 +470,10 @@ final class Sources {
         }
         return new AbstractSource<E>(c) {
             private int index;
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
                 while (index < sources.length) {
-                    if (!sources[index].forEachWhile(sink)) return false;
+                    if (!sources[index].forEachWhile(action)) return false;
                     index++;
                 }
                 return true;
@@ -497,9 +497,9 @@ final class Sources {
             Source<E> source, Object object) {
         return new Stage<E, Integer>(source, ORDERED) {
             private int index;
-            public boolean push(E e) {
+            public boolean test(E e) {
                 int i = index++;
-                return !Sources.equals(object, e) || down.push(i);
+                return !Sources.equals(object, e) || action.test(i);
             }
         };
     }
@@ -531,16 +531,16 @@ final class Sources {
         return new Stage<E, R>(spl0, ordered(spl0, spl1)) {
             private final Box<F> box1 = new Box<>();
             private boolean done;
-            public boolean push(E e) {
+            public boolean forEachWhile(Predicate<? super R> action) {
+                this.action = requireNonNull(action);
+                return done || upstream.forEachWhile(this) || done;
+            }
+            public boolean test(E e) {
                 if (!spl1.tryAdvance(box1)) {
                     done = true;
                     return false;
                 }
-                return down.push(mapper.apply(e, box1.value));
-            }
-            public boolean forEachWhile(Sink<? super R> sink) {
-                requireNonNull(sink);
-                return done || super.forEachWhile(sink) || done;
+                return action.test(mapper.apply(e, box1.value));
             }
         };
     }
@@ -566,14 +566,14 @@ final class Sources {
         return new AbstractSource<Integer>(ORDERED) {
             private int index = from;
             private int last = pendingLast;
-            public boolean forEachWhile(Sink<? super Integer> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super Integer> action) {
+                requireNonNull(action);
                 while (index < to) {
-                    if (!sink.push(index++)) return false;
+                    if (!action.test(index++)) return false;
                 }
                 if (last > 0) {
                     last = 0;
-                    return sink.push(index);
+                    return action.test(index);
                 }
                 return true;
             }
@@ -585,14 +585,14 @@ final class Sources {
         return new AbstractSource<Long>(ORDERED) {
             private long index = from;
             private int last = pendingLast;
-            public boolean forEachWhile(Sink<? super Long> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super Long> action) {
+                requireNonNull(action);
                 while (index < to) {
-                    if (!sink.push(index++)) return false;
+                    if (!action.test(index++)) return false;
                 }
                 if (last > 0) {
                     last = 0;
-                    return sink.push(index);
+                    return action.test(index);
                 }
                 return true;
             }
@@ -601,9 +601,9 @@ final class Sources {
 
     static <E> Source<E> repeat(E element) {
         return new AbstractSource<E>(ORDERED) {
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
-                while (sink.push(element)) {
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
+                while (action.test(element)) {
                 }
                 return false;
             }
@@ -616,9 +616,9 @@ final class Sources {
 
     static <E> Source<E> generate(Supplier<? extends E> supplier) {
         return new AbstractSource<E>(ORDERED) {
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
-                while (sink.push(supplier.get())) {
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
+                while (action.test(supplier.get())) {
                 }
                 return false;
             }
@@ -635,15 +635,15 @@ final class Sources {
         return new AbstractSource<E>(ORDERED) {
             private E next = seed;
             private boolean started;
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
                 if (!started) {
                     started = true;
-                    if (!sink.push(next)) return false;
+                    if (!action.test(next)) return false;
                 }
                 while (true) {
                     next = operator.apply(next);
-                    if (!sink.push(next)) return false;
+                    if (!action.test(next)) return false;
                 }
             }
         };
@@ -657,9 +657,9 @@ final class Sources {
     static <E> Source<Integer> indexes(Source<E> source) {
         return new Stage<E, Integer>(source, ORDERED) {
             private long index;
-            public boolean push(E e) {
+            public boolean test(E e) {
                 // throwing is acceptable in this rare case of overflow
-                return down.push(Math.toIntExact(index++));
+                return action.test(Math.toIntExact(index++));
             }
         };
     }
@@ -673,7 +673,24 @@ final class Sources {
             private int index;
             private boolean filled;
             private E[] queue;
-            public boolean push(E e) {
+            public boolean forEachWhile(Predicate<? super E> action) {
+                this.action = requireNonNull(action);
+                if (!filled) {
+                    filled = true;
+                    // test never stops the traversal, so it drains upstream
+                    upstream.forEachWhile(this);
+                    if (queue == null) queue = builder.buildArray();
+                }
+                while (used > 0) {
+                    used--;
+                    E e = queue[index];
+                    index++;
+                    index %= queue.length;
+                    if (!action.test(e)) return false;
+                }
+                return true;
+            }
+            public boolean test(E e) {
                 // fill by appending, so that the queue is sized from the
                 // data and not from size, and only then overwrite in
                 // place, by which point its length is settled
@@ -684,23 +701,6 @@ final class Sources {
                     queue[index] = e;
                     index++;
                     index %= queue.length;
-                }
-                return true;
-            }
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
-                if (!filled) {
-                    filled = true;
-                    // test never stops the traversal, so it drains up
-                    up.forEachWhile(this);
-                    if (queue == null) queue = builder.buildArray();
-                }
-                while (used > 0) {
-                    used--;
-                    E e = queue[index];
-                    index++;
-                    index %= queue.length;
-                    if (!sink.push(e)) return false;
                 }
                 return true;
             }
@@ -715,7 +715,7 @@ final class Sources {
             private int used;
             private int index;
             private E[] queue;
-            public boolean push(E e) {
+            public boolean test(E e) {
                 // as limitLast, the queue is sized from the data
                 if (queue == null) {
                     builder.accept(e);
@@ -726,7 +726,7 @@ final class Sources {
                 queue[index] = e;
                 index++;
                 index %= queue.length;
-                return down.push(first);
+                return action.test(first);
             }
         };
     }
@@ -736,14 +736,14 @@ final class Sources {
             Predicate<? super E> predicate) {
         return new Stage<E, E>(source) {
             private boolean found;
-            public boolean push(E e) {
-                if (predicate.test(e)) return down.push(e);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                this.action = requireNonNull(action);
+                return found || upstream.forEachWhile(this) || found;
+            }
+            public boolean test(E e) {
+                if (predicate.test(e)) return action.test(e);
                 found = true;
                 return false;
-            }
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
-                return found || super.forEachWhile(sink) || found;
             }
         };
     }
@@ -753,10 +753,10 @@ final class Sources {
             Predicate<? super E> predicate) {
         return new Stage<E, E>(source) {
             private boolean found;
-            public boolean push(E e) {
+            public boolean test(E e) {
                 if (!found && predicate.test(e)) return true;
                 found = true;
-                return down.push(e);
+                return action.test(e);
             }
         };
     }
@@ -870,8 +870,8 @@ final class Sources {
             {
                 Arrays.fill(used, 0, k, true);
             }
-            public boolean forEachWhile(Sink<? super E[]> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E[]> action) {
+                requireNonNull(action);
                 while (index != null) {
                     @SuppressWarnings("unchecked")
                     E[] r = (E[]) Arrays.stream(index)
@@ -894,7 +894,7 @@ final class Sources {
                         }
                     }
                     if (a < 0) index = null;
-                    if (!sink.push(r)) return false;
+                    if (!action.test(r)) return false;
                 }
                 return true;
             }
@@ -913,8 +913,8 @@ final class Sources {
         }
         return new AbstractSource<E[]>(ORDERED) {
             private int[] index = IntStream.range(0, k).toArray();
-            public boolean forEachWhile(Sink<? super E[]> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E[]> action) {
+                requireNonNull(action);
                 while (index != null) {
                     @SuppressWarnings("unchecked")
                     E[] r = (E[]) Arrays.stream(index)
@@ -928,7 +928,7 @@ final class Sources {
                         i = ++index[a++] + 1;
                         while (a < index.length) index[a++] = i++;
                     }
-                    if (!sink.push(r)) return false;
+                    if (!action.test(r)) return false;
                 }
                 return true;
             }
@@ -946,8 +946,8 @@ final class Sources {
             private int[] index = array.length == 0 && k > 0
                     ? null
                     : new int[k];
-            public boolean forEachWhile(Sink<? super E[]> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E[]> action) {
+                requireNonNull(action);
                 while (index != null) {
                     @SuppressWarnings("unchecked")
                     E[] r = (E[]) Arrays.stream(index)
@@ -957,7 +957,7 @@ final class Sources {
                         index[a--] = 0;
                     }
                     if (a < 0) index = null;
-                    if (!sink.push(r)) return false;
+                    if (!action.test(r)) return false;
                 }
                 return true;
             }
@@ -977,8 +977,8 @@ final class Sources {
             Source<E> source,
             Predicate<? super E> predicate) {
         return new Stage<E, E>(source) {
-            public boolean push(E e) {
-                return !predicate.test(e) || down.push(e);
+            public boolean test(E e) {
+                return !predicate.test(e) || action.test(e);
             }
         };
     }
@@ -1031,7 +1031,7 @@ final class Sources {
             Source<E> source,
             BiConsumer<? super E, ? super Consumer<R>> mapper) {
         return new Stage<E, R>(source) {
-            // pushed straight through until the sink stops, after which
+            // pushed straight through until the action stops, after which
             // the rest of that element's results are buffered for later
             @SuppressWarnings("unchecked")
             private R[] buffer = (R[]) ArrayBuilder.EMPTY;
@@ -1039,22 +1039,22 @@ final class Sources {
             private ArrayBuilder<R> overflow;
             private final Consumer<R> sink = r -> {
                 if (overflow != null) overflow.accept(r);
-                else if (!down.push(r)) overflow = new ArrayBuilder<>();
+                else if (!action.test(r)) overflow = new ArrayBuilder<>();
             };
-            public boolean push(E e) {
+            public boolean forEachWhile(Predicate<? super R> action) {
+                this.action = requireNonNull(action);
+                while (index < buffer.length) {
+                    if (!action.test(buffer[index++])) return false;
+                }
+                return upstream.forEachWhile(this);
+            }
+            public boolean test(E e) {
                 mapper.accept(e, sink);
                 if (overflow == null) return true;
                 buffer = overflow.buildArray();
                 overflow = null;
                 index = 0;
                 return false;
-            }
-            public boolean forEachWhile(Sink<? super R> sink) {
-                requireNonNull(sink);
-                while (index < buffer.length) {
-                    if (!sink.push(buffer[index++])) return false;
-                }
-                return super.forEachWhile(sink);
             }
         };
     }
@@ -1069,9 +1069,9 @@ final class Sources {
         // null is an internal identity sentinel for private use only
         return new Stage<E, E>(source) {
             private final Set<Object> seen = new HashSet<>();
-            public boolean push(E e) {
+            public boolean test(E e) {
                 return !seen.add(keyMapper == null ? e : keyMapper.apply(e))
-                        || down.push(e);
+                        || action.test(e);
             }
         };
     }
@@ -1139,16 +1139,16 @@ final class Sources {
         return new Stage<E, E>(source) {
             private long index;
             private boolean more;
-            public boolean push(E e) {
-                index++;
-                more = down.push(e);
-                return more && index < size;
-            }
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                this.action = requireNonNull(action);
                 // exhausted once the limit is reached, unless it was the
-                // sink that stopped the traversal
-                return index >= size || super.forEachWhile(sink) || more;
+                // action that stopped the traversal
+                return index >= size || upstream.forEachWhile(this) || more;
+            }
+            public boolean test(E e) {
+                index++;
+                more = action.test(e);
+                return more && index < size;
             }
         };
     }
@@ -1157,8 +1157,8 @@ final class Sources {
             Source<E> source, long size) {
         return new Stage<E, E>(source) {
             private long index;
-            public boolean push(E e) {
-                return index++ < size || down.push(e);
+            public boolean test(E e) {
+                return index++ < size || action.test(e);
             }
         };
     }
@@ -1301,19 +1301,19 @@ final class Sources {
     static <E> boolean noneMatch(
             Source<E> source,
             Predicate<? super E> predicate) {
-        return source.forEachWhile(e -> !predicate.test(e));
+        return allMatch(source, predicate.negate());
     }
 
     static <E> boolean anyMatch(
             Source<E> source,
             Predicate<? super E> predicate) {
-        return !source.forEachWhile(e -> !predicate.test(e));
+        return !noneMatch(source, predicate);
     }
 
     static <E> boolean allMatch(
             Source<E> source,
             Predicate<? super E> predicate) {
-        return source.forEachWhile(predicate::test);
+        return source.forEachWhile(predicate);
     }
 
     static <E> Source<E[]> windowFixed(
@@ -1336,7 +1336,19 @@ final class Sources {
             private int retained;
             private int toSkip;
             private boolean finished;
-            public boolean push(E e) {
+            public boolean forEachWhile(Predicate<? super E[]> action) {
+                this.action = requireNonNull(action);
+                if (finished) return true;
+                if (!upstream.forEachWhile(this)) return false;
+                finished = true;
+                // the short window is dropped unless the source added to
+                // the elements retained from the last
+                if (count <= retained) return true;
+                return action.test(window == null
+                        ? builder.buildArray()
+                        : Arrays.copyOf(window, count));
+            }
+            public boolean test(E e) {
                 if (toSkip > 0) {
                     toSkip--;
                     return true;
@@ -1355,19 +1367,7 @@ final class Sources {
                 window = Arrays.copyOfRange(full, from, from + size);
                 count = retained = size - from;
                 toSkip = step - from;
-                return down.push(full);
-            }
-            public boolean forEachWhile(Sink<? super E[]> sink) {
-                requireNonNull(sink);
-                if (finished) return true;
-                if (!super.forEachWhile(sink)) return false;
-                finished = true;
-                // the short window is dropped unless the source added to
-                // the elements retained from the last
-                if (count <= retained) return true;
-                return sink.push(window == null
-                        ? builder.buildArray()
-                        : Arrays.copyOf(window, count));
+                return action.test(full);
             }
         };
     }
@@ -1397,9 +1397,9 @@ final class Sources {
 
     static <E> Source<E> unordered(Source<E> source) {
         return new AbstractSource<E>(0) {
-            public boolean forEachWhile(Sink<? super E> sink) {
-                requireNonNull(sink);
-                return source.forEachWhile(sink);
+            public boolean forEachWhile(Predicate<? super E> action) {
+                requireNonNull(action);
+                return source.forEachWhile(action);
             }
         };
     }
@@ -1462,20 +1462,20 @@ final class Sources {
         return new Stage<E, Integer>(source, ORDERED) {
             private int j = from;
             private boolean started;
-            public boolean push(E e) {
+            public boolean forEachWhile(Predicate<? super Integer> action) {
+                this.action = requireNonNull(action);
+                if (!started) {
+                    started = true;
+                    if (!action.test(j)) return false;
+                }
+                return upstream.forEachWhile(this);
+            }
+            public boolean test(E e) {
                 while (j == slice.length
                         || j >= 0 && !Sources.equals(e, slice[j])) {
                     j = jumps[j];
                 }
-                return down.push(++j);
-            }
-            public boolean forEachWhile(Sink<? super Integer> sink) {
-                requireNonNull(sink);
-                if (!started) {
-                    started = true;
-                    if (!sink.push(j)) return false;
-                }
-                return super.forEachWhile(sink);
+                return action.test(++j);
             }
         };
     }
@@ -1484,9 +1484,10 @@ final class Sources {
             Source<Integer> lengths, int sliceLength) {
         return new Stage<Integer, Integer>(lengths, ORDERED) {
             private int index;
-            public boolean push(Integer length) {
+            public boolean test(Integer length) {
                 int i = index++;
-                return length != sliceLength || down.push(i - sliceLength);
+                return length != sliceLength
+                        || action.test(i - sliceLength);
             }
         };
     }
@@ -1514,9 +1515,9 @@ final class Sources {
             Map<Object, Long> multiset,
             boolean difference) {
         return new Stage<E, E>(first) {
-            public boolean push(E e) {
+            public boolean test(E e) {
                 return multisetRemove(multiset, e) == difference
-                        || down.push(e);
+                        || action.test(e);
             }
         };
     }

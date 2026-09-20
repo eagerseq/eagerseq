@@ -176,8 +176,8 @@ import static java.util.Objects.requireNonNull;
  * {@code spliterator()}, ie all other methods have default implementations
  * defined in terms of {@code spliterator()}. It returns a {@link Source}, a
  * {@code Spliterator} whose primitive traversal pushes elements into a
- * {@link Sink} until the sink cancels. For example, internally the most
- * common implementation of {@code Seq} is {@code ArraySeq}, which wraps an
+ * downstream {@link Predicate} until it returns {@code false}. For example,
+ * internally the most common implementation of {@code Seq} is {@code ArraySeq}, which wraps an
  * array and implements the abstract method with a source over that array.
  * Methods like {@code map} and {@code filter}
  * internally create a {@code Source} representing the result then read
