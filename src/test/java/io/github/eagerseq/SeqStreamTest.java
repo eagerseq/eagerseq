@@ -816,6 +816,13 @@ public class SeqStreamTest {
         assertTrue(invalid.isSorted());
     }
 
+    @Test
+    public void testFrequency() {
+        SeqStream<Integer> stream = streamOf(1, 2, 2, 3);
+        assertThat(stream.frequency(2), equalTo(2));
+        assertConsumed(() -> stream.frequency(2));
+    }
+
     @Test(timeout = 5000)
     public void testIntermediateOperationsAreLazy() {
         int[] traversed = new int[1];

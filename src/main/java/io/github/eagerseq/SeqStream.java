@@ -573,6 +573,13 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * Stream equivalent of {@link Seq#frequency(Object)}.
+     */
+    default int frequency(Object object) {
+        return Sources.frequency(spliterator(), object);
+    }
+
+    /**
      * Stream equivalent of {@link Seq#reversed()}.
      */
     default SeqStream<E> reversed() {

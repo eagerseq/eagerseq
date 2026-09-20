@@ -989,6 +989,15 @@ public class SeqTest {
     }
 
     @Test
+    public void testFrequency() {
+        Seq<String> words = seqOf(
+                "the quick brown fox jumps over the lazy dog".split(" "));
+        assertThat(words.frequency("the"), equalTo(2));
+        assertThat(words.frequency("on"), equalTo(0));
+        assertThat(seqOf(0, null, null, 3).frequency(null), equalTo(2));
+    }
+
+    @Test
     public void testFindOnly() {
         assertThat(seqOf().findOnly(), equalTo(Optional.empty()));
         assertThat(seqOf(0).findOnly(), equalTo(Optional.of(0)));

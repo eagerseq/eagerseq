@@ -220,6 +220,13 @@ public class SeqReferenceTest {
     }
 
     @Test
+    public void testFrequency() {
+        forEachInputAndElement((input, element) -> assertThat(
+                seq(input).frequency(element),
+                equalTo(Collections.frequency(input, element))));
+    }
+
+    @Test
     public void testIndexesOfSlice() {
         forEachInputPair((input, that) -> assertThat(
                 seq(input).indexesOfSlice(that).toList(),

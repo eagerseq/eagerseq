@@ -64,7 +64,7 @@ JDK static, or a manual loop.
 | map from key+value fns | `Maps.toMap` | — | dict comp. | `toMap(k, v)` | yes |
 | merge on key collision | — | — | dict comp. | `toMap(k, v, merge)` | yes |
 | count occurrences by key | `Multiset` | `countBy` | `Counter` | — | **no** |
-| count of one value | `Iterables.frequency` | — | `list.count` | `indexesOf(v).size()` | comp. |
+| count of one value | `Iterables.frequency` | — | `list.count` | `frequency` | yes |
 | numeric sum | — | `sum`, `sumBy` | `sum` | `sumOfInt`, `sumOfLong`, `sumOfDouble` | yes |
 | average | — | `mean` | `statistics.mean` | — | **no** |
 | min/max by comparator | `Ordering.min/max` | `minBy` | `min(key=)` | `min(Comparator)` | yes |

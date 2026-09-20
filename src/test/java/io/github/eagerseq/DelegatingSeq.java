@@ -203,6 +203,10 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().indexesOf(object).toSeq();
     }
 
+    default int frequency(Object object) {
+        return stream().frequency(object);
+    }
+
     default Seq<E> reversed() {
         return stream().reversed().toSeq();
     }

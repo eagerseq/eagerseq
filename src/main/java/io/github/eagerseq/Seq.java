@@ -899,6 +899,15 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
+     * Returns the number of elements in this {@code Seq} equal to the
+     * specified object.
+     * See {@link Collections#frequency(Collection, Object)}.
+     */
+    default int frequency(Object object) {
+        return Sources.frequency(spliterator(), object);
+    }
+
+    /**
      * Returns a new {@code Seq} with elements reversed.
      * See {@link Collections#reverse(List)}.
      *

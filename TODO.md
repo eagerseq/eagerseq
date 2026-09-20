@@ -23,7 +23,8 @@ below are subjects to assess, not commitments to implement.
   already exist.
 - `sortedBy(Function)`, considering whether computing keys once per element
   provides enough benefit beyond comparator composition.
-- Counting by predicate, value or key. See
+- Counting by predicate or key; value frequency is available via `frequency`.
+  See
   [DIRECT_MATCHING.md](docs/DIRECT_MATCHING.md#counting-is-a-separate-candidate)
   for the rationale; search-family symmetry is not an implementation plan.
 - Positional copy-modify operations such as `updated` or `patch`, currently

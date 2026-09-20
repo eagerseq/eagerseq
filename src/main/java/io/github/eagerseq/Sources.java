@@ -519,6 +519,11 @@ final class Sources {
         return !isEmpty(indexesOf(source, object));
     }
 
+    static <E> int frequency(
+            Source<E> source, Object object) {
+        return size(indexesOf(source, object));
+    }
+
     static <E, F, R> Source<R> zip(
             Source<E> spl0,
             Spliterator<? extends F> spl1,
