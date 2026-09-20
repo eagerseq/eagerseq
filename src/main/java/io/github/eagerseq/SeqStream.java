@@ -866,6 +866,21 @@ public interface SeqStream<E> extends Stream<E> {
     }
 
     /**
+     * See {@link Seq#isSorted()}.
+     */
+    default boolean isSorted() {
+        return Sources.isSorted(spliterator());
+    }
+
+    /**
+     * See {@link Seq#isSorted(Comparator)}.
+     */
+    default boolean isSorted(Comparator<? super E> comparator) {
+        requireNonNull(comparator);
+        return Sources.isSorted(spliterator(), comparator);
+    }
+
+    /**
      * {@inheritDoc}
      */
     default SeqStream<E> limit(long size) {

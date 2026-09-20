@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -796,6 +797,25 @@ public class SeqStreamTest {
                 equalTo(Arrays.asList(0, 1)));
     }
 
+    @Test
+    public void testIsSortedShortCircuitsAndConsumesStream() {
+        List<Integer> visited = new ArrayList<>();
+        SeqStream<Integer> stream = streamOf(1, 3, 2, 4).peek(visited::add);
+        assertFalse(stream.isSorted());
+        assertThat(visited, equalTo(Arrays.asList(1, 3, 2)));
+        assertConsumed(stream::isSorted);
+
+        visited.clear();
+        SeqStream<Integer> custom = streamOf(3, 1, 2, 0).peek(visited::add);
+        assertFalse(custom.isSorted(Comparator.reverseOrder()));
+        assertThat(visited, equalTo(Arrays.asList(3, 1, 2)));
+        assertConsumed(() -> custom.isSorted(Comparator.reverseOrder()));
+
+        SeqStream<Integer> invalid = streamOf(1, 2);
+        assertNullRejected(() -> invalid.isSorted(null));
+        assertTrue(invalid.isSorted());
+    }
+
     @Test(timeout = 5000)
     public void testIntermediateOperationsAreLazy() {
         int[] traversed = new int[1];
@@ -1101,6 +1121,7 @@ public class SeqStreamTest {
         assertNullRejected(() -> emptyStream().partitionBy(null, Seq::size));
         assertNullRejected(() -> emptyStream().partitionBy(e -> true, null));
         assertNullRejected(() -> emptyStream().sorted(null));
+        assertNullRejected(() -> emptyStream().isSorted(null));
         assertNullRejected(() -> emptyStream().shuffled(null));
         assertNullRejected(() -> emptyStream().min(null));
         assertNullRejected(() -> emptyStream().max(null));

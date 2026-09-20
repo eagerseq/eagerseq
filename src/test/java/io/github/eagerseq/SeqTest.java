@@ -32,6 +32,8 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.emptySortedSet;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsFirst;
+import static java.util.Comparator.reverseOrder;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -1269,6 +1271,30 @@ public class SeqTest {
     }
 
     @Test
+    public void testIsSorted() {
+        assertTrue(seqOf().isSorted());
+        assertTrue(seqOf(new Object()).isSorted());
+        assertTrue(seqOf((Object) null).isSorted());
+        assertTrue(seqOf(1, 2, 2, 3).isSorted());
+        assertFalse(seqOf(2, 1, 3).isSorted());
+        assertFalse(seqOf(1, 3, 2).isSorted());
+        assertTrue(this.<Integer>seqOf().isSorted(reverseOrder()));
+        assertTrue(seqOf(1).isSorted(reverseOrder()));
+        assertTrue(seqOf(3, 2, 2, 1).isSorted(reverseOrder()));
+        assertFalse(seqOf(3, 1, 2).isSorted(reverseOrder()));
+        assertTrue(seqOf("a", "b", "cc").isSorted(comparing(String::length)));
+        assertFalse(seqOf("a", "ccc", "bb")
+                .isSorted(comparing(String::length)));
+        assertTrue(
+                seqOf(null, null, 1, 2).isSorted(nullsFirst(naturalOrder())));
+        assertFalse(seqOf(1, null).isSorted(nullsFirst(naturalOrder())));
+        assertThrows(ClassCastException.class,
+                () -> seqOf(new Object(), new Object()).isSorted());
+        assertThrows(NullPointerException.class,
+                () -> seqOf(1, null).isSorted());
+    }
+
+    @Test
     public void testLimit() {
         assertThat(seqOf(0, null, 2).limit(2), contains(0, null));
         assertThat(seqOf(0, null, 2).limit(5), contains(0, null, 2));
@@ -1635,6 +1661,7 @@ public class SeqTest {
         assertNullRejected(() -> empty.partitionBy(null, Seq::size));
         assertNullRejected(() -> empty.partitionBy(e -> true, null));
         assertNullRejected(() -> empty.sorted(null));
+        assertNullRejected(() -> empty.isSorted(null));
         assertNullRejected(() -> empty.shuffled(null));
         assertNullRejected(() -> empty.min(null));
         assertNullRejected(() -> empty.max(null));

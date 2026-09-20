@@ -10,7 +10,7 @@ below illustrate possible shapes; check the interfaces for the current API.
 
 | Kind | Question asked | Customization | Existing examples |
 |---|---|---|---|
-| Ordering | Which element comes before another? | `Comparator` | `sorted`, `min`, `max` |
+| Ordering | Which element comes before another? | `Comparator` | `sorted`, `isSorted`, `min`, `max` |
 | Equivalence classes | Which elements have the same global identity? | key `Function`; optionally a `Comparator` | `distinct`, `setEquals`, `multisetEquals`, `containsMultiset`, `intersection`, `difference`, `union` |
 | Direct matching | Do particular elements satisfy this match? | `Predicate` for a query; `BiPredicate` for two inputs | `contains`, `indexOf`, `listEquals`, the slice searches, `startsWith`, `endsWith` |
 
@@ -24,6 +24,7 @@ natural order:
 
 ```java
 sorted()                 sorted(comparator)
+isSorted()               isSorted(comparator)
 min()                    min(comparator)
 max()                    max(comparator)
 ```

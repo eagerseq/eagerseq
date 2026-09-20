@@ -1067,6 +1067,27 @@ public interface Seq<E> extends Collection<E> {
     }
 
     /**
+     * Returns whether elements are in nondecreasing natural order.
+     * Empty and singleton sequences are sorted. Stops at the first
+     * out-of-order adjacent pair.
+     */
+    default boolean isSorted() {
+        return Sources.isSorted(spliterator());
+    }
+
+    /**
+     * Returns whether elements are in nondecreasing order according to
+     * {@code comparator}. Empty and singleton sequences are sorted.
+     * Stops at the first adjacent pair for which the comparator returns
+     * a positive value. Null elements are supported if the comparator
+     * supports them.
+     */
+    default boolean isSorted(Comparator<? super E> comparator) {
+        requireNonNull(comparator);
+        return Sources.isSorted(spliterator(), comparator);
+    }
+
+    /**
      * Eager equivalent of {@link Stream#limit(long)}.
      */
     default Seq<E> limit(long size) {

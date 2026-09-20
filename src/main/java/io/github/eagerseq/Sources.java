@@ -1114,6 +1114,21 @@ final class Sources {
         return array;
     }
 
+    static <E> boolean isSorted(Source<E> source) {
+        return isSorted(source, naturalOrder());
+    }
+
+    static <E> boolean isSorted(
+            Source<E> source, Comparator<? super E> comparator) {
+        Box<E> previous = new Box<>();
+        if (!source.tryAdvance(previous)) return true;
+        return source.forEachWhile(e -> {
+            if (comparator.compare(previous.value, e) > 0) return false;
+            previous.value = e;
+            return true;
+        });
+    }
+
     static <E> Source<E> limit(
             Source<E> source, long size) {
         return new Stage<E, E>(source) {

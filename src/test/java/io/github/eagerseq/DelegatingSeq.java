@@ -287,6 +287,14 @@ public interface DelegatingSeq<E> extends Seq<E> {
         return stream().sorted(comparator).toSeq();
     }
 
+    default boolean isSorted() {
+        return stream().isSorted();
+    }
+
+    default boolean isSorted(Comparator<? super E> comparator) {
+        return stream().isSorted(comparator);
+    }
+
     default Seq<E> limit(long size) {
         return stream().limit(size).toSeq();
     }
