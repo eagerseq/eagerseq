@@ -86,6 +86,17 @@ the other buffering operations when traversal is required. A sized `count()`
 can answer without initialising the deferred computation. Failed initialisation
 is not retried; subsequent traversal reports the failure.
 
+Count-preserving deferred operations (`sorted`, `reversed`, `rotated`,
+`shuffled` and `scan`) retain the input's `SIZED` characteristic without
+querying its size during construction or cursor acquisition. Before traversal,
+size queries read the input's current estimate; after initialisation they read
+the delegate's remaining estimate. This preserves allocation and `count()`
+optimisations without prematurely binding late-binding inputs such as an
+`ArrayList` view. Changes to such backing collections before evaluation (or
+before the acquired cursor is first advanced or queried for size) are observed.
+A size query may itself bind the input; this does not promise support for
+mutation after binding or during traversal.
+
 Operations that needed individual changes beyond sharing a pipeline:
 
 - `product` defers buffering its right operand to first traversal. It still

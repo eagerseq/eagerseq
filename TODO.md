@@ -6,16 +6,6 @@ below are subjects to assess, not commitments to implement.
 
 ## Compatibility and robustness
 
-- Address premature source binding in lazy intermediates over live collection
-  views. For an `ArrayList` initially containing `[2, 1]`, construct
-  `Seq.viewOf(list).stream().sorted()`, then append `3` before invoking a
-  terminal: `count()` returns `2`, while `toList()` in a separate reproduction
-  throws `ConcurrentModificationException`. The equivalent JDK sorted stream
-  observes all three elements. Stale counts also occur with `reversed()` and
-  `scan()`; `rotated()` and `shuffled()` use the same size-capture pattern.
-  Investigate when size queries bind sources and reconcile sizing optimizations
-  with the intended lazy/live-view semantics. Deferring size discovery is one
-  possible direction, not a prescribed implementation.
 - Decide when to raise the Java 8 release target. Preserve the deliberate
   snapshot semantics of `Seq.reversed()` when reviewing newer JDK contracts.
 - Decide whether serialization is in scope. Current implementations are not

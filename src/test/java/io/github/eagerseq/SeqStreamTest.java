@@ -879,6 +879,65 @@ public class SeqStreamTest {
     }
 
     @Test
+    public void testDeferredSizedOperationsObserveMutationBeforeTerminals() {
+        for (Function<SeqStream<Integer>, SeqStream<Integer>> operation : deferredSizedOperations()) {
+            List<Integer> list = new ArrayList<>(Arrays.asList(2, 1));
+            int[] reads = {0};
+            SeqStream<Integer> counted = operation.apply(
+                    Seq.viewOf(list).stream().peek(e -> reads[0]++));
+            list.add(3);
+            assertThat(counted.count(), equalTo(3L));
+            assertThat(reads[0], equalTo(0));
+
+            list = new ArrayList<>(Arrays.asList(2, 1));
+            SeqStream<Integer> collected = operation
+                    .apply(Seq.viewOf(list).stream());
+            list.add(3);
+            List<Integer> expected = operation.apply(SeqStream.of(2, 1, 3))
+                    .toList();
+            assertThat(collected.toList(), equalTo(expected));
+        }
+    }
+
+    @Test
+    public void testDeferredSizedOperationsDoNotBindOnCursorAcquisition() {
+        for (Function<SeqStream<Integer>, SeqStream<Integer>> operation : deferredSizedOperations()) {
+            for (boolean iteratorCursor : new boolean[]{false, true}) {
+                List<Integer> list = new ArrayList<>(Arrays.asList(2, 1));
+                SeqStream<Integer> stream = operation
+                        .apply(Seq.viewOf(list).stream());
+                List<Integer> actual = new ArrayList<>();
+                if (iteratorCursor) {
+                    Iterator<Integer> cursor = stream.iterator();
+                    list.add(3);
+                    cursor.forEachRemaining(actual::add);
+                } else {
+                    Spliterator<Integer> cursor = stream.spliterator();
+                    assertTrue(cursor.hasCharacteristics(Spliterator.SIZED));
+                    list.add(3);
+                    assertThat(cursor.getExactSizeIfKnown(), equalTo(3L));
+                    assertTrue(cursor.tryAdvance(actual::add));
+                    assertThat(cursor.estimateSize(), equalTo(2L));
+                    cursor.forEachRemaining(actual::add);
+                    assertThat(cursor.estimateSize(), equalTo(0L));
+                }
+                assertThat(actual, equalTo(
+                        operation.apply(SeqStream.of(2, 1, 3)).toList()));
+            }
+        }
+    }
+
+    private static List<Function<SeqStream<Integer>, SeqStream<Integer>>> deferredSizedOperations() {
+        return Arrays.asList(
+                SeqStream::sorted,
+                stream -> stream.sorted(Comparator.reverseOrder()),
+                SeqStream::reversed,
+                stream -> stream.rotated(1),
+                stream -> stream.shuffled(new Random(0)),
+                stream -> stream.scan(() -> 0, Integer::sum));
+    }
+
+    @Test
     public void testWholeSourceIntermediateOperationsAreLazy() {
         for (DeferredOperation operation : deferredOperations()) {
             assertDeferred(operation);

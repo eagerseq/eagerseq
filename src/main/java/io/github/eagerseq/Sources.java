@@ -89,25 +89,26 @@ final class Sources {
     static <E> Source<E> defer(
             Supplier<Source<E>> supplier,
             int characteristics) {
-        return defer(supplier, characteristics, -1);
+        return defer(supplier, characteristics, null);
     }
 
     /**
-     * A deferred source that will hold exactly {@code size} elements, or
-     * {@code -1} where that is not known. A whole-source operation that
-     * rearranges rather than selects, such as sorting or reversing, knows
-     * its count from its input before it runs, and saying so lets the
-     * collecting terminal downstream allocate once.
+     * A deferred source preserving the count of {@code sizeSource}, when
+     * supplied and sized. Read only its characteristics during construction:
+     * querying its estimate can bind a late-binding input before evaluation.
+     * Size queries before traversal use the input without running the deferred
+     * computation; once initialised, the delegate reports the remaining size.
      */
     static <E> Source<E> defer(
             Supplier<Source<E>> supplier,
             int characteristics,
-            long size) {
+            Spliterator<?> sizeSource) {
         requireNonNull(supplier);
+        boolean sized = sizeSource != null
+                && sizeSource.hasCharacteristics(SIZED);
         return new AbstractSource<E>(characteristics) {
             private Supplier<Source<E>> pending = supplier;
             private Source<E> delegate;
-
             public boolean forEachWhile(Predicate<? super E> action) {
                 requireNonNull(action);
                 if (pending != null) {
@@ -121,15 +122,13 @@ final class Sources {
                 }
                 return delegate.forEachWhile(action);
             }
-
             public int characteristics() {
                 int characteristics = super.characteristics();
-                return size < 0 ? characteristics : characteristics | SIZED;
+                return sized ? characteristics | SIZED : characteristics;
             }
-
             public long estimateSize() {
                 if (delegate != null) return delegate.estimateSize();
-                return size < 0 ? super.estimateSize() : size;
+                return sized ? sizeSource.estimateSize() : super.estimateSize();
             }
         };
     }

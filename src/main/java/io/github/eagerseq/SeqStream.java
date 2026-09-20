@@ -586,7 +586,7 @@ public interface SeqStream<E> extends Stream<E> {
         Source<E> source = spliterator();
         return viewOf(Sources.defer(
                 () -> Sources.toSource(Sources.reversed(source)),
-                Sources.ordered(source), Sources.exactSizeLong(source)),
+                Sources.ordered(source), source),
                 pipeline());
     }
 
@@ -598,7 +598,7 @@ public interface SeqStream<E> extends Stream<E> {
         return viewOf(Sources.defer(
                 () -> Sources.toSource(
                         Sources.rotated(source, distance)),
-                Sources.ordered(source), Sources.exactSizeLong(source)),
+                Sources.ordered(source), source),
                 pipeline());
     }
 
@@ -611,7 +611,7 @@ public interface SeqStream<E> extends Stream<E> {
         return viewOf(Sources.defer(
                 () -> Sources.toSource(
                         Sources.shuffled(source, random)),
-                Sources.ordered(source), Sources.exactSizeLong(source)),
+                Sources.ordered(source), source),
                 pipeline());
     }
 
@@ -855,7 +855,7 @@ public interface SeqStream<E> extends Stream<E> {
         Source<E> source = spliterator();
         return viewOf(Sources.defer(
                 () -> Sources.toSource(Sources.sorted(source)),
-                Spliterator.ORDERED, Sources.exactSizeLong(source)),
+                Spliterator.ORDERED, source),
                 pipeline());
     }
 
@@ -868,7 +868,7 @@ public interface SeqStream<E> extends Stream<E> {
         return viewOf(Sources.defer(
                 () -> Sources.toSource(
                         Sources.sorted(source, comparator)),
-                Spliterator.ORDERED, Sources.exactSizeLong(source)),
+                Spliterator.ORDERED, source),
                 pipeline());
     }
 
@@ -1285,7 +1285,7 @@ public interface SeqStream<E> extends Stream<E> {
         Source<E> source = spliterator();
         return viewOf(Sources.defer(
                 () -> Sources.scan(source, initial, scanner),
-                Sources.ordered(source), Sources.exactSizeLong(source)),
+                Sources.ordered(source), source),
                 pipeline());
     }
 
