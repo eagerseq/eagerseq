@@ -1103,6 +1103,23 @@ public class SeqStreamTest {
     }
 
     @Test
+    public void testToStringRejectsNullArgumentsWithoutClaimingStream() {
+        for (Seq<Integer> seq : Arrays.asList(Seq.<Integer>of(),
+                Seq.of(1, 2))) {
+            int[] reads = {0};
+            SeqStream<Integer> stream = seq.stream().peek(e -> reads[0]++);
+            assertNullRejected(() -> stream.toString(null, "[", "]"));
+            assertNullRejected(() -> stream.toString(", ", null, "]"));
+            assertNullRejected(() -> stream.toString(", ", "[", null));
+            assertThat(reads[0], equalTo(0));
+            assertThat(stream.toString(", ", "[", "]"),
+                    equalTo(seq.toString()));
+            assertThat(reads[0], equalTo(seq.size()));
+            assertConsumed(stream::count);
+        }
+    }
+
+    @Test
     public void testTerminalOperationAfterTerminalOperation() {
         SeqStream<Integer> stream = streamOf(0, 1, 2);
         assertThat(stream.toSeq(), equalTo(Seq.of(0, 1, 2)));

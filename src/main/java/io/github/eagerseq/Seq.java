@@ -1431,6 +1431,9 @@ public interface Seq<E> extends Collection<E> {
      */
     default String toString(
             CharSequence delimiter, CharSequence prefix, CharSequence suffix) {
+        requireNonNull(delimiter);
+        requireNonNull(prefix);
+        requireNonNull(suffix);
         return Sources.toString(spliterator(), delimiter, prefix, suffix);
     }
 

@@ -1643,6 +1643,9 @@ public class SeqTest {
         assertThat(seqOf(true, false).toString("|", "<", ">"),
                 equalTo("<true|false>"));
         assertThat(seqOf("fox", null).toString(), equalTo("[fox, null]"));
+        assertNullRejected(() -> seqOf().toString(null, "[", "]"));
+        assertNullRejected(() -> seqOf().toString(", ", null, "]"));
+        assertNullRejected(() -> seqOf().toString(", ", "[", null));
     }
 
     /**
