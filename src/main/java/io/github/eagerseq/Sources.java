@@ -320,7 +320,7 @@ final class Sources {
         Box<Object> next1 = new Box<>();
         // spl0 pushes, spl1 is pulled in step; stop on the first difference
         boolean exhausted0 = spl0.forEachWhile(
-                e -> spl1.tryAdvance(next1) && Objects.equals(e, next1.value));
+                e -> spl1.tryAdvance(next1) && equals(e, next1.value));
         return exhausted0 && !spl1.tryAdvance(next1);
     }
 
@@ -499,7 +499,7 @@ final class Sources {
             private int index;
             public boolean push(E e) {
                 int i = index++;
-                return !Objects.equals(object, e) || down.push(i);
+                return !Sources.equals(object, e) || down.push(i);
             }
         };
     }
@@ -1459,7 +1459,7 @@ final class Sources {
             private boolean started;
             public boolean push(E e) {
                 while (j == slice.length
-                        || j >= 0 && !Objects.equals(e, slice[j])) {
+                        || j >= 0 && !Sources.equals(e, slice[j])) {
                     j = jumps[j];
                 }
                 return down.push(++j);
@@ -1535,6 +1535,11 @@ final class Sources {
             return true;
         }
         return false;
+    }
+
+    private static boolean equals(Object a, Object b) {
+        // Limit scope of shared type profile (JDK-8015417).
+        return a == b || a != null && a.equals(b);
     }
 
     static class Box<E> implements Consumer<E> {
