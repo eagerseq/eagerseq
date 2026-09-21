@@ -17,16 +17,14 @@ final class CollectionSeq<E> extends AbstractSeq<E> implements Seq<E> {
         this.collection = (Collection<E>) collection;
     }
 
+    // Inherit count(): collection.size() may clamp at Integer.MAX_VALUE,
+    // while its spliterator can report the full long size.
     public int size() {
         return collection.size();
     }
 
     public boolean isEmpty() {
         return collection.isEmpty();
-    }
-
-    public long count() {
-        return collection.size();
     }
 
     public Source<E> spliterator() {

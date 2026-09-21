@@ -25,6 +25,12 @@ mvn spotless:apply   # format Java using the checked-in Eclipse configuration
   `java.util` references.
 - `SeqStreamTest` covers stream-specific behavior, including lifecycle and
   laziness; `SourcesTest` exercises traversal machinery directly.
+- `TraversalTest` checks exact consumption and
+  independent references across mixed push, pull and split traversal.
+- `PipelineReferenceTest` checks deterministic generated pipelines against
+  JDK and list-based references. `GroupingReferenceTest` checks grouping and
+  multiset representative identity with nulls and hash collisions.
+- `CollectionViewTest` checks collection-view cardinality at the integer limit.
 - `ApiShapeTest` checks API structure and test naming coverage.
 
 Benchmarks are a separate Maven project. Follow [bench/README.md](../bench/README.md)

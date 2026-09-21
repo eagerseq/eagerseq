@@ -48,12 +48,15 @@ below are subjects to assess, not commitments to implement.
 ## Test depth
 
 - Extend independent reference checks where useful beyond the current index,
-  multiplicity and combinatorial coverage. Predicate/mapping operations and
-  shuffling rely mainly on example tests; reversal and rotation references
-  share JDK algorithms with the implementation.
-- Systematically check exact input consumption for short-circuiting terminals.
-  Terminating on an infinite source alone does not prove no extra element was
-  consumed.
+  multiplicity, combinatorial and generated-pipeline coverage. Shuffling
+  relies mainly on example tests; extend independent rotation checks beyond
+  the fixed distance used by the generated pipelines.
+- Extend the counted-source checks in `TraversalTest` to the remaining
+  short-circuiting terminals and both operands of pairwise operations,
+  including unequal lengths and failure paths. The current checks cover
+  first/index lookup, matching, prefix/slice search, uniqueness and bounded
+  prefix transformations; termination on an infinite source alone does not
+  prove no extra element was consumed.
 - Review terminal validation and failure coverage across operations: validation
   before claiming streams or invoking callbacks, callback exception propagation,
   stopping after failure, and stream consumption after failure. Address shared

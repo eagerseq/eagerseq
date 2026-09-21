@@ -495,10 +495,11 @@ final class Sources {
     static <E> Source<Integer> indexesOf(
             Source<E> source, Object object) {
         return new Stage<E, Integer>(source, ORDERED) {
-            private int index;
+            private long index;
             public boolean test(E e) {
-                int i = index++;
-                return !Sources.equals(object, e) || action.test(i);
+                long i = index++;
+                return !Sources.equals(object, e)
+                        || action.test(Math.toIntExact(i));
             }
         };
     }
@@ -515,12 +516,12 @@ final class Sources {
 
     static <E> boolean contains(
             Source<E> source, Object object) {
-        return !isEmpty(indexesOf(source, object));
+        return anyMatch(source, e -> Sources.equals(object, e));
     }
 
     static <E> int frequency(
             Source<E> source, Object object) {
-        return size(indexesOf(source, object));
+        return size(filter(source, e -> Sources.equals(object, e)));
     }
 
     static <E, F, R> Source<R> zip(
@@ -820,10 +821,14 @@ final class Sources {
     static Source<Integer> indexesOfSlice(
             Source<?> source, Spliterator<?> slice) {
         Object[] array = toArray(slice);
+        return toMatchIndexes(matchLengths(source, array), array.length);
+    }
+
+    private static Source<Integer> matchLengths(
+            Source<?> source, Object[] array) {
         int[] jumps = new int[array.length + 1];
         copyInto(matchLengths(toSource(array), array, jumps, -1), jumps);
-        return toMatchIndexes(matchLengths(source, array, jumps, 0),
-                array.length);
+        return matchLengths(source, array, jumps, 0);
     }
 
     static int indexOfSlice(
@@ -838,7 +843,9 @@ final class Sources {
 
     static boolean containsSlice(
             Source<?> source, Spliterator<?> slice) {
-        return !isEmpty(indexesOfSlice(source, slice));
+        Object[] array = toArray(slice);
+        return anyMatch(matchLengths(source, array),
+                length -> length == array.length);
     }
 
     static boolean startsWith(
@@ -1482,11 +1489,11 @@ final class Sources {
     private static Source<Integer> toMatchIndexes(
             Source<Integer> lengths, int sliceLength) {
         return new Stage<Integer, Integer>(lengths, ORDERED) {
-            private int index;
+            private long index;
             public boolean test(Integer length) {
-                int i = index++;
+                long i = index++;
                 return length != sliceLength
-                        || action.test(i - sliceLength);
+                        || action.test(Math.toIntExact(i - sliceLength));
             }
         };
     }
