@@ -34,7 +34,7 @@
         <maven.compiler.release>8</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- Fixed timestamp for reproducible builds; update per release. -->
+        <!-- Fixed archive-entry timestamp for reproducible builds; not a release date. -->
         <project.build.outputTimestamp>2026-07-29T00:00:00Z</project.build.outputTimestamp>
     </properties>
     <dependencies>
