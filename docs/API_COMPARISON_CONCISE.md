@@ -7,7 +7,7 @@ mapper terminals, windows and `scan` already exist.
 
 Comparisons prioritise **JDK 25**, then **Guava 33.4.x**, with **Scala 2.13.16**
 as a secondary reference. These are the researched documentation versions, not
-a claim of exhaustive coverage of subsequent releases. EagerSeq still targets
+a claim of exhaustive coverage of subsequent releases. Seq still targets
 Java 8; newer JDK operations can inspire implementations without importing
 newer public types.
 
@@ -110,7 +110,7 @@ comparator forms. The nondecreasing-order check already covers Guava's
 Top-k must specify tie handling: Guava allows arbitrary ties; matching stable
 `sorted(c).limit(k)` is stronger. A heap can use O(k) selection storage and
 O(n log k) selection time, plus sorting the result. This is an algorithmic
-possibility, not an EagerSeq benchmark. Define output direction and invalid k.
+possibility, not a Seq benchmark. Define output direction and invalid k.
 
 Sortedness preconditions alone do not justify rejecting merge or binary search:
 the comparison libraries already accept them. Demand, performance guarantees,
@@ -165,12 +165,12 @@ gives `[x,x]`. Scala's deprecated sequence `union` means concatenation, not
 maximum multiplicity; its spelling is not a reason to disrupt the current
 family. [Scala sequences][s-seq]
 
-Order also needs precision: EagerSeq keeps the earliest matching occurrences
+Order also needs precision: Seq keeps the earliest matching occurrences
 for intersection and the later survivors for difference. Guava's
 `LinkedHashMultiset` preserves first-insertion order of distinct values, but
 groups equal occurrences rather than retaining arbitrary sequence interleaving.
 It is therefore wrong both to assume all Guava multisets lose order and to
-treat their order as identical to EagerSeq's. [LinkedHashMultiset][g-linkedmultiset]
+treat their order as identical to Seq's. [LinkedHashMultiset][g-linkedmultiset]
 
 ## 6. Transformations, pairing and windows
 
@@ -202,7 +202,7 @@ blur its eager model.
 
 **Have:** `reversed`, `rotated`, `shuffled(Random)`, concatenation through `sum`
 and `concat`, and first/last removal through `skip(1)`/`skipLast(1)`.
-JDK edits mutate; suitable EagerSeq counterparts would return snapshots.
+JDK edits mutate; suitable Seq counterparts would return snapshots.
 [JDK List][jdk-list], [Collections][jdk-collections]
 
 | Potential addition | Current alternative | Recommendation |
@@ -227,7 +227,7 @@ and collector-based `collect`, `collectWhile`, `scan`, and side-effect methods.
 The remaining candidates are mostly lower priority:
 
 - Scala's seed-inclusive `scanLeft` and right folds/scans can be composed by
-  prepending or reversing, with argument/result-order adjustments. EagerSeq's
+  prepending or reversing, with argument/result-order adjustments. Seq's
   JDK-style `scan` excludes the seed. [Scala immutable sequences][s-immutable],
   [Gatherers][jdk-gatherers]
 - **Defer general gatherers** and concurrent mapping. JDK `gather`, `fold` and
@@ -260,7 +260,7 @@ combination lengths. Multiple product axes are composable; a homogeneous
 multi-axis factory is a low-priority convenience. [Guava Lists][g-lists]
 
 Duplicate-aware permutation generation is a more substantive specialized gap:
-Guava `orderedPermutations` avoids redundant outputs. EagerSeq enumerates
+Guava `orderedPermutations` avoids redundant outputs. Seq enumerates
 positions, so equal elements can produce equal results; appending `distinct`
 can waste enormous work. Nevertheless, this ranks below everyday aggregation
 and editing. Lazy output enumeration can still require finite buffered input.
@@ -275,7 +275,7 @@ already provides unique indexing; duplicate keys fail unless a merger is given.
 The set conversion preserves encounter order. A factory-based collector can
 choose another destination, but its mutability and null behavior then follow
 that collector. Similarly, a newer JDK default inherited by `SeqStream` at
-runtime is not automatically an explicitly supported Java 8 EagerSeq method.
+runtime is not automatically an explicitly supported Java 8 Seq method.
 These are interoperability distinctions, not reasons to duplicate every
 conversion or newer stream method on `Seq`.
 

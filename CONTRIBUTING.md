@@ -1,11 +1,11 @@
 # Developer Guide
 
-Start here when working on EagerSeq. This is the essential orientation; read
+Start here when working on Seq. This is the essential orientation; read
 linked references as needed for the task rather than loading every document.
 
-## What EagerSeq does
+## What Seq does
 
-EagerSeq puts common collection operations directly on the collection. `Seq`
+Seq puts common collection operations directly on the collection. `Seq`
 extends Java's `Collection` with eager methods such as `map`, `filter` and
 `groupBy`: `words.map(String::length)` immediately returns a materialized,
 reusable sequence without stream-and-collector ceremony.
@@ -38,7 +38,7 @@ generally materializes into `ArraySeq`, while `SeqStream` retains a lazy source
 pipeline. For example, their default `map` methods both use `Sources.map`, but
 only the eager version immediately collects the mapped elements.
 
-All library code lives in `src/main/java/io/github/eagerseq`. The main pieces are:
+All library code lives in `src/main/java/io/github/jancellor/seq`. The main pieces are:
 
 | Component | Role |
 |---|---|
@@ -51,7 +51,7 @@ All library code lives in `src/main/java/io/github/eagerseq`. The main pieces ar
 | `ArrayBuilder` | Accumulation into arrays for results and builders. |
 
 When implementing a stage, consult the class Javadoc in
-[`Stage.java`](src/main/java/io/github/eagerseq/Stage.java) for callback binding
+[`Stage.java`](src/main/java/io/github/jancellor/seq/Stage.java) for callback binding
 and overriding `forEachWhile`. The callback interface choice is explained
 in [the design rationale](docs/DESIGN.md#traversal-callbacks).
 
@@ -62,7 +62,7 @@ transformations produce snapshots. An `ArraySeq` may itself be a view, so its
 backing array must not be mutated or exposed by a copying conversion.
 
 For custom sequences, follow the implementation guidance in
-[`Seq.java`](src/main/java/io/github/eagerseq/Seq.java): extend `AbstractSeq` to
+[`Seq.java`](src/main/java/io/github/jancellor/seq/Seq.java): extend `AbstractSeq` to
 inherit the value implementations that interface defaults cannot supply.
 
 Specialized implementations optimize common cases but must preserve the shared

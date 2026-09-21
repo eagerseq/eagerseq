@@ -17,7 +17,7 @@ mvn spotless:apply   # format Java using the checked-in Eclipse configuration
 ```
 
 `verify` requires 100% line coverage through JaCoCo. Tests live in
-`src/test/java/io/github/eagerseq`:
+`src/test/java/io/github/jancellor/seq`:
 
 - `SeqTest` checks shared behavior through `Factory`, covering multiple
   implementations including interface defaults and stream delegation.

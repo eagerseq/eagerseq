@@ -6,7 +6,7 @@ to manipulate collections without ceremony: Guava, lodash (the `Array` and
 `collections`).
 
 This is historical API-comparison research, not required onboarding, a roadmap,
-or an authoritative inventory. The EagerSeq entries below have been reconciled
+or an authoritative inventory. The Seq entries below have been reconciled
 with the implementation during the documentation consolidation; comparisons
 with other libraries have not been re-researched. Rankings and judgments record
 the original exploration rather than commitments to add methods.
@@ -206,7 +206,7 @@ The exploration identified these constraints on API shape:
   windows from `windowFixed` and `windowSliding` as reusable `Seq` values.
 - **No slice syntax.** `s[i:j:k]` will never be one character. `slice(from, to)`
   is as close as Java gets.
-- **Primitive boxing.** EagerSeq uses primitive mapper terminals such as
+- **Primitive boxing.** Seq uses primitive mapper terminals such as
   `sumOfInt(ToIntFunction)` instead of `stream().mapToInt(f).sum()`.
 - **Erasure.** The exploration found no sound typed signature for `flattenDeep`.
 

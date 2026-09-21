@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>io.github.eagerseq</groupId>
-    <artifactId>eagerseq</artifactId>
+    <groupId>io.github.jancellor.seq</groupId>
+    <artifactId>seq</artifactId>
     <version>0.6.0</version>
-    <name>EagerSeq</name>
-    <description>A small collection library.</description>
-    <url>https://github.com/eagerseq/eagerseq</url>
+    <name>Seq</name>
+    <description>Rich collection operations for Java. No stream required.</description>
+    <url>https://github.com/jancellor/seq</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -17,13 +17,13 @@
         <developer>
             <name>James Chancellor</name>
             <email>jancellor@users.noreply.github.com</email>
-            <organizationUrl>https://github.com/eagerseq</organizationUrl>
+            <organizationUrl>https://github.com/jancellor</organizationUrl>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/eagerseq/eagerseq.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/eagerseq/eagerseq.git</developerConnection>
-        <url>https://github.com/eagerseq/eagerseq</url>
+        <connection>scm:git:https://github.com/jancellor/seq.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jancellor/seq.git</developerConnection>
+        <url>https://github.com/jancellor/seq</url>
     </scm>
     <!--
         No distributionManagement is needed: OSSRH (oss.sonatype.org) was shut
@@ -78,7 +78,7 @@
                 <configuration>
                     <archive>
                         <manifestEntries>
-                            <Automatic-Module-Name>io.github.eagerseq</Automatic-Module-Name>
+                            <Automatic-Module-Name>io.github.jancellor.seq</Automatic-Module-Name>
                         </manifestEntries>
                     </archive>
                 </configuration>

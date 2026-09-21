@@ -1,18 +1,14 @@
-# EagerSeq
+# Seq – a rich collection interface
 
-*EagerSeq* puts common operations directly on an ordered collection. `Seq`
-extends Java's `Collection` with eager versions of stream methods like `map`,
-`filter` and `sorted`. It also brings together operations such as `groupBy`,
-`distinctBy`, `zip` and `windowFixed`, otherwise spread across the standard Java
-library and third-party libraries.
+`Seq` extends `Collection` with eager versions of `Stream` methods plus
+useful methods found elsewhere. Compare:
 
 ```java
 Seq<String> words = Seq.of("pear", "apple", "plum");
 Seq<Integer> lengths = words.map(String::length);
 ```
 
-With JDK streams, you first create a stream, then collect the result back into a
-collection:
+With:
 
 ```java
 List<String> words = List.of("pear", "apple", "plum");
@@ -21,11 +17,8 @@ List<Integer> lengths = words.stream()
         .collect(toList());
 ```
 
-Transforming one collection into another is common, and laziness isn't always
-needed. `Seq` expresses these operations directly, without setting up and
-collecting a stream. Each transformation completes immediately and returns a
-sequence ready to use. When you want lazy composition, `stream()` provides it
-while retaining the additional collection operations.
+This is common and a stream pipeline isn't always required.
+`Seq` makes both versions possible.
 
 ## Collection operations
 
@@ -126,14 +119,14 @@ Use `toStream()` for JDK parallel evaluation.
 
 ## Installation
 
-EagerSeq works with Java 8 and newer and has no runtime dependencies.
+Seq works with Java 8 and newer and has no runtime dependencies.
 
 ### Maven
 
 ```xml
 <dependency>
-    <groupId>io.github.eagerseq</groupId>
-    <artifactId>eagerseq</artifactId>
+    <groupId>io.github.jancellor.seq</groupId>
+    <artifactId>seq</artifactId>
     <version>x.y.z</version>
 </dependency>
 ```
@@ -141,13 +134,13 @@ EagerSeq works with Java 8 and newer and has no runtime dependencies.
 ### Gradle
 
 ```groovy
-implementation 'io.github.eagerseq:eagerseq:x.y.z'
+implementation 'io.github.jancellor.seq:seq:x.y.z'
 ```
 
 ## Further reading
 
 - API documentation in the source:
-  [Seq](src/main/java/io/github/eagerseq/Seq.java) and
-  [SeqStream](src/main/java/io/github/eagerseq/SeqStream.java).
+  [Seq](src/main/java/io/github/jancellor/seq/Seq.java) and
+  [SeqStream](src/main/java/io/github/jancellor/seq/SeqStream.java).
 - [Contributor guide](CONTRIBUTING.md): architecture, custom implementations,
   and development workflow.

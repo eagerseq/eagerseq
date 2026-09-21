@@ -9,9 +9,9 @@ The baseline is the **current working tree**, based on commit `0e50ed9`, includi
 uncommitted API additions. In particular, `frequency`, `disjoint`,
 `symmetricDifference`, `isSorted`, `distinctBy`, numeric mapper terminals,
 windows and `scan` are already present. Availability was checked against
-[Seq.java](../src/main/java/io/github/eagerseq/Seq.java),
-[SeqStream.java](../src/main/java/io/github/eagerseq/SeqStream.java) and their
-shared implementations in [Sources.java](../src/main/java/io/github/eagerseq/Sources.java).
+[Seq.java](../src/main/java/io/github/jancellor/seq/Seq.java),
+[SeqStream.java](../src/main/java/io/github/jancellor/seq/SeqStream.java) and their
+shared implementations in [Sources.java](../src/main/java/io/github/jancellor/seq/Sources.java).
 The earlier comparison was not used as an inventory of current methods.
 
 External reference points are JDK 25, Guava 33.4.x (mostly 33.4.8-jre), and Scala
@@ -63,7 +63,7 @@ execution protocol or mutable collection model.
 
 ### Existing coverage and remaining candidates
 
-| Operation | Current EagerSeq support | External precedent | Assessment |
+| Operation | Current Seq support | External precedent | Assessment |
 |---|---|---|---|
 | Total size | **Have:** `size()`, `count()`, `isEmpty()` | JDK collections/streams; Scala `size` | Complete; preserve `int` versus `long` distinction. |
 | Frequency of one value | **Have:** `frequency(value)` returning `int` | JDK `Collections.frequency`; Guava `Iterables.frequency` | No gap; do not add a competing `countOf` spelling. [JDK collections][jdk-collections], [Guava iterables][g-iterables] |
@@ -86,7 +86,7 @@ execution protocol or mutable collection model.
 The useful distinction is between **summary results** and **materialized groups**.
 `groupBy(key, Seq::size)` builds all groups; `toMap(key, e -> 1L, Long::sum)`
 already counts using state proportional to the number of keys. The case for
-`countBy` is its vocabulary and discoverability, not a claim that EagerSeq
+`countBy` is its vocabulary and discoverability, not a claim that Seq
 currently cannot aggregate efficiently. A downstream collector overload would
 serve a different need: arbitrary accumulation state separate from the final
 value.
@@ -111,7 +111,7 @@ predicate variants of every numeric terminal.
 | Operation | Current support | External precedent | Assessment |
 |---|---|---|---|
 | Natural/comparator sort | **Have:** `sorted()`, `sorted(c)` | JDK sort/streams; Guava `Ordering.sortedCopy` | Complete. [JDK collections][jdk-collections], [Guava ordering][g-ordering] |
-| Natural/comparator extrema | **Have:** `min`, `max`, with or without comparator | JDK and Guava extrema | Complete; EagerSeq returns `Optional`. [JDK collections][jdk-collections], [Guava ordering][g-ordering] |
+| Natural/comparator extrema | **Have:** `min`, `max`, with or without comparator | JDK and Guava extrema | Complete; Seq returns `Optional`. [JDK collections][jdk-collections], [Guava ordering][g-ordering] |
 | Nondecreasing order test | **Have:** `isSorted`, with or without comparator | Guava `Comparators.isInOrder` | No gap. [Guava comparators][g-comparators] |
 | Strict order test | **Compose:** adjacent-window predicate, taking care with short input | Guava `isInStrictOrder` | Low candidate; a direct short-circuiting check is reasonable if strict ordering matters in practice. [Guava comparators][g-comparators] |
 | Sort by extracted key | **Compose:** `sorted(Comparator.comparing(key))` | Scala `sortBy`; Guava `Ordering.onResultOf` | Medium candidate if `sortedBy` computes each key once, preserves stable ties and offers a key comparator. [Scala sequences][s-seq], [Guava ordering][g-ordering] |
@@ -124,7 +124,7 @@ Top-k needs a **tie contract** before naming or implementation. Guava permits
 arbitrary ties; stable equivalence to `sorted(c).limit(k)` is a stronger and
 potentially more useful promise. An ordinary heap-based design offers
 O(n log k) selection and O(k) retained selection state, plus sorting the result;
-this is a proposed algorithm, not a benchmark of EagerSeq. The eager receiver
+this is a proposed algorithm, not a benchmark of Seq. The eager receiver
 still occupies its original storage. Define `k = 0`, negative k, k greater than
 size, and whether greatest-k output is ascending or descending.
 
@@ -161,7 +161,7 @@ unless there is exactly one element. These are separate cardinality policies,
 not interchangeable aliases. Present null elements cannot be represented by
 `Optional`; the current optional-returning searches throw when selecting null.
 A Guava default-value overload is therefore not exactly reproduced by
-`findFirst().orElse(defaultValue)` on every EagerSeq input.
+`findFirst().orElse(defaultValue)` on every Seq input.
 
 The smallest plausible search extension is predicate indexes, using the
 existing proposal names `index(p)`, `lastIndex(p)`, `indexes(p)` rather than
@@ -183,7 +183,7 @@ alone is insufficient for either mismatch or pairwise correspondence because
 | Difference | **Have:** `difference` | Guava `Multisets.difference`: subtract counts, floor at zero. [Guava multiset algebra][g-multisets] |
 | Union | **Have:** `union` | Guava `Multisets.union`: maximum multiplicity. [Guava multiset algebra][g-multisets] |
 | Add multiplicities / concatenate | **Have:** instance `sum`, static `concat` | Guava `Multisets.sum`; Scala concatenation. No missing append-all capability. [Guava multiset algebra][g-multisets] |
-| Symmetric difference | **Have:** `symmetricDifference` | Guava `Sets.symmetricDifference` is the set precedent; EagerSeq uses absolute count difference. [Guava sets][g-sets] |
+| Symmetric difference | **Have:** `symmetricDifference` | Guava `Sets.symmetricDifference` is the set precedent; Seq uses absolute count difference. [Guava sets][g-sets] |
 | Containment ignoring / respecting counts | **Have:** `containsAll` / `containsMultiset` | Guava set containment / `containsOccurrences`. [Guava multiset algebra][g-multisets] |
 | No overlap | **Have:** `disjoint` | JDK `Collections.disjoint`. No gap. [JDK collections][jdk-collections] |
 | True set results | **Compose:** distinct both operands before multiset algebra | Guava `Sets` operations | Omit separate duplicate set-operation names. [Guava sets][g-sets] |
@@ -202,7 +202,7 @@ For `a = [x, x, y]` and `b = [x, z]`, the current multiset operations produce:
 | `a.filter(b.toSet()::contains)` | `[x, x]` |
 
 Scala's deprecated sequence `union` means concatenation, not maximum
-multiplicity. Its name is not evidence against EagerSeq's internally consistent
+multiplicity. Its name is not evidence against Seq's internally consistent
 Guava-style multiset family. [Scala sequences][s-seq]
 
 This group now has few obvious holes. Do not let its conceptual symmetry push
@@ -219,12 +219,12 @@ does not require choosing `HashMultiset`. [LinkedHashMultiset][g-linkedmultiset]
 |---|---|---|
 | Map/filter/flat-map/flatten | **Have:** `map`, `filter`, `flatMap`, static `flatten` | JDK streams and Scala core operations. Complete. [JDK streams][jdk-stream], [Scala traversal][s-once] |
 | Emit zero or more outputs without creating an intermediate iterable | **Have:** `mapMulti` | JDK `Stream.mapMulti` (Java 16). No gap. [JDK streams][jdk-stream] |
-| Transform with index | **Have:** `mapIndexed` | Guava `Streams.mapWithIndex`. EagerSeq uses integer indexes; Guava uses long indexes. [Guava streams][g-streams] |
+| Transform with index | **Have:** `mapIndexed` | Guava `Streams.mapWithIndex`. Seq uses integer indexes; Guava uses long indexes. [Guava streams][g-streams] |
 | Negated filter / remove nulls | **Compose:** `filter(p.negate())`, `filter(Objects::nonNull)` | Scala `filterNot`; Guava predicate filtering | Omit aliases absent demonstrated demand. [Scala traversal][s-once] |
 | Select values of a runtime type | **Compose:** `filter(type::isInstance).map(type::cast)` | Guava `Iterables.filter(Class)` | **Low–medium candidate:** `ofType(Class<R>)` could combine selection with static type narrowing. [Guava iterables][g-iterables] |
 | Partial-function mapping | **Compose:** filter/map or `mapMulti` | Scala `collect`, `collectFirst` | Omit the Scala protocol; `collect` already means JDK accumulation here. [Scala traversal][s-once] |
 | Primitive mapping / flat mapping | **Stream-only:** `mapToInt/Long/Double`, `flatMapToInt/Long/Double` | JDK primitive streams | Keep the bridge. Direct `Seq` methods returning lazy primitive streams would blur eager expectations. [JDK streams][jdk-stream] |
-| Primitive multi-output mapping | No EagerSeq-specific primitive family | JDK `mapMultiToInt/Long/Double` | Low priority; use a JDK stream bridge on supported runtimes. Do not count inherited newer defaults as Java 8 EagerSeq API. [JDK streams][jdk-stream] |
+| Primitive multi-output mapping | No Seq-specific primitive family | JDK `mapMultiToInt/Long/Double` | Low priority; use a JDK stream bridge on supported runtimes. Do not count inherited newer defaults as Java 8 Seq API. [JDK streams][jdk-stream] |
 | Zip two inputs with a function | **Have:** `zip(that, mapper)` | Guava `Streams.zip` | Complete for truncation at the shorter input. [Guava streams][g-streams] |
 | Zip with padding / equal-length requirement | No direct method | Scala `zipAll` supplies padding | Low candidate; name and absence/padding semantics must be explicit. Strict zip is a related design option, not Scala `zipAll`'s contract. [Scala collections][s-iterable] |
 | For-each corresponding pair | No direct void terminal | Guava `Streams.forEachPair` | Low candidate if pairwise side effects are common; returning dummy mapped values is awkward but does not justify a whole pairing framework. [Guava streams][g-streams] |
@@ -260,7 +260,7 @@ change its behavior just to imitate another library's overload family.
 ## 7. Copy-and-edit operations and reordering
 
 Sources for this family are [JDK List][jdk-list], [Collections][jdk-collections]
-and [Scala immutable sequences][s-immutable]. JDK edits mutate; proposed EagerSeq
+and [Scala immutable sequences][s-immutable]. JDK edits mutate; proposed Seq
 forms below would return new snapshots.
 
 | Operation | Current support | Assessment |
@@ -294,9 +294,9 @@ Before adoption, choose whether `patch` clamps like slicing or throws like
 | Running left accumulation | **Have:** `scan(initialSupplier, scanner)` | JDK `Gatherers.scan` | Complete under the JDK-style contract: output excludes the seed. [Gatherers][jdk-gatherers] |
 | Seed-inclusive scan | **Compose:** prepend seed when appropriate | Scala `scanLeft` includes the seed | Omit a duplicate until demanded; mutable seeds also need care with aliasing. [Scala collections][s-immutable] |
 | Right fold / right scan | **Compose:** reverse then reduce/scan, adapting argument and result order | Scala `foldRight`, `scanRight` | Low priority on finite input; not generally productive for unbounded streams. [Scala traversal][s-once], [Scala collections][s-immutable] |
-| General custom gatherer | No Java-8-native EagerSeq protocol | JDK `Stream.gather` (Java 24) | Defer, consistently with the existing design decision. Modern JDK callers can use `toStream()` for the JDK API. [JDK streams][jdk-stream] |
+| General custom gatherer | No Java-8-native Seq protocol | JDK `Stream.gather` (Java 24) | Defer, consistently with the existing design decision. Modern JDK callers can use `toStream()` for the JDK API. [JDK streams][jdk-stream] |
 | Fold as a one-element stream stage | **Compose:** reduction plus wrapping, where materialization is acceptable | JDK `Gatherers.fold` | Low priority; distinct stage semantics matter more on `SeqStream` than `Seq`. [Gatherers][jdk-gatherers] |
-| Concurrent mapping | No concurrent EagerSeq evaluation | JDK `Gatherers.mapConcurrent` | Omit for now: scheduling, cancellation and resource policy are a much larger commitment than collection vocabulary. [Gatherers][jdk-gatherers] |
+| Concurrent mapping | No concurrent Seq evaluation | JDK `Gatherers.mapConcurrent` | Omit for now: scheduling, cancellation and resource policy are a much larger commitment than collection vocabulary. [Gatherers][jdk-gatherers] |
 | Side effects and observation | **Have:** `forEach`, `forEachOrdered`, `peek` | JDK stream operations | Complete; eager `peek` executes immediately and returns the receiver. |
 
 The existing rationale for deferred/rejected protocol additions belongs in
@@ -334,7 +334,7 @@ because the JDK now provides gatherers.
 | Length-k / all-length combinations | **Have:** `combinations(k)`, `allCombinations()` | Guava `Sets.combinations`/`powerSet`; Scala combinations | Similar capabilities, different duplicate semantics. [Guava sets][g-sets], [Scala sequences][s-seq] |
 | Unique value permutations with duplicates | **Compose:** permutations then distinct, potentially very wasteful | Guava `orderedPermutations`; Scala permutations | Low specialized candidate with a real algorithmic distinction. [Guava combinatorics][g-collections2], [Scala sequences][s-seq] |
 
-EagerSeq enumerates original **positions**. Equal elements can therefore produce
+Seq enumerates original **positions**. Equal elements can therefore produce
 repeated equal outputs. Guava set combinations first have set semantics, while
 Scala combination/permutation enumeration treats duplicates differently.
 Calling these exact equivalents would be misleading. A duplicate-aware
@@ -365,12 +365,12 @@ does not solve that inherent cost.
 `toList` and `toSet` are unmodifiable outputs, and `toSet` retains encounter
 order. Generic JDK collectors can have different mutability, order and null
 behavior. “Available through collect” means the computation is possible, not
-that every collector already reproduces EagerSeq's result contracts.
+that every collector already reproduces Seq's result contracts.
 
 `SeqStream` implements `Stream`, but its own algorithms run sequentially.
 `parallel()` records mode; the JDK stream and primitive bridges can perform
 parallel evaluation. Newer default methods inherited at runtime are not the
-same thing as explicitly supported Java 8 EagerSeq operations. A proposal for
+same thing as explicitly supported Java 8 Seq operations. A proposal for
 true parallel evaluation is architectural work, not a missing collection method.
 See [stream semantics](STREAM_SEMANTICS.md).
 
@@ -383,7 +383,7 @@ These are omissions with a coherent rationale, rather than overlooked gaps:
   Copy edits are the appropriate area to expand.
 - **A second immutable/live/lazy variant of every transformation.** Explicit
   views and `SeqStream` already establish those choices. JDK
-  `SequencedCollection.reversed()` is a view; EagerSeq deliberately keeps
+  `SequencedCollection.reversed()` is a view; Seq deliberately keeps
   snapshot reversal. [JDK sequenced collections][jdk-sequenced]
 - **Guava's broader data-structure ecosystem.** `Multimap`, `BiMap`, `Table`,
   range structures and specialized maps solve different problems from adding

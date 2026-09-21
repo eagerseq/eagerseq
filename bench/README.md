@@ -1,6 +1,6 @@
 # Benchmarks
 
-A standalone JMH project. It depends on the installed `eagerseq` artifact
+A standalone JMH project. It depends on the installed `seq` artifact
 and does not touch the library's own build.
 
 ```
@@ -22,8 +22,8 @@ results as markdown to `RESULTS.md` in the working directory, or to the
 path given by `-Dresults=...`. On a busy machine, pinning to one core
 helps: `taskset -c 5 java -jar ...`.
 
-The `eagerseq` version is a property in `pom.xml`; pass
-`-Deagerseq.version=...` if it has moved on.
+The `seq` version is a property in `pom.xml`; pass
+`-Dseq.version=...` if it has moved on.
 
 ## What is measured
 

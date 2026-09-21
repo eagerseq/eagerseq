@@ -30,9 +30,9 @@ The callback parameter is named `action`, consistent with `forEachRemaining`.
 Stages retain that name for the callback field, binding it with
 `this.action = requireNonNull(action)`; `upstream` names the source feeding
 the stage. The implementation protocol is documented in
-[`Stage.java`](../src/main/java/io/github/eagerseq/Stage.java); the traversal
+[`Stage.java`](../src/main/java/io/github/jancellor/seq/Stage.java); the traversal
 return contract belongs to
-[`Source.forEachWhile`](../src/main/java/io/github/eagerseq/Source.java).
+[`Source.forEachWhile`](../src/main/java/io/github/jancellor/seq/Source.java).
 
 ## Ownership choices
 
