@@ -81,3 +81,38 @@ cancellation. Exposing that machinery would commit to more public protocol and
 vocabulary without established demand. A source-transform escape hatch was
 likewise left out. These decisions can be revisited for concrete use cases;
 the existence of internal machinery alone does not justify a public API.
+
+## Serialization
+
+A sequence's portable serialized meaning is an ordered array of its elements.
+Deserialization does not preserve the original implementation, a view
+relationship or backing-object identity. No serialization integration is
+provided for the single-use execution state of `SeqStream`.
+
+Serialization-framework dependencies and annotations do not belong in the
+core artifact. Jackson 2 and Jackson 3 therefore have separate optional
+modules. Each integration implements its framework version directly and
+relies on Jackson's ordinary collection serializer for writing. `SeqModule` is
+the public registration API; its deserializer remains package-private.
+
+Reading asks Jackson for its standard array deserializer, retaining
+the contextual element type and handlers. Jackson handles element decoding,
+polymorphism, content converters, null policies and configured coercions.
+The completed array is wrapped with `Seq.viewOf(array)`, preserving array-backed
+indexing without an additional Seq copy or intermediate collection. The array
+may have a concrete runtime component type, which the core array view supports.
+
+XML tests compare Seq with Jackson's standard arrays and collections, rather
+than defining a separate XML vocabulary or coercion policy. Under the tested
+Jackson defaults, empty string items and explicitly nil items remain distinct.
+An empty root element such as `<Seq/>` fails for `Seq<String>`, just as `<List/>`
+fails for `List<String>` and `<Set/>` fails for `Set<String>`. The integration does
+not override Jackson's decoder selection to work around that behaviour.
+
+No JSON-B module is provided. A tested adapter through `List<E>` required
+separate registrations for each concrete `Seq<E>` type, including inner and
+outer types for nested sequences. That registration burden remains with the
+application, while the reusable adapter itself only supplies two simple
+conversions. The benefit does not currently justify maintaining another
+integration artifact; reconsider if concrete demand or better framework
+extension points change that tradeoff.

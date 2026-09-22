@@ -29,6 +29,7 @@
 
     <modules>
         <module>seq</module>
+        <module>seq-jackson2</module>
     </modules>
 
     <!--
@@ -135,6 +136,7 @@
             </activation>
             <modules>
                 <module>seq-bench</module>
+                <module>seq-jackson3</module>
             </modules>
             <build>
                 <plugins>

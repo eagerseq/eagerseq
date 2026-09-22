@@ -8,14 +8,6 @@ below are subjects to assess, not commitments to implement.
 
 - Decide when to raise the Java 8 release target. Preserve the deliberate
   snapshot semantics of `Seq.reversed()` when reviewing newer JDK contracts.
-- Decide whether serialization is in scope. Current implementations are not
-  `Serializable`; investigate Jackson writing and reading before specifying
-  support or adding a module.
-- Review the remaining dependencies and buffering choices in `Sources`.
-  `ArrayBuilder` is independent of the result types, but coexists with
-  `ArrayList` accumulation. Assess whether simplifying that tradeoff is worth
-  extra copying using relevant measurements. `toStream()` already lives on
-  `SeqStream`; moving it is no longer outstanding work.
 
 ## Performance evidence
 

@@ -50,6 +50,16 @@ All library code lives in `seq/src/main/java/io/github/jancellor/seq`. The main 
 | `SourceSeqStream`, `SeqStreamPipeline` | Single-use stage acquisition and shared lifecycle state. |
 | `ArrayBuilder` | Accumulation into arrays for results and builders. |
 
+Optional integration artifacts are isolated from the core library:
+
+| Module | Role |
+|---|---|
+| `seq-jackson2` | Jackson 2 contextual `Seq<E>` deserialization on Java 8+. |
+| `seq-jackson3` | Jackson 3 contextual `Seq<E>` deserialization on Java 17+. |
+
+Their shared serialization contract is recorded in
+[the design rationale](docs/DESIGN.md#serialization).
+
 When implementing a stage, consult the class Javadoc in
 [`Stage.java`](seq/src/main/java/io/github/jancellor/seq/Stage.java) for callback binding
 and overriding `forEachWhile`. The callback interface choice is explained
@@ -73,10 +83,11 @@ pipeline state. Consult the references below before changing these details.
 
 ## Working here
 
-The library targets Java 8 and has no runtime dependencies. Run `mvn verify`
-from the repository root for the reactor build; use JDK 17 or newer locally to
-include the benchmark module and formatting check. Build configuration and CI
-define the precise checks and supported verification environments.
+The core library and Jackson 2 integration target Java 8. The core has no
+runtime dependencies. Run `mvn verify` from the repository root for the reactor
+build; use JDK 17 or newer locally to include the Jackson 3 and benchmark
+modules and formatting check. Build configuration and CI define the precise
+checks and supported verification environments.
 [DEVELOPMENT.md](docs/DEVELOPMENT.md) explains commands, test organization and
 how to validate changes.
 
