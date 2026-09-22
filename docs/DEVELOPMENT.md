@@ -35,7 +35,7 @@ in `seq/src/test/java/io/github/jancellor/seq`:
 - `ApiShapeTest` checks API structure and test naming coverage.
 
 The benchmark harness is a reactor module on JDK 17 or newer. Follow
-[bench/README.md](../bench/README.md) for building and running it and
+[seq-bench/README.md](../seq-bench/README.md) for building and running it and
 interpreting results. CI packages it but does not run JMH; timing ratios are not
 CI assertions. Keep measurements and experiment reports there.
 

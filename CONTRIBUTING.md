@@ -94,7 +94,7 @@ between code and documentation.
 | Build, tests, formatting or documentation | [DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 | Equality, ordering or related API proposals | [EQUALITY_AND_ORDERING.md](docs/EQUALITY_AND_ORDERING.md) |
 | Search and counting proposals | [DIRECT_MATCHING.md](docs/DIRECT_MATCHING.md) |
-| Benchmarks and performance evidence | [bench/README.md](bench/README.md) |
+| Benchmarks and performance evidence | [seq-bench/README.md](seq-bench/README.md) |
 | Outstanding work | [TODO.md](TODO.md) |
 
 [COMPARISONS.md](docs/COMPARISONS.md) is optional historical research, not a roadmap

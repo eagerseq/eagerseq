@@ -5,7 +5,7 @@ newer. Build it and its current `seq` dependency from the repository root:
 
 ```
 mvn -pl :seq-bench -am package
-cd bench
+cd seq-bench
 java -jar target/benchmarks.jar               # full run, about 45 minutes
 java -jar target/benchmarks.jar mapToList     # one benchmark
 java -jar target/benchmarks.jar -f 1 -wi 2 -i 2 -w 300ms -r 300ms   # quick and noisy

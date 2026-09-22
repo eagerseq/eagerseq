@@ -20,8 +20,8 @@ below are subjects to assess, not commitments to implement.
 ## Performance evidence
 
 - Refresh measurements affected by implementation changes recorded in
-  [bench/RESULTS.md](bench/RESULTS.md), and assess the current implementation
-  against the working budget in [bench/README.md](bench/README.md). Historical
+  [seq-bench/RESULTS.md](seq-bench/RESULTS.md), and assess the current implementation
+  against the working budget in [seq-bench/README.md](seq-bench/README.md). Historical
   ratios do not establish current performance. Include small eager workloads
   as well as lazy pipelines and distinguish allocation costs from timing.
 - Assess the remaining costs of slicing and tail operations, particularly on

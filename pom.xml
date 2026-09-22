@@ -134,7 +134,7 @@
                 <jdk>[17,)</jdk>
             </activation>
             <modules>
-                <module>bench</module>
+                <module>seq-bench</module>
             </modules>
             <build>
                 <plugins>

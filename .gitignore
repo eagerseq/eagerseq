@@ -9,4 +9,4 @@ target/
 /.claude/worktrees/
 /.claude/settings.local.json
 /.claude/.cc-writes/
-/bench/dependency-reduced-pom.xml
+/seq-bench/dependency-reduced-pom.xml
