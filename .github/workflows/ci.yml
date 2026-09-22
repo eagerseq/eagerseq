@@ -29,10 +29,3 @@ jobs:
 
       - name: Verify
         run: mvn --batch-mode --no-transfer-progress verify
-
-      - name: Compile benchmarks
-        if: matrix.java == '25'
-        run: |
-          mvn --batch-mode --no-transfer-progress -DskipTests -Djacoco.skip -Dspotless.check.skip -Dmaven.javadoc.skip install
-          VERSION=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' pom.xml | head -1)
-          mvn --batch-mode --no-transfer-progress -f bench/pom.xml -Dseq.version="$VERSION" compile

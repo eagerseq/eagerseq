@@ -38,7 +38,7 @@ generally materializes into `ArraySeq`, while `SeqStream` retains a lazy source
 pipeline. For example, their default `map` methods both use `Sources.map`, but
 only the eager version immediately collects the mapped elements.
 
-All library code lives in `src/main/java/io/github/jancellor/seq`. The main pieces are:
+All library code lives in `seq/src/main/java/io/github/jancellor/seq`. The main pieces are:
 
 | Component | Role |
 |---|---|
@@ -51,7 +51,7 @@ All library code lives in `src/main/java/io/github/jancellor/seq`. The main piec
 | `ArrayBuilder` | Accumulation into arrays for results and builders. |
 
 When implementing a stage, consult the class Javadoc in
-[`Stage.java`](src/main/java/io/github/jancellor/seq/Stage.java) for callback binding
+[`Stage.java`](seq/src/main/java/io/github/jancellor/seq/Stage.java) for callback binding
 and overriding `forEachWhile`. The callback interface choice is explained
 in [the design rationale](docs/DESIGN.md#traversal-callbacks).
 
@@ -62,7 +62,7 @@ transformations produce snapshots. An `ArraySeq` may itself be a view, so its
 backing array must not be mutated or exposed by a copying conversion.
 
 For custom sequences, follow the implementation guidance in
-[`Seq.java`](src/main/java/io/github/jancellor/seq/Seq.java): extend `AbstractSeq` to
+[`Seq.java`](seq/src/main/java/io/github/jancellor/seq/Seq.java): extend `AbstractSeq` to
 inherit the value implementations that interface defaults cannot supply.
 
 Specialized implementations optimize common cases but must preserve the shared
@@ -74,10 +74,11 @@ pipeline state. Consult the references below before changing these details.
 ## Working here
 
 The library targets Java 8 and has no runtime dependencies. Run `mvn verify`
-for the build checks; use JDK 17 or newer locally to include the formatting
-check. Build configuration and CI define the precise checks and supported
-verification environments. [DEVELOPMENT.md](docs/DEVELOPMENT.md) explains commands,
-test organization and how to validate changes.
+from the repository root for the reactor build; use JDK 17 or newer locally to
+include the benchmark module and formatting check. Build configuration and CI
+define the precise checks and supported verification environments.
+[DEVELOPMENT.md](docs/DEVELOPMENT.md) explains commands, test organization and
+how to validate changes.
 
 For README and API documentation maintenance, follow
 [the development reference](docs/DEVELOPMENT.md#documentation). Follow

@@ -1,4 +1,4 @@
-/target/
+target/
 /.project
 /.classpath
 /.settings/
@@ -9,5 +9,4 @@
 /.claude/worktrees/
 /.claude/settings.local.json
 /.claude/.cc-writes/
-/bench/target/
 /bench/dependency-reduced-pom.xml

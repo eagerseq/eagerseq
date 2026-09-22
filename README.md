@@ -140,7 +140,7 @@ implementation 'io.github.jancellor.seq:seq:x.y.z'
 ## Further reading
 
 - API documentation in the source:
-  [Seq](src/main/java/io/github/jancellor/seq/Seq.java) and
-  [SeqStream](src/main/java/io/github/jancellor/seq/SeqStream.java).
+  [Seq](seq/src/main/java/io/github/jancellor/seq/Seq.java) and
+  [SeqStream](seq/src/main/java/io/github/jancellor/seq/SeqStream.java).
 - [Contributor guide](CONTRIBUTING.md): architecture, custom implementations,
   and development workflow.

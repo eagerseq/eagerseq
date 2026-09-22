@@ -9,9 +9,9 @@ The baseline is the **current working tree**, based on commit `0e50ed9`, includi
 uncommitted API additions. In particular, `frequency`, `disjoint`,
 `symmetricDifference`, `isSorted`, `distinctBy`, numeric mapper terminals,
 windows and `scan` are already present. Availability was checked against
-[Seq.java](../src/main/java/io/github/jancellor/seq/Seq.java),
-[SeqStream.java](../src/main/java/io/github/jancellor/seq/SeqStream.java) and their
-shared implementations in [Sources.java](../src/main/java/io/github/jancellor/seq/Sources.java).
+[Seq.java](../seq/src/main/java/io/github/jancellor/seq/Seq.java),
+[SeqStream.java](../seq/src/main/java/io/github/jancellor/seq/SeqStream.java) and their
+shared implementations in [Sources.java](../seq/src/main/java/io/github/jancellor/seq/Sources.java).
 The earlier comparison was not used as an inventory of current methods.
 
 External reference points are JDK 25, Guava 33.4.x (mostly 33.4.8-jre), and Scala

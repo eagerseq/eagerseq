@@ -1,15 +1,7 @@
 package io.github.jancellor.seq.bench;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.Spliterators;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.StreamSupport;
-
+import io.github.jancellor.seq.Seq;
+import io.github.jancellor.seq.SeqStream;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -22,8 +14,15 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
-import io.github.jancellor.seq.Seq;
-import io.github.jancellor.seq.SeqStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.Spliterators;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 
 /**
  * Public-API pipelines through the library against the equivalent JDK
@@ -87,23 +86,35 @@ public class PipelineBench {
         seqS = Seq.viewOf(s);
         seqList = Seq.viewOf(list);
         for (Impl other : Impl.values()) {
-            check(other, "mapToList", Impl.LOOP.mapToList(this), other.mapToList(this));
-            check(other, "filterMapToList", Impl.LOOP.filterMapToList(this), other.filterMapToList(this));
+            check(other, "mapToList", Impl.LOOP.mapToList(this),
+                    other.mapToList(this));
+            check(other, "filterMapToList", Impl.LOOP.filterMapToList(this),
+                    other.filterMapToList(this));
             check(other, "mfmSum", Impl.LOOP.mfmSum(this), other.mfmSum(this));
-            check(other, "strLenSum", Impl.LOOP.strLenSum(this), other.strLenSum(this));
-            check(other, "sortedToList", Impl.LOOP.sortedToList(this), other.sortedToList(this));
-            check(other, "distinctCount", Impl.LOOP.distinctCount(this), other.distinctCount(this));
-            check(other, "anyMatch", Impl.LOOP.anyMatch(this), other.anyMatch(this));
-            check(other, "takeWhileToList", Impl.LOOP.takeWhileToList(this), other.takeWhileToList(this));
-            check(other, "flatMapSum", Impl.LOOP.flatMapSum(this), other.flatMapSum(this));
-            check(other, "listMapToList", Impl.LOOP.listMapToList(this), other.listMapToList(this));
-            check(other, "iteratorMapToList", Impl.LOOP.iteratorMapToList(this), other.iteratorMapToList(this));
+            check(other, "strLenSum", Impl.LOOP.strLenSum(this),
+                    other.strLenSum(this));
+            check(other, "sortedToList", Impl.LOOP.sortedToList(this),
+                    other.sortedToList(this));
+            check(other, "distinctCount", Impl.LOOP.distinctCount(this),
+                    other.distinctCount(this));
+            check(other, "anyMatch", Impl.LOOP.anyMatch(this),
+                    other.anyMatch(this));
+            check(other, "takeWhileToList", Impl.LOOP.takeWhileToList(this),
+                    other.takeWhileToList(this));
+            check(other, "flatMapSum", Impl.LOOP.flatMapSum(this),
+                    other.flatMapSum(this));
+            check(other, "listMapToList", Impl.LOOP.listMapToList(this),
+                    other.listMapToList(this));
+            check(other, "iteratorMapToList", Impl.LOOP.iteratorMapToList(this),
+                    other.iteratorMapToList(this));
         }
     }
 
-    private static void check(Impl impl, String name, Object expected, Object actual) {
+    private static void check(Impl impl, String name, Object expected,
+            Object actual) {
         if (!expected.equals(actual)) {
-            throw new AssertionError(impl + " " + name + ": expected " + expected + " got " + actual);
+            throw new AssertionError(impl + " " + name + ": expected "
+                    + expected + " got " + actual);
         }
     }
 
@@ -113,13 +124,16 @@ public class PipelineBench {
                 return b.seqA.map(x -> x + 1).toList();
             }
             List<Integer> filterMapToList(PipelineBench b) {
-                return b.seqA.filter(x -> (x & 1) == 0).map(x -> x * 3).toList();
+                return b.seqA.filter(x -> (x & 1) == 0).map(x -> x * 3)
+                        .toList();
             }
             int mfmSum(PipelineBench b) {
-                return b.seqA.map(x -> x + 1).filter(x -> (x & 1) == 0).map(x -> x * 3).sumOfInt(x -> x);
+                return b.seqA.map(x -> x + 1).filter(x -> (x & 1) == 0)
+                        .map(x -> x * 3).sumOfInt(x -> x);
             }
             int strLenSum(PipelineBench b) {
-                return b.seqS.filter(x -> x.charAt(0) == '1').map(String::length).sumOfInt(x -> x);
+                return b.seqS.filter(x -> x.charAt(0) == '1')
+                        .map(String::length).sumOfInt(x -> x);
             }
             List<Integer> sortedToList(PipelineBench b) {
                 return b.seqA.sorted().toList();
@@ -131,7 +145,8 @@ public class PipelineBench {
                 return b.seqA.map(x -> x + 1).anyMatch(x -> x == b.needle + 1);
             }
             List<Integer> takeWhileToList(PipelineBench b) {
-                return b.seqA.takeWhile(x -> x != b.needle).map(x -> x + 1).toList();
+                return b.seqA.takeWhile(x -> x != b.needle).map(x -> x + 1)
+                        .toList();
             }
             int flatMapSum(PipelineBench b) {
                 return b.seqA.flatMap(x -> b.nested[x]).sumOfInt(x -> x);
@@ -148,13 +163,16 @@ public class PipelineBench {
                 return b.seqA.stream().map(x -> x + 1).toList();
             }
             List<Integer> filterMapToList(PipelineBench b) {
-                return b.seqA.stream().filter(x -> (x & 1) == 0).map(x -> x * 3).toList();
+                return b.seqA.stream().filter(x -> (x & 1) == 0).map(x -> x * 3)
+                        .toList();
             }
             int mfmSum(PipelineBench b) {
-                return b.seqA.stream().map(x -> x + 1).filter(x -> (x & 1) == 0).map(x -> x * 3).sumOfInt(x -> x);
+                return b.seqA.stream().map(x -> x + 1).filter(x -> (x & 1) == 0)
+                        .map(x -> x * 3).sumOfInt(x -> x);
             }
             int strLenSum(PipelineBench b) {
-                return b.seqS.stream().filter(x -> x.charAt(0) == '1').map(String::length).sumOfInt(x -> x);
+                return b.seqS.stream().filter(x -> x.charAt(0) == '1')
+                        .map(String::length).sumOfInt(x -> x);
             }
             List<Integer> sortedToList(PipelineBench b) {
                 return b.seqA.stream().sorted().toList();
@@ -163,19 +181,23 @@ public class PipelineBench {
                 return b.seqA.stream().map(x -> x >> 1).distinct().count();
             }
             boolean anyMatch(PipelineBench b) {
-                return b.seqA.stream().map(x -> x + 1).anyMatch(x -> x == b.needle + 1);
+                return b.seqA.stream().map(x -> x + 1)
+                        .anyMatch(x -> x == b.needle + 1);
             }
             List<Integer> takeWhileToList(PipelineBench b) {
-                return b.seqA.stream().takeWhile(x -> x != b.needle).map(x -> x + 1).toList();
+                return b.seqA.stream().takeWhile(x -> x != b.needle)
+                        .map(x -> x + 1).toList();
             }
             int flatMapSum(PipelineBench b) {
-                return b.seqA.stream().flatMap(x -> b.nested[x].stream()).sumOfInt(x -> x);
+                return b.seqA.stream().flatMap(x -> b.nested[x].stream())
+                        .sumOfInt(x -> x);
             }
             List<Integer> listMapToList(PipelineBench b) {
                 return b.seqList.stream().map(x -> x + 1).toList();
             }
             List<Integer> iteratorMapToList(PipelineBench b) {
-                return SeqStream.viewOf(b.list.iterator()).map(x -> x + 1).toList();
+                return SeqStream.viewOf(b.list.iterator()).map(x -> x + 1)
+                        .toList();
             }
         },
         JDK {
@@ -183,13 +205,17 @@ public class PipelineBench {
                 return Arrays.stream(b.a).map(x -> x + 1).toList();
             }
             List<Integer> filterMapToList(PipelineBench b) {
-                return Arrays.stream(b.a).filter(x -> (x & 1) == 0).map(x -> x * 3).toList();
+                return Arrays.stream(b.a).filter(x -> (x & 1) == 0)
+                        .map(x -> x * 3).toList();
             }
             int mfmSum(PipelineBench b) {
-                return Arrays.stream(b.a).map(x -> x + 1).filter(x -> (x & 1) == 0).map(x -> x * 3).mapToInt(x -> x).sum();
+                return Arrays.stream(b.a).map(x -> x + 1)
+                        .filter(x -> (x & 1) == 0).map(x -> x * 3)
+                        .mapToInt(x -> x).sum();
             }
             int strLenSum(PipelineBench b) {
-                return Arrays.stream(b.s).filter(x -> x.charAt(0) == '1').map(String::length).mapToInt(x -> x).sum();
+                return Arrays.stream(b.s).filter(x -> x.charAt(0) == '1')
+                        .map(String::length).mapToInt(x -> x).sum();
             }
             List<Integer> sortedToList(PipelineBench b) {
                 return Arrays.stream(b.a).sorted().toList();
@@ -198,20 +224,25 @@ public class PipelineBench {
                 return Arrays.stream(b.a).map(x -> x >> 1).distinct().count();
             }
             boolean anyMatch(PipelineBench b) {
-                return Arrays.stream(b.a).map(x -> x + 1).anyMatch(x -> x == b.needle + 1);
+                return Arrays.stream(b.a).map(x -> x + 1)
+                        .anyMatch(x -> x == b.needle + 1);
             }
             List<Integer> takeWhileToList(PipelineBench b) {
-                return Arrays.stream(b.a).takeWhile(x -> x != b.needle).map(x -> x + 1).toList();
+                return Arrays.stream(b.a).takeWhile(x -> x != b.needle)
+                        .map(x -> x + 1).toList();
             }
             int flatMapSum(PipelineBench b) {
-                return Arrays.stream(b.a).flatMap(x -> b.nested[x].stream()).mapToInt(x -> x).sum();
+                return Arrays.stream(b.a).flatMap(x -> b.nested[x].stream())
+                        .mapToInt(x -> x).sum();
             }
             List<Integer> listMapToList(PipelineBench b) {
                 return b.list.stream().map(x -> x + 1).toList();
             }
             List<Integer> iteratorMapToList(PipelineBench b) {
                 Iterator<Integer> it = b.list.iterator();
-                return StreamSupport.stream(Spliterators.spliteratorUnknownSize(it, 0), false)
+                return StreamSupport
+                        .stream(Spliterators.spliteratorUnknownSize(it, 0),
+                                false)
                         .map(x -> x + 1).toList();
             }
         },
@@ -280,27 +311,70 @@ public class PipelineBench {
         };
 
         abstract List<Integer> mapToList(PipelineBench b);
+
         abstract List<Integer> filterMapToList(PipelineBench b);
+
         abstract int mfmSum(PipelineBench b);
+
         abstract int strLenSum(PipelineBench b);
+
         abstract List<Integer> sortedToList(PipelineBench b);
+
         abstract long distinctCount(PipelineBench b);
+
         abstract boolean anyMatch(PipelineBench b);
+
         abstract List<Integer> takeWhileToList(PipelineBench b);
+
         abstract int flatMapSum(PipelineBench b);
+
         abstract List<Integer> listMapToList(PipelineBench b);
+
         abstract List<Integer> iteratorMapToList(PipelineBench b);
     }
 
-    @Benchmark public List<Integer> mapToList() { return impl.mapToList(this); }
-    @Benchmark public List<Integer> filterMapToList() { return impl.filterMapToList(this); }
-    @Benchmark public int mfmSum() { return impl.mfmSum(this); }
-    @Benchmark public int strLenSum() { return impl.strLenSum(this); }
-    @Benchmark public List<Integer> sortedToList() { return impl.sortedToList(this); }
-    @Benchmark public long distinctCount() { return impl.distinctCount(this); }
-    @Benchmark public boolean anyMatch() { return impl.anyMatch(this); }
-    @Benchmark public List<Integer> takeWhileToList() { return impl.takeWhileToList(this); }
-    @Benchmark public int flatMapSum() { return impl.flatMapSum(this); }
-    @Benchmark public List<Integer> listMapToList() { return impl.listMapToList(this); }
-    @Benchmark public List<Integer> iteratorMapToList() { return impl.iteratorMapToList(this); }
+    @Benchmark
+    public List<Integer> mapToList() {
+        return impl.mapToList(this);
+    }
+    @Benchmark
+    public List<Integer> filterMapToList() {
+        return impl.filterMapToList(this);
+    }
+    @Benchmark
+    public int mfmSum() {
+        return impl.mfmSum(this);
+    }
+    @Benchmark
+    public int strLenSum() {
+        return impl.strLenSum(this);
+    }
+    @Benchmark
+    public List<Integer> sortedToList() {
+        return impl.sortedToList(this);
+    }
+    @Benchmark
+    public long distinctCount() {
+        return impl.distinctCount(this);
+    }
+    @Benchmark
+    public boolean anyMatch() {
+        return impl.anyMatch(this);
+    }
+    @Benchmark
+    public List<Integer> takeWhileToList() {
+        return impl.takeWhileToList(this);
+    }
+    @Benchmark
+    public int flatMapSum() {
+        return impl.flatMapSum(this);
+    }
+    @Benchmark
+    public List<Integer> listMapToList() {
+        return impl.listMapToList(this);
+    }
+    @Benchmark
+    public List<Integer> iteratorMapToList() {
+        return impl.iteratorMapToList(this);
+    }
 }

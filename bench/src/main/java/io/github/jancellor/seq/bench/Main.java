@@ -1,5 +1,13 @@
 package io.github.jancellor.seq.bench;
 
+import org.openjdk.jmh.profile.GCProfiler;
+import org.openjdk.jmh.results.Result;
+import org.openjdk.jmh.results.RunResult;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.options.CommandLineOptions;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -11,14 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.openjdk.jmh.profile.GCProfiler;
-import org.openjdk.jmh.results.Result;
-import org.openjdk.jmh.results.RunResult;
-import org.openjdk.jmh.runner.Runner;
-import org.openjdk.jmh.runner.options.CommandLineOptions;
-import org.openjdk.jmh.runner.options.Options;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
-
 /**
  * Entry point of the benchmark jar. Accepts the usual JMH command line,
  * adds the GC profiler and a fixed heap, runs, and writes the results as
@@ -27,7 +27,8 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
  */
 public class Main {
 
-    private static final List<String> IMPLS = List.of("LOOP", "JDK", "SEQSTREAM", "SEQ");
+    private static final List<String> IMPLS = List.of("LOOP", "JDK",
+            "SEQSTREAM", "SEQ");
 
     public static void main(String[] args) throws Exception {
         CommandLineOptions cmdline = new CommandLineOptions(args);
@@ -46,7 +47,8 @@ public class Main {
         System.out.println("Markdown written to " + out.toAbsolutePath());
     }
 
-    private static void writeMarkdown(Collection<RunResult> results, Path out) throws IOException {
+    private static void writeMarkdown(Collection<RunResult> results, Path out)
+            throws IOException {
         // benchmark -> size -> impl -> [time, alloc, error]
         Map<String, Map<Integer, Map<String, double[]>>> pipelineCells = new TreeMap<>();
         Map<String, Map<Integer, Map<String, double[]>>> operationCells = new TreeMap<>();
@@ -81,15 +83,16 @@ public class Main {
             Result<?> alloc = r.getSecondaryResults().get("gc.alloc.rate.norm");
             cells.computeIfAbsent(name, k -> new TreeMap<>())
                     .computeIfAbsent(size, k -> new TreeMap<>())
-                    .put(impl, new double[] {
+                    .put(impl, new double[]{
                             r.getPrimaryResult().getScore(),
                             alloc == null ? Double.NaN : alloc.getScore(),
-                            r.getPrimaryResult().getScoreError() });
+                            r.getPrimaryResult().getScoreError()});
         }
         try (PrintWriter w = new PrintWriter(Files.newBufferedWriter(out))) {
             w.println("# Benchmark results");
             w.println();
-            w.println(LocalDate.now() + ", " + System.getProperty("java.vm.name")
+            w.println(LocalDate.now() + ", "
+                    + System.getProperty("java.vm.name")
                     + " " + System.getProperty("java.vm.version")
                     + ". Cells are us/op / B/op. See README.md for how to read them.");
             w.println();
@@ -107,17 +110,21 @@ public class Main {
     }
 
     private static void writePipeline(
-            PrintWriter w, Map<String, Map<Integer, Map<String, double[]>>> cells) {
-        for (Map.Entry<String, Map<Integer, Map<String, double[]>>> b : cells.entrySet()) {
+            PrintWriter w,
+            Map<String, Map<Integer, Map<String, double[]>>> cells) {
+        for (Map.Entry<String, Map<Integer, Map<String, double[]>>> b : cells
+                .entrySet()) {
             w.println("### " + b.getKey());
             w.println();
             w.println("| size | " + String.join(" | ", IMPLS) + " |");
             w.println("|---:|" + "---:|".repeat(IMPLS.size()));
-            for (Map.Entry<Integer, Map<String, double[]>> row : b.getValue().entrySet()) {
+            for (Map.Entry<Integer, Map<String, double[]>> row : b.getValue()
+                    .entrySet()) {
                 StringBuilder line = new StringBuilder(
                         "| " + String.format("%,d", row.getKey()) + " |");
                 for (String impl : IMPLS) {
-                    line.append(' ').append(cell(row.getValue().get(impl))).append(" |");
+                    line.append(' ').append(cell(row.getValue().get(impl)))
+                            .append(" |");
                 }
                 w.println(line);
             }
@@ -130,27 +137,34 @@ public class Main {
      * time ratio so divergences sort to the top.
      */
     private static void writePaired(
-            PrintWriter w, Map<String, Map<Integer, Map<String, double[]>>> cells) {
+            PrintWriter w,
+            Map<String, Map<Integer, Map<String, double[]>>> cells) {
         Map<Integer, Map<String, Map<String, double[]>>> bySize = new TreeMap<>();
-        cells.forEach((name, sizes) -> sizes.forEach((size, impls) ->
-                bySize.computeIfAbsent(size, k -> new TreeMap<>()).put(name, impls)));
-        for (Map.Entry<Integer, Map<String, Map<String, double[]>>> e : bySize.entrySet()) {
+        cells.forEach((name, sizes) -> sizes.forEach((size, impls) -> bySize
+                .computeIfAbsent(size, k -> new TreeMap<>()).put(name, impls)));
+        for (Map.Entry<Integer, Map<String, Map<String, double[]>>> e : bySize
+                .entrySet()) {
             w.println("### size " + String.format("%,d", e.getKey()));
             w.println();
-            w.println("| case | JDK us/op | Seq us/op | time x | +/- | JDK B/op | Seq B/op | alloc x |");
+            w.println(
+                    "| case | JDK us/op | Seq us/op | time x | +/- | JDK B/op | Seq B/op | alloc x |");
             w.println("|---|---:|---:|---:|---:|---:|---:|---:|");
             e.getValue().entrySet().stream()
                     .sorted(Comparator.comparingDouble(
-                            (Map.Entry<String, Map<String, double[]>> row) -> -ratio(row.getValue(), 0)))
+                            (Map.Entry<String, Map<String, double[]>> row) -> -ratio(
+                                    row.getValue(), 0)))
                     .forEach(row -> {
                         double[] jdk = row.getValue().get("JDK");
                         double[] seq = row.getValue().get("SEQSTREAM");
                         w.println("| " + row.getKey()
-                                + " | " + number(jdk, 0) + " | " + number(seq, 0)
+                                + " | " + number(jdk, 0) + " | "
+                                + number(seq, 0)
                                 + " | " + times(ratio(row.getValue(), 0))
                                 + " | " + error(jdk, seq)
-                                + " | " + number(jdk, 1) + " | " + number(seq, 1)
-                                + " | " + times(ratio(row.getValue(), 1)) + " |");
+                                + " | " + number(jdk, 1) + " | "
+                                + number(seq, 1)
+                                + " | " + times(ratio(row.getValue(), 1))
+                                + " |");
                     });
             w.println();
         }
@@ -196,7 +210,9 @@ public class Main {
         if (c == null) {
             return "-";
         }
-        String time = c[0] < 100 ? String.format("%,.2f", c[0]) : String.format("%,.0f", c[0]);
-        return Double.isNaN(c[1]) ? time : time + " / " + String.format("%,.0f", c[1]);
+        String time = c[0] < 100 ? String.format("%,.2f", c[0])
+                : String.format("%,.0f", c[0]);
+        return Double.isNaN(c[1]) ? time
+                : time + " / " + String.format("%,.0f", c[1]);
     }
 }

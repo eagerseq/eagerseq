@@ -17,7 +17,7 @@ below illustrate possible shapes; check the interfaces for the current API.
 `Seq.equals` and `hashCode` are not customizable: they define the value's
 object contract. `AbstractSeq` supplies these implementations; direct `Seq`
 implementers must uphold the same contracts. See
-[`Seq.java`](../src/main/java/io/github/jancellor/seq/Seq.java) for the contracts and
+[`Seq.java`](../seq/src/main/java/io/github/jancellor/seq/Seq.java) for the contracts and
 recommended extension pattern.
 
 ## Ordering
