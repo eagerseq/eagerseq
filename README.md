@@ -141,47 +141,16 @@ implementation 'io.github.jancellor.seq:seq:x.y.z'
 
 ## Jackson support
 
-Optional modules let Jackson 2 or Jackson 3 deserialize JSON and XML into
-`Seq` values. Register the module for your Jackson version as shown below.
-
-### Jackson 2
-
-`seq-jackson2` is built against Jackson 2.21.6 and supports Java 8 or newer:
-
-```xml
-<dependency>
-    <groupId>io.github.jancellor.seq</groupId>
-    <artifactId>seq-jackson2</artifactId>
-    <version>x.y.z</version>
-</dependency>
-```
-
-```java
-ObjectMapper mapper = new ObjectMapper()
-        .registerModule(new io.github.jancellor.seq.jackson2.SeqModule());
-```
-
-### Jackson 3
-
-`seq-jackson3` is built against Jackson 3.1.5 and requires Java 17 or newer:
-
-```xml
-<dependency>
-    <groupId>io.github.jancellor.seq</groupId>
-    <artifactId>seq-jackson3</artifactId>
-    <version>x.y.z</version>
-</dependency>
-```
+Optional dependencies (`seq-jackson2` and `seq-jackson3`) let Jackson
+deserialize JSON and XML into `Seq` values.
+Either register its `SeqModule` or use Jackson's automatic module discovery
+(`findAndRegisterModules()` and `findAndAddModules()`).
 
 ```java
 JsonMapper mapper = JsonMapper.builder()
-        .addModule(new io.github.jancellor.seq.jackson3.SeqModule())
+        .addModule(new SeqModule())
         .build();
 ```
-
-Both artifacts also publish the standard Jackson service-provider entry used
-by Jackson's module-discovery API. Module discovery remains opt-in; placing an
-artifact on the classpath alone does not register it.
 
 ## Further reading
 
