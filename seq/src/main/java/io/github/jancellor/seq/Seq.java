@@ -296,6 +296,8 @@ public interface Seq<E> extends Collection<E> {
     /**
      * Returns a {@code Seq} containing the result of concatenating each
      * {@code Iterable} element in the given {@code Iterable} in order.
+     * Consistent with {@link #flatMap(Function)} in that {@code null}
+     * elements are treated as empty.
      */
     static <E> Seq<E> flatten(
             Iterable<? extends Iterable<? extends E>> iterables) {

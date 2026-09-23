@@ -57,6 +57,7 @@ import static java.util.Objects.requireNonNull;
  * of {@link #flatten} and {@link #flatMap} are temporary traversal resources
  * and are closed as they are consumed, or when this pipeline is closed.
  */
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public interface SeqStream<E> extends Stream<E> {
 
     /**
@@ -128,7 +129,7 @@ public interface SeqStream<E> extends Stream<E> {
     static <E> SeqStream<E> viewOf(Stream<? extends E> stream) {
         requireNonNull(stream);
         SeqStream<E> result = viewOf(stream.spliterator());
-        result.closes(stream);
+        result.onClose(stream::close);
         return stream.isParallel() ? result.parallel() : result;
     }
 
@@ -237,7 +238,7 @@ public interface SeqStream<E> extends Stream<E> {
         Arrays.stream(streams).forEach(Objects::requireNonNull);
         SeqStream<E> result = viewOf(
                 Sources.concat(Sources::toSource, streams));
-        Arrays.stream(streams).forEach(result::closes);
+        Arrays.stream(streams).forEach(stream -> result.onClose(stream::close));
         return Arrays.stream(streams).anyMatch(Stream::isParallel)
                 ? result.parallel()
                 : result;
@@ -262,7 +263,7 @@ public interface SeqStream<E> extends Stream<E> {
                 Stream::close,
                 pipeline::onClose);
         SeqStream<E> result = viewOf(flattened, pipeline);
-        result.closes(streams);
+        result.onClose(streams::close);
         return streams.isParallel() ? result.parallel() : result;
     }
 
@@ -280,7 +281,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean listEquals(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.listEquals(spliterator(), that.spliterator());
     }
 
@@ -289,7 +290,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean setEquals(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.setEquals(spliterator(), that.spliterator());
     }
 
@@ -298,7 +299,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean multisetEquals(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.multisetEquals(spliterator(), that.spliterator());
     }
 
@@ -310,7 +311,7 @@ public interface SeqStream<E> extends Stream<E> {
             BiFunction<? super E, ? super F, ? extends R> mapper) {
         requireNonNull(that);
         requireNonNull(mapper);
-        closes(that);
+        onClose(that::close);
         return viewOf(Sources.zip(spliterator(), that.spliterator(), mapper),
                 pipeline());
     }
@@ -327,7 +328,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> intersection(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return viewOf(Sources.intersection(spliterator(), that.spliterator()),
                 pipeline());
     }
@@ -337,7 +338,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> difference(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return viewOf(Sources.difference(spliterator(), that.spliterator()),
                 pipeline());
     }
@@ -347,7 +348,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> symmetricDifference(Stream<? extends E> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return viewOf(
                 Sources.symmetricDifference(spliterator(),
                         Sources.toSource(that)),
@@ -359,7 +360,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> union(Stream<? extends E> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return viewOf(Sources.union(spliterator(), Sources.toSource(that)),
                 pipeline());
     }
@@ -369,7 +370,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<E> sum(Stream<? extends E> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return viewOf(Sources.concat(Sources::toSource, this, that),
                 pipeline());
     }
@@ -379,7 +380,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean containsMultiset(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.containsMultiset(spliterator(), Sources.toSource(that));
     }
 
@@ -388,7 +389,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean disjoint(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.disjoint(spliterator(), that.spliterator());
     }
 
@@ -465,7 +466,7 @@ public interface SeqStream<E> extends Stream<E> {
             BiFunction<? super E, ? super F, ? extends R> mapper) {
         requireNonNull(that);
         requireNonNull(mapper);
-        closes(that);
+        onClose(that::close);
         Source<E> first = spliterator();
         Spliterator<? extends F> second = that.spliterator();
         return viewOf(Sources.defer(
@@ -490,7 +491,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default SeqStream<Integer> indexesOfSlice(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         Source<E> source = spliterator();
         Spliterator<?> slice = that.spliterator();
         return viewOf(Sources.defer(
@@ -503,7 +504,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default int indexOfSlice(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.indexOfSlice(spliterator(), that.spliterator());
     }
 
@@ -512,7 +513,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default int lastIndexOfSlice(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.lastIndexOfSlice(spliterator(), that.spliterator());
     }
 
@@ -521,7 +522,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean containsSlice(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.containsSlice(spliterator(), that.spliterator());
     }
 
@@ -530,7 +531,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean startsWith(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.startsWith(spliterator(), that.spliterator());
     }
 
@@ -539,7 +540,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean endsWith(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.endsWith(spliterator(), that.spliterator());
     }
 
@@ -649,7 +650,7 @@ public interface SeqStream<E> extends Stream<E> {
      */
     default boolean containsAll(Stream<?> that) {
         requireNonNull(that);
-        closes(that);
+        onClose(that::close);
         return Sources.containsAll(spliterator(), Sources.toSource(that));
     }
 
@@ -1344,15 +1345,6 @@ public interface SeqStream<E> extends Stream<E> {
 
     default void close() {
         pipeline().close();
-    }
-
-    /**
-     * Registers the given stream to be closed when this pipeline is closed
-     * and returns {@code this}. This method does not traverse or close the
-     * given stream.
-     */
-    default SeqStream<E> closes(Stream<?> stream) {
-        return onClose(stream::close);
     }
 
     /**

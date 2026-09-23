@@ -29,9 +29,7 @@ make such a cursor fail naturally.
 
 `onClose` adds a handler to the shared pipeline, provided that the stage on
 which it is called has not already been linked or consumed and the pipeline
-has not been closed. `closes(stream)` is the corresponding ownership helper:
-it registers the given stream's `close` method without traversing or closing
-it immediately. `close` closes the pipeline and runs its handlers once, in
+has not been closed. `close` closes the pipeline and runs its handlers once, in
 registration order; all handlers run, with later exceptions suppressed onto
 the first as specified by `BaseStream`. Closing is idempotent and works after
 a terminal operation.
@@ -60,8 +58,8 @@ cursors, a flattening cursor is exhausted once its pipeline is closed, so it
 never opens an inner stream that nothing could close.
 
 Every operation taking another `Stream` directly adopts it into the receiver's
-pipeline by calling `closes(stream)` after validating all arguments and before
-obtaining either spliterator. This applies equally to intermediate operations
+pipeline by registering the argument's `close` method after validating all
+arguments. This applies equally to intermediate operations
 such as `zip`, `product` and `indexesOfSlice` and terminal operations such as
 `listEquals`, `startsWith` and `containsAll`: the receiver's pipeline remains
 closeable after a terminal operation. Traversal does not itself close either

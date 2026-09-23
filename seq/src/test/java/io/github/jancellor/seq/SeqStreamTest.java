@@ -603,52 +603,8 @@ public class SeqStreamTest {
     }
 
     @Test
-    public void testCloses() {
-        int[] closes = {0};
-        Stream<Integer> owned = Stream.of(2, 3)
-                .onClose(() -> closes[0]++);
-        SeqStream<Integer> source = streamOf(0, 1);
-        assertThat(source.closes(owned), sameInstance(source));
-        assertThat(source.toSeq(), equalTo(Seq.of(0, 1)));
-        assertThat(closes[0], equalTo(0));
-        source.close();
-        source.close();
-        assertThat(closes[0], equalTo(1));
-
-        SeqStream<Integer> nullArgument = streamOf(0);
-        assertNullRejected(() -> nullArgument.closes(null));
-        assertThat(nullArgument.toSeq(), equalTo(Seq.of(0)));
-
-        SeqStream<Integer> consumed = streamOf(0);
-        consumed.count();
-        assertConsumed(() -> consumed.closes(Stream.empty()));
-    }
-
-    @Test
     public void testOperationsAdoptTheirStreamArguments() {
-        List<BiConsumer<SeqStream<Integer>, Stream<Integer>>> operations = Arrays
-                .asList(
-                        (source, that) -> source.listEquals(that),
-                        (source, that) -> source.setEquals(that),
-                        (source, that) -> source.multisetEquals(that),
-                        (source, that) -> source.zip(that, Integer::sum),
-                        SeqStream::intersection,
-                        SeqStream::difference,
-                        SeqStream::symmetricDifference,
-                        (source, that) -> source.disjoint(that),
-                        SeqStream::union,
-                        SeqStream::sum,
-                        (source, that) -> source.containsMultiset(that),
-                        (source, that) -> source.product(that, Integer::sum),
-                        SeqStream::indexesOfSlice,
-                        (source, that) -> source.indexOfSlice(that),
-                        (source, that) -> source.lastIndexOfSlice(that),
-                        (source, that) -> source.containsSlice(that),
-                        (source, that) -> source.startsWith(that),
-                        (source, that) -> source.endsWith(that),
-                        (source, that) -> source.containsAll(that));
-
-        for (BiConsumer<SeqStream<Integer>, Stream<Integer>> operation : operations) {
+        for (BiConsumer<SeqStream<Integer>, Stream<Integer>> operation : streamArgumentOperations()) {
             int[] closes = {0};
             SeqStream<Integer> source = streamOf(0, 1);
             Stream<Integer> that = Stream.of(0, 1)
@@ -670,6 +626,38 @@ public class SeqStreamTest {
         assertThat(invalidCloses[0], equalTo(0));
         that.close();
         assertThat(invalidCloses[0], equalTo(1));
+    }
+
+    @Test
+    public void testFailedStreamClaimsCurrentBehavior() {
+        // Registering onClose first lets most methods claim spliterators inline.
+        // This test records the resulting behavior for invalid stream reuse,
+        // not an API guarantee; update it if failure handling changes.
+        for (BiConsumer<SeqStream<Integer>, Stream<Integer>> operation : streamArgumentOperations()) {
+            int[] argumentCloses = {0};
+            SeqStream<Integer> consumedReceiver = streamOf(0, 1);
+            consumedReceiver.count();
+            Stream<Integer> validArgument = Stream.of(0, 1)
+                    .onClose(() -> argumentCloses[0]++);
+            assertConsumed(
+                    () -> operation.accept(consumedReceiver, validArgument));
+            assertThat(validArgument.count(), equalTo(2L));
+            consumedReceiver.close();
+            assertThat(argumentCloses[0], equalTo(0));
+            validArgument.close();
+            assertThat(argumentCloses[0], equalTo(1));
+
+            int[] failedArgumentCloses = {0};
+            SeqStream<Integer> validReceiver = streamOf(0, 1);
+            Stream<Integer> consumedArgument = Stream.of(0, 1)
+                    .onClose(() -> failedArgumentCloses[0]++);
+            consumedArgument.count();
+            assertConsumed(
+                    () -> operation.accept(validReceiver, consumedArgument));
+            assertConsumed(validReceiver::count);
+            validReceiver.close();
+            assertThat(failedArgumentCloses[0], equalTo(1));
+        }
     }
 
     @Test
@@ -1326,6 +1314,28 @@ public class SeqStreamTest {
 
     private SeqStream<Integer> emptyStream() {
         return streamOf();
+    }
+
+    private static List<BiConsumer<SeqStream<Integer>, Stream<Integer>>> streamArgumentOperations() {
+        return Arrays.asList((source, that) -> source.listEquals(that),
+                (source, that) -> source.setEquals(that),
+                (source, that) -> source.multisetEquals(that),
+                (source, that) -> source.zip(that, Integer::sum),
+                SeqStream::intersection,
+                SeqStream::difference,
+                SeqStream::symmetricDifference,
+                (source, that) -> source.disjoint(that),
+                SeqStream::union,
+                SeqStream::sum,
+                (source, that) -> source.containsMultiset(that),
+                (source, that) -> source.product(that, Integer::sum),
+                SeqStream::indexesOfSlice,
+                (source, that) -> source.indexOfSlice(that),
+                (source, that) -> source.lastIndexOfSlice(that),
+                (source, that) -> source.containsSlice(that),
+                (source, that) -> source.startsWith(that),
+                (source, that) -> source.endsWith(that),
+                (source, that) -> source.containsAll(that));
     }
 
     private static void assertConsumed(Runnable action) {
